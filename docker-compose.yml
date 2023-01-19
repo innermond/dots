@@ -15,7 +15,7 @@ services:
     ports:
      - 6379:6379
   api:
-    build: ./cmd/dotsd
+    build: .
     ports:
       - 8080:8080
     restart: on-failure:10

@@ -1,7 +1,7 @@
 FROm golang
 RUN mkdir /app
-ADD . /app
+ADD ./ /app
 WORKDIR /app
-RUN go build -o main ./main.go
+RUN go build -o ./cmd/dotsd/main ./cmd/dotsd/main.go
 EXPOSE 8080
-CMD ["/app/main"]
+CMD ["/app/cmd/dotsd/main"]
