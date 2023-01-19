@@ -27,6 +27,6 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, []byte("index"))
 }
 
-func ListenAndServe(domain string) error {
-	return http.ListenAndServe(domain+":8080", http.HandleFunc(s.router))
+func (s *Server) ListenAndServe(domain string) error {
+	return http.ListenAndServe(domain, s.router)
 }
