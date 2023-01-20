@@ -1,7 +1,6 @@
 package http
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -18,15 +17,44 @@ func NewServer() *Server {
 		router: mux.NewRouter(),
 	}
 
+	// because it uses defer it must fe called first
+	s.router.Use(reportPanic)
+
+	s.server.Handler = http.HandlerFunc(s.ServeHTTP)
+
 	router := s.router.PathPrefix("/").Subrouter()
 	router.HandleFunc("/", s.handleIndex).Methods("GET")
+	router.HandleFunc("/panic", s.handleFakingPanic).Methods("GET")
+
 	return s
 }
 
+func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	s.router.ServeHTTP(w, r)
+}
+
 func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprint(w, "index!")
+	w.Write([]byte("index works!"))
+}
+
+func (s *Server) handleFakingPanic(w http.ResponseWriter, r *http.Request) {
+	panic("panic attack!")
 }
 
 func (s *Server) ListenAndServe(domain string) error {
 	return http.ListenAndServe(domain, s.router)
+}
+
+func reportPanic(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if err := recover(); err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				// do something with err
+				w.Write([]byte("unexpected error"))
+			}
+		}()
+
+		next.ServeHTTP(w, r)
+	})
 }
