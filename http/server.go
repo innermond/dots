@@ -24,7 +24,7 @@ func NewServer() *Server {
 }
 
 func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprint(w, []byte("index"))
+	fmt.Fprint(w, "index")
 }
 
 func (s *Server) ListenAndServe(domain string) error {

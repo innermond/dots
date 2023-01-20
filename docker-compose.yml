@@ -1,4 +1,4 @@
-version: '3.8'
+version: '3.9'
 
 services:
   db:
@@ -14,13 +14,13 @@ services:
     image: redis
     ports:
      - 6379:6379
+    volumes:
+      - ./redis-data:/data
   api:
     build: .
     ports:
-      - 8080:8080
+      - 4000:8080
     restart: on-failure:10
-    environment:
-      - PORT=8080
     depends_on:
       - db
       - redis

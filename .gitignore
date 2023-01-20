@@ -1,5 +1,6 @@
 tok
 postgres-data
+redis-data
 # IDE - vim
 .vim/
 # Swap
