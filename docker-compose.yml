@@ -16,11 +16,3 @@ services:
      - 6379:6379
     volumes:
       - ./redis-data:/data
-  api:
-    build: .
-    ports:
-      - 4000:8080
-    restart: on-failure:10
-    depends_on:
-      - db
-      - redis

@@ -1,7 +1,6 @@
-FROm golang
-RUN mkdir /app
+FROm alpine:latest
+RUN mkdir -p /app/tmp
 WORKDIR /app
 COPY . .
-RUN go build -o ./cmd/dotsd/main ./cmd/dotsd/main.go
-EXPOSE 8080
-CMD ["/app/cmd/dotsd/main"]
+EXPOSE 5432
+EXPOSE 6379

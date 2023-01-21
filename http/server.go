@@ -17,10 +17,11 @@ func NewServer() *Server {
 		router: mux.NewRouter(),
 	}
 
-	// because it uses defer it must fe called first
+	// because it uses defer it must be called first
+	// so its defer function will be the last in the stack, like a safety net
 	s.router.Use(reportPanic)
 
-	s.server.Handler = http.HandlerFunc(s.ServeHTTP)
+	s.server.Handler = http.HandlerFunc(s.serveHTTP)
 
 	router := s.router.PathPrefix("/").Subrouter()
 	router.HandleFunc("/", s.handleIndex).Methods("GET")
@@ -29,7 +30,7 @@ func NewServer() *Server {
 	return s
 }
 
-func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (s *Server) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	s.router.ServeHTTP(w, r)
 }
 
@@ -38,7 +39,7 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleFakingPanic(w http.ResponseWriter, r *http.Request) {
-	panic("panic attack!")
+	panic("panic")
 }
 
 func (s *Server) ListenAndServe(domain string) error {
@@ -51,7 +52,7 @@ func reportPanic(next http.Handler) http.Handler {
 			if err := recover(); err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
 				// do something with err
-				w.Write([]byte("unexpected error"))
+				w.Write([]byte("panic: unexpected error"))
 			}
 		}()
 

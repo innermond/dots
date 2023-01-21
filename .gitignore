@@ -1,6 +1,10 @@
 tok
 postgres-data
 redis-data
+tmp
+.refresh
+.air.toml
+
 # IDE - vim
 .vim/
 # Swap
