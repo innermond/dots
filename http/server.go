@@ -4,11 +4,14 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"github.com/innermond/dots"
 )
 
 type Server struct {
 	server *http.Server
 	router *mux.Router
+
+	pingService dots.PingService
 }
 
 func NewServer() *Server {
@@ -52,7 +55,7 @@ func reportPanic(next http.Handler) http.Handler {
 			if err := recover(); err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
 				// do something with err
-				w.Write([]byte("panic: unexpected error"))
+				w.Write([]byte("panic: error"))
 			}
 		}()
 

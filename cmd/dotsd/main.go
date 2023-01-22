@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"os/signal"
 
@@ -20,10 +21,11 @@ func main() {
 		cancel()
 	}()
 
-	fmt.Println("starting server...")
-	server := http.NewServer()
-	err := server.ListenAndServe(addr)
-	fmt.Println(err)
+	go func() {
+		fmt.Println("starting server...")
+		server := http.NewServer()
+		log.Fatal(server.ListenAndServe(addr))
+	}()
 
 	<-ctx.Done()
 }
