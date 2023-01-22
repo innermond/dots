@@ -10,4 +10,5 @@ The postgres database from docker must be connected, which may be bone connectin
 1 `docker container exec -it <docker-name> /bin/bash`
 docker-name may be dots-db-1.
 2 Once inside docker `su postgres`
-3 \c dots
+3 psql
+4 \c dots

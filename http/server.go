@@ -1,6 +1,8 @@
 package http
 
 import (
+	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -11,7 +13,7 @@ type Server struct {
 	server *http.Server
 	router *mux.Router
 
-	pingService dots.PingService
+	PingService dots.PingService
 }
 
 func NewServer() *Server {
@@ -29,20 +31,13 @@ func NewServer() *Server {
 	router := s.router.PathPrefix("/").Subrouter()
 	router.HandleFunc("/", s.handleIndex).Methods("GET")
 	router.HandleFunc("/panic", s.handleFakingPanic).Methods("GET")
+	router.HandleFunc("/ping", s.handlePing).Methods("GET")
 
 	return s
 }
 
 func (s *Server) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	s.router.ServeHTTP(w, r)
-}
-
-func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("index works!"))
-}
-
-func (s *Server) handleFakingPanic(w http.ResponseWriter, r *http.Request) {
-	panic("panic")
 }
 
 func (s *Server) ListenAndServe(domain string) error {
@@ -55,10 +50,24 @@ func reportPanic(next http.Handler) http.Handler {
 			if err := recover(); err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
 				// do something with err
-				w.Write([]byte("panic: error"))
+				w.Write([]byte(fmt.Errorf("panic: %w", err).Error()))
 			}
 		}()
 
 		next.ServeHTTP(w, r)
 	})
+}
+
+func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
+	w.Write([]byte("index works!"))
+}
+
+func (s *Server) handleFakingPanic(w http.ResponseWriter, r *http.Request) {
+	panic("panic")
+}
+
+func (s *Server) handlePing(w http.ResponseWriter, r *http.Request) {
+	id := s.PingService.ById(r.Context())
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(id)
 }
