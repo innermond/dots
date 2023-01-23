@@ -46,6 +46,23 @@ func (db *DB) Close() error {
 	return nil
 }
 
+type Tx struct {
+	*sql.Tx
+	db *DB
+}
+
+func (db *DB) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) {
+	tx, err := db.db.BeginTx(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Tx{
+		Tx: tx,
+		db: db,
+	}, nil
+}
+
 type PingService struct {
 	db *DB
 }
