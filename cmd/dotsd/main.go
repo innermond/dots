@@ -40,11 +40,13 @@ func main() {
 
 	<-ctx.Done()
 
+	log.Println("closing server...")
+
 	if err := server.Close(); err != nil {
-		log.Printf("shutdown: %w", err)
+		log.Printf("shutdown: %w\n", err)
 	}
 
 	if err := db.Close(); err != nil {
-		log.Printf("shutdown: %w", err)
+		log.Printf("shutdown: %w\n", err)
 	}
 }
