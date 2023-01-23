@@ -1,6 +1,7 @@
 package http
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -38,6 +39,12 @@ func NewServer() *Server {
 
 func (s *Server) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	s.router.ServeHTTP(w, r)
+}
+
+func (s *Server) Close() error {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	return s.server.Shutdown(ctx)
 }
 
 func (s *Server) ListenAndServe(domain string) error {

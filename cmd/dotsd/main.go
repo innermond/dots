@@ -29,6 +29,7 @@ func main() {
 	}
 
 	pingService := postgres.NewPingService(db)
+
 	server := http.NewServer()
 	server.PingService = pingService
 
@@ -38,4 +39,12 @@ func main() {
 	}()
 
 	<-ctx.Done()
+
+	if err := server.Close(); err != nil {
+		log.Printf("shutdown: %w", err)
+	}
+
+	if err := db.Close(); err != nil {
+		log.Printf("shutdown: %w", err)
+	}
 }
