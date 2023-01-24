@@ -29,9 +29,11 @@ func main() {
 	}
 
 	pingService := postgres.NewPingService(db)
+	userService := postgres.NewUserService(db)
 
 	server := http.NewServer()
 	server.PingService = pingService
+	server.UserService = userService
 
 	go func() {
 		fmt.Println("starting server...")

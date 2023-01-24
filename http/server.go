@@ -15,6 +15,7 @@ type Server struct {
 	router *mux.Router
 
 	PingService dots.PingService
+	UserService dots.UserService
 }
 
 func NewServer() *Server {

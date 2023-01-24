@@ -12,6 +12,14 @@ type User struct {
 	LastLogin time.Time `json:"last_login"`
 }
 
+func (u *User) Validate() error {
+	// TODO regex for detecting white spaces
+	if u.Name == "" {
+		return Errorf(ECONFLICT, "User name required.")
+	}
+	return nil
+}
+
 var UserZero = &User{}
 
 func UserIsZero(u *User) bool {

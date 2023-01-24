@@ -7,6 +7,7 @@ import (
 
 const (
 	EINTERNAL = "internal"
+	ECONFLICT = "conflict"
 )
 
 type Error struct {
