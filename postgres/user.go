@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"time"
 
 	"github.com/innermond/dots"
 )
@@ -33,22 +34,22 @@ func createUser(ctx context.Context, tx *Tx, u *dots.User) error {
 		return err
 	}
 
-	result, err := tx.ExecContext(
-		ctx,
-		`insert into user 
-		(name, created_on) values
-		(?, ?)`,
-		u.Name, u.CreatedOn,
-	)
+	created_on := time.Now().UTC().Truncate(time.Second)
+	err := tx.QueryRowContext(
+		ctx, `
+		INSERT INTO "user" (
+			name,
+			created_on
+		)
+		values ($1, $2) returning id
+	`,
+		u.Name, created_on,
+	).Scan(&u.ID)
 	if err != nil {
 		return err
 	}
 
-	uid, err := result.LastInsertId()
-	if err != nil {
-		return err
-	}
-	u.ID = int(uid)
+	u.CreatedOn = created_on
 
 	return nil
 }

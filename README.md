@@ -2,7 +2,7 @@ First of all start the container.
 `docker compose up`
 
 #create a migration#
-Do not forget to quote table names that are words used by postgres, like user.
+Do not forget to quote (with duble quoyes ") table names that are words used by postgres, like user.
 
 `migrate create -ext sql -dir migrations -seq -digits 3 <migration name>`
 

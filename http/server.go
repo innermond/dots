@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/innermond/dots"
@@ -34,6 +35,8 @@ func NewServer() *Server {
 	router.HandleFunc("/", s.handleIndex).Methods("GET")
 	router.HandleFunc("/panic", s.handleFakingPanic).Methods("GET")
 	router.HandleFunc("/ping", s.handlePing).Methods("GET")
+
+	router.HandleFunc("/user", s.handleUser).Methods("POST")
 
 	return s
 }
@@ -78,4 +81,25 @@ func (s *Server) handlePing(w http.ResponseWriter, r *http.Request) {
 	id := s.PingService.ById(r.Context())
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(id)
+}
+
+func (s *Server) handleUser(w http.ResponseWriter, r *http.Request) {
+	isJson := strings.HasPrefix(strings.ToLower(r.Header.Get("Content-Type")), "application/json")
+	if !isJson {
+		w.WriteHeader(http.StatusUnsupportedMediaType)
+		w.Write([]byte(""))
+	}
+
+	var u *dots.User
+	err := json.NewDecoder(r.Body).Decode(&u)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(dots.Errorf(dots.EINTERNAL, "http: decoding %v", err))
+	}
+
+	err = s.UserService.CreateUser(r.Context(), u)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(dots.Errorf(dots.EINTERNAL, "user service: adding user %v", err))
+	}
 }
