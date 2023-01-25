@@ -8,12 +8,14 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
+	"github.com/gorilla/securecookie"
 	"github.com/innermond/dots"
 )
 
 type Server struct {
 	server *http.Server
 	router *mux.Router
+	sc     *securecookie.SecureCookie
 
 	PingService dots.PingService
 	UserService dots.UserService
