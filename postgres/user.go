@@ -34,22 +34,22 @@ func createUser(ctx context.Context, tx *Tx, u *dots.User) error {
 		return err
 	}
 
-	created_on := time.Now().UTC().Truncate(time.Second)
+	created_at := time.Now().UTC().Truncate(time.Second)
 	err := tx.QueryRowContext(
 		ctx, `
 		INSERT INTO "user" (
 			name,
-			created_on
+			created_at
 		)
 		values ($1, $2) returning id
 	`,
-		u.Name, created_on,
+		u.Name, created_at,
 	).Scan(&u.ID)
 	if err != nil {
 		return err
 	}
 
-	u.CreatedOn = created_on
+	u.CreatedOn = created_at
 
 	return nil
 }

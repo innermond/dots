@@ -6,7 +6,7 @@ Do not forget to quote (with duble quoyes ") table names that are words used by 
 
 `migrate create -ext sql -dir migrations -seq -digits 3 <migration name>`
 
-*run migration onto dockerized postgresql*
+##run migration onto dockerized postgresql
 `migrate -path migrations -database "postgresql://<user>:<password>@localhost:5432/dots?sslmode=disable" -verbose up`
 
 On development user is postgres and password is admin.
