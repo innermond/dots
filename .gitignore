@@ -1,3 +1,5 @@
+.env
+.securecookie
 tok
 postgres-data
 redis-data

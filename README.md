@@ -18,3 +18,9 @@ docker-name may be dots-db-1.
 2 Once inside docker `su postgres`
 3 psql
 4 \c dots
+
+##create/update .securecookie
+This file *.securecookie* it is used by gorilla securecookie. It contains 2 lines, for hashKey and blockKey 
+
+###create a new one
+`openssl rand -hex 64 > .securecookie && openssl rand -hex 32 >> .securecookie`
