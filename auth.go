@@ -1,6 +1,9 @@
 package dots
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
 type Auth struct {
 	ID           int       `json:"id"`
@@ -25,4 +28,8 @@ type AuthFilter struct {
 
 	Offset int `json:"offset"`
 	Limit  int `json:"limit"`
+}
+
+type AuthService interface {
+	CreateAuth(context.Context, *Auth) error
 }

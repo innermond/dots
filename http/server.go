@@ -19,6 +19,7 @@ type Server struct {
 
 	PingService dots.PingService
 	UserService dots.UserService
+	AuthService dots.AuthService
 }
 
 func NewServer() *Server {
@@ -39,6 +40,8 @@ func NewServer() *Server {
 	router.HandleFunc("/ping", s.handlePing).Methods("GET")
 
 	router.HandleFunc("/user", s.handleUser).Methods("POST")
+
+	s.registerAuthRoutes()
 
 	return s
 }

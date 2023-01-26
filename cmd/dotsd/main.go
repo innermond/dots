@@ -29,6 +29,7 @@ func main() {
 	}
 
 	pingService := postgres.NewPingService(db)
+	authService := postgres.NewAuthService(db)
 	userService := postgres.NewUserService(db)
 
 	server := http.NewServer()
