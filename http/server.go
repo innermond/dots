@@ -1,21 +1,30 @@
 package http
 
 import (
+	"bufio"
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/securecookie"
 	"github.com/innermond/dots"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/github"
 )
 
 type Server struct {
 	server *http.Server
 	router *mux.Router
 	sc     *securecookie.SecureCookie
+
+	ClientID     string
+	ClientSecret string
 
 	PingService dots.PingService
 	UserService dots.UserService
@@ -56,6 +65,15 @@ func (s *Server) Close() error {
 	return s.server.Shutdown(ctx)
 }
 
+func (s *Server) OAuth2Config() *oauth2.Config {
+	return &oauth2.Config{
+		ClientID:     s.ClientID,
+		ClientSecret: s.ClientSecret,
+		Scopes:       []string{},
+		Endpoint:     github.Endpoint,
+	}
+}
+
 func (s *Server) ListenAndServe(domain string) error {
 	return http.ListenAndServe(domain, s.router)
 }
@@ -74,8 +92,41 @@ func reportPanic(next http.Handler) http.Handler {
 	})
 }
 
+func (s *Server) OpenSecureCookie() error {
+	f, err := os.OpenFile(".securecookie", os.O_RDONLY, 0755)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer f.Close()
+
+	bb := [][]byte{}
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		b, err := hex.DecodeString(scanner.Text())
+		if err != nil {
+			log.Fatal(err)
+		}
+		bb = append(bb, b)
+	}
+	if err := scanner.Err(); err != nil {
+		log.Fatal(err)
+	}
+	if len(bb) != 2 {
+		log.Fatal("securecookie file: unexpected length")
+	}
+
+	s.sc = securecookie.New(bb[0], bb[1])
+	s.sc.SetSerializer(securecookie.JSONEncoder{})
+	return nil
+}
+
 func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("index works!"))
+	err := s.setSession(w, Session{})
+	if err != nil {
+		Error(w, r, err)
+		return
+	}
+	w.Write([]byte("index is working!"))
 }
 
 func (s *Server) handleFakingPanic(w http.ResponseWriter, r *http.Request) {
