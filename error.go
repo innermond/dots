@@ -6,9 +6,12 @@ import (
 )
 
 const (
-	EINTERNAL = "internal"
-	ECONFLICT = "conflict"
-	EINVALID  = "invalid"
+	EINTERNAL       = "internal"
+	ECONFLICT       = "conflict"
+	EINVALID        = "invalid"
+	ENOTFOUND       = "not_found"
+	ENOTIMPLEMENTED = "not_implemented"
+	EUNAUTHORIZED   = "unauthorized"
 )
 
 type Error struct {
