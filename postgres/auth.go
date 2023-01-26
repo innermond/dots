@@ -25,6 +25,16 @@ func (s *AuthService) CreateAuth(ctx context.Context, auth *dots.Auth) error {
 	}
 	defer tx.Rollback()
 
+	others, _, err := findAuth(ctx, tx, dots.AuthFilter{Source: &auth.Source, SourceID: &auth.SourceID})
+	if err != nil {
+		return err
+	}
+	if len(others) == 0 {
+		return &dots.Error{Code: dots.ENOTFOUND, Message: "Auth not found"}
+	}
+
+	*auth = *others[0]
+
 	tx.Commit()
 	return nil
 }
