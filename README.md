@@ -19,6 +19,9 @@ docker-name may be dots-db-1.
 3 psql
 4 \c dots
 
+##force migration
+`migrate -path migrations -database "postgresql://<user>:<password>@localhost:5432/dots?sslmode=disable" -verbose force <migration-number>`
+
 ##create/update .securecookie
 This file *.securecookie* it is used by gorilla securecookie. It contains 2 lines, for hashKey and blockKey 
 

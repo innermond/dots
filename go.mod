@@ -4,6 +4,8 @@ go 1.19
 
 require (
 	github.com/golang/protobuf v1.5.2 // indirect
+	github.com/google/go-github/v32 v32.1.0 // indirect
+	github.com/google/go-querystring v1.0.0 // indirect
 	github.com/gorilla/mux v1.8.0 // indirect
 	github.com/gorilla/securecookie v1.1.1 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect

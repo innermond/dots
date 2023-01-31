@@ -9,7 +9,7 @@ const SessionCookieName = "session"
 
 type Session struct {
 	UserID      int    `json:"user_id"`
-	RedirectUrl string `json:"redirect_url"`
+	RedirectURL string `json:"redirect_url"`
 	State       string `json:"state"`
 }
 

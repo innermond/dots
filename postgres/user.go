@@ -2,6 +2,8 @@ package postgres
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/innermond/dots"
@@ -29,6 +31,16 @@ func (s *UserService) CreateUser(ctx context.Context, u *dots.User) error {
 	return tx.Commit()
 }
 
+func (s *UserService) FindUser(ctx context.Context, filter dots.UserFilter) ([]*dots.User, int, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer tx.Rollback()
+
+	return findUser(ctx, tx, filter)
+}
+
 func createUser(ctx context.Context, tx *Tx, u *dots.User) error {
 	if err := u.Validate(); err != nil {
 		return err
@@ -39,17 +51,116 @@ func createUser(ctx context.Context, tx *Tx, u *dots.User) error {
 		ctx, `
 		INSERT INTO "user" (
 			name,
+			email,
 			created_at
 		)
-		values ($1, $2) returning id
+		values ($1, $2, $3) returning id
 	`,
-		u.Name, created_at,
+		u.Name, u.Email, created_at,
 	).Scan(&u.ID)
 	if err != nil {
 		return err
 	}
 
-	u.CreatedOn = created_at
+	u.CreatedAt = created_at
 
 	return nil
+}
+
+func updateUser(ctx context.Context, tx *Tx, id int, updata *dots.UserUpdate) (*dots.User, error) {
+	uu, _, err := findUser(ctx, tx, dots.UserFilter{ID: &id, Limit: 1})
+	if err != nil {
+		return nil, fmt.Errorf("postgres.user: cannot find user %w", err)
+	}
+	if len(uu) == 0 {
+		return nil, dots.Errorf(dots.ENOTFOUND, "user not found")
+	}
+	u := uu[0]
+
+	set, args := []string{}, []interface{}{}
+	if v := updata.Name; v != nil {
+		u.Name = *v
+		set, args = append(set, "name = ?"), append(args, *v)
+	}
+	if v := updata.Email; v != nil {
+		u.Email = *v
+		set, args = append(set, "email = ?"), append(args, *v)
+	}
+	u.UpdatedAt = time.Now().UTC().Truncate(time.Second)
+	set, args = append(set, "updated_at = ?"), append(args, u.UpdatedAt)
+
+	for inx, v := range set {
+		v = strings.Replace(v, "?", fmt.Sprintf("$%d", inx), 1)
+		set[inx] = v
+	}
+	args = append(args, id)
+
+	sqlstr := `
+		update "user"
+		set ` + strings.Join(set, ", ") + `
+		where	id = ` + fmt.Sprintf("$%d", len(args))
+
+	_, err = tx.ExecContext(ctx, sqlstr, args...)
+	if err != nil {
+		return nil, fmt.Errorf("postgres.user: cannot update %w", err)
+	}
+
+	return u, nil
+}
+
+func findUser(ctx context.Context, tx *Tx, filter dots.UserFilter) (_ []*dots.User, n int, err error) {
+	where, args := []string{"1 = 1"}, []interface{}{}
+	if v := filter.ID; v != nil {
+		where, args = append(where, "id = ?"), append(args, *v)
+	}
+	if v := filter.Email; v != nil {
+		where, args = append(where, "email = ?"), append(args, *v)
+	}
+	for inx, v := range where {
+		if !strings.Contains(v, "?") {
+			continue
+		}
+		v = strings.Replace(v, "?", fmt.Sprintf("$%d", inx), 1)
+		where[inx] = v
+	}
+
+	rows, err := tx.QueryContext(ctx, `
+	select
+		id, name, email,
+		created_at, updated_at,
+		count(*) over()
+	from "user"
+	where	`+strings.Join(where, " and ")+`
+	order by id asc
+	`+formatLimitOffset(filter.Limit, filter.Offset),
+		args...,
+	)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	users := []*dots.User{}
+	for rows.Next() {
+		var u dots.User
+		var createdAt time.Time
+		var updatedAt time.Time
+		err := rows.Scan(
+			&u.ID,
+			&u.Name,
+			&u.Email,
+			&createdAt,
+			&updatedAt,
+			&n,
+		)
+		if err != nil {
+			return nil, 0, err
+		}
+		users = append(users, &u)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
+
+	return users, n, nil
 }

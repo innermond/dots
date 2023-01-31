@@ -45,9 +45,9 @@ func errorStatusFromCode(code string) int {
 	return http.StatusInternalServerError
 }
 
-func codeFromErrorStatus(code int) string {
+func codeFromErrorStatus(status int) string {
 	for k, v := range codes {
-		if v == code {
+		if v == status {
 			return k
 		}
 	}

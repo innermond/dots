@@ -5,16 +5,34 @@ import (
 	"time"
 )
 
+const (
+	AuthSourceGithub = "github"
+)
+
 type Auth struct {
 	ID           int       `json:"id"`
 	UserID       int       `json:"user_id"`
+	User         *User     `json:"user"`
 	Source       string    `json:"source"`
 	SourceID     string    `json:"source_id"`
 	AccessToken  string    `json:"access_token"`
 	RefreshToken string    `json:"refresh_token"`
-	Expiry       time.Time `json:"expity"`
+	Expiry       time.Time `json:"expiry"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
+}
+
+func (a *Auth) Validate() error {
+	if a.UserID == 0 {
+		return Errorf(EINVALID, "user required")
+	} else if a.Source == "" {
+		return Errorf(EINVALID, "source required")
+	} else if a.SourceID == "" {
+		return Errorf(EINVALID, "source ID required")
+	} else if a.AccessToken == "" {
+		return Errorf(EINVALID, "access token required")
+	}
+	return nil
 }
 
 type AuthFilter struct {

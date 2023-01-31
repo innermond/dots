@@ -26,16 +26,84 @@ func (s *AuthService) CreateAuth(ctx context.Context, auth *dots.Auth) error {
 	defer tx.Rollback()
 
 	others, _, err := findAuth(ctx, tx, dots.AuthFilter{Source: &auth.Source, SourceID: &auth.SourceID})
+
 	if err != nil {
 		return err
 	}
 	if len(others) == 0 {
-		return &dots.Error{Code: dots.ENOTFOUND, Message: "Auth not found"}
+		if auth.UserID == 0 && auth.User != nil {
+			uu, _, err := findUser(ctx, tx, dots.UserFilter{Email: &auth.User.Email, Limit: 1})
+			if err != nil {
+				return fmt.Errorf("postgres.auth: cannot find user by email %w", err)
+			}
+			if len(u) == 0 {
+				err = createUser(ctx, tx, auth.User)
+				if err != nil {
+					return fmt.Errorf("postgres.auth: cannot create new user %w", err)
+				}
+				auth.UserID = auth.User.ID
+			} else {
+				auth.User = uu[0]
+			}
+		}
+	} else {
+		other := others[0]
+		other, err = updateAuth(ctx, tx, other.ID, auth.AccessToken, auth.RefreshToken, &auth.Expiry)
+		if err != nil {
+			return err
+		}
+		// TODO attach user
+		*auth = *other
+		return tx.Commit()
 	}
 
-	*auth = *others[0]
+	err = createAuth(ctx, tx, auth)
+	if err != nil {
+		return fmt.Errorf("postgres.auth: create auth: %s", err)
+	}
+	//u, _, err := findUser(ctx, tx, dots.UserFilter{ID: &auth
+
+	auth.UserID = auth.User.ID
 
 	tx.Commit()
+	return nil
+}
+
+func createAuth(ctx context.Context, tx *Tx, auth *dots.Auth) (err error) {
+	if err = auth.Validate(); err != nil {
+		return err
+	}
+
+	auth.CreatedAt = time.Now().UTC().Truncate(time.Second)
+	auth.UpdatedAt = auth.CreatedAt
+	var expiry time.Time
+	if !auth.Expiry.IsZero() {
+		expiry, err = time.Parse(time.RFC3339, auth.Expiry.String())
+		if err != nil {
+			return err
+		}
+	}
+
+	sqlstr := `INSERT INTO "auth" (
+		user_id, 
+		source, source_id, 
+		access_token, refresh_token, 
+		expiry
+		) VALUES ($1, $2, $3, $4, $5, $6)
+		returning id
+	)`
+
+	var id *int
+	err = tx.QueryRowContext(ctx, sqlstr,
+		auth.UserID,
+		auth.Source, auth.SourceID,
+		auth.AccessToken, auth.RefreshToken,
+		expiry,
+	).Scan(id)
+	if err != nil {
+		return err
+	}
+	auth.ID = int(*id)
 	return nil
 }
 
@@ -55,6 +123,13 @@ func findAuth(ctx context.Context, tx *Tx, filter dots.AuthFilter) (_ []*dots.Au
 	}
 	if v := filter.SourceID; v != nil {
 		where, args = append(where, "source_id = ?"), append(args, *v)
+	}
+	for inx, v := range where {
+		if !strings.Contains(v, "?") {
+			continue
+		}
+		v = strings.Replace(v, "?", fmt.Sprintf("$%d", inx), 1)
+		where[inx] = v
 	}
 
 	rows, err := tx.QueryContext(ctx, `
@@ -96,14 +171,9 @@ func findAuth(ctx context.Context, tx *Tx, filter dots.AuthFilter) (_ []*dots.Au
 		if err != nil {
 			return nil, 0, err
 		}
-
-		if expiry.Valid {
-			v, err := time.Parse(time.RFC3339, expiry.Time.String())
-			if err != nil || v.IsZero() {
-				return nil, 0, err
-			}
-			auth.Expiry = v
-		}
+		auth.Expiry = *timeRFC3339(expiry)
+		auth.CreatedAt = *timeRFC3339(createdAt)
+		auth.UpdatedAt = *timeRFC3339(updatedAt)
 		auths = append(auths, &auth)
 	}
 	if err := rows.Err(); err != nil {
@@ -113,13 +183,43 @@ func findAuth(ctx context.Context, tx *Tx, filter dots.AuthFilter) (_ []*dots.Au
 	return auths, n, nil
 }
 
-func formatLimitOffset(limit, offset int) string {
-	if limit > 0 && offset > 0 {
-		return fmt.Sprintf("limit %d offset %d", limit, offset)
-	} else if limit > 0 {
-		return fmt.Sprintf("limit %d", limit)
-	} else if offset > 0 {
-		return fmt.Sprintf("offset %d", offset)
+func updateAuth(
+	ctx context.Context,
+	tx *Tx,
+	id int,
+	accessToken string,
+	refreshToken string,
+	expiry *time.Time) (*dots.Auth, error) {
+	aa, _, err := findAuth(ctx, tx, dots.AuthFilter{ID: &id, Limit: 1})
+	if err != nil {
+		return nil, err
 	}
-	return ""
+	if len(aa) == 0 {
+		return nil, dots.Errorf(dots.ENOTFOUND, "auth not found")
+	}
+	auth := aa[0]
+	auth.AccessToken = accessToken
+	auth.RefreshToken = refreshToken
+	if expiry != nil && !expiry.IsZero() {
+		rfctime, err := time.Parse(time.RFC3339, expiry.String())
+		if err != nil {
+			return nil, err
+		}
+		auth.Expiry = rfctime
+	}
+	auth.UpdatedAt = time.Now().UTC().Truncate(time.Second)
+
+	err = auth.Validate()
+	if err != nil {
+		return auth, err
+	}
+
+	_, err = tx.ExecContext(ctx, `
+		update "auth"
+		set access_token = $1, refresh_token = $2, expiry = $3, updated_at = $4
+	`)
+	if err != nil {
+		return auth, err
+	}
+	return auth, nil
 }

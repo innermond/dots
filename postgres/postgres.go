@@ -5,8 +5,8 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
-	"github.com/innermond/dots"
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
@@ -63,20 +63,24 @@ func (db *DB) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) {
 	}, nil
 }
 
-type PingService struct {
-	db *DB
-}
-
-func NewPingService(db *DB) *PingService {
-	return &PingService{db: db}
-}
-
-func (s *PingService) ById(ctx context.Context) *dots.Ping {
-	ping := dots.Ping{}
-	err := s.db.db.QueryRow("select 111").Scan(&ping.ID)
-	if err != nil {
-		panic(fmt.Errorf("db error : %w", err))
+func formatLimitOffset(limit, offset int) string {
+	if limit > 0 && offset > 0 {
+		return fmt.Sprintf("limit %d offset %d", limit, offset)
+	} else if limit > 0 {
+		return fmt.Sprintf("limit %d", limit)
+	} else if offset > 0 {
+		return fmt.Sprintf("offset %d", offset)
 	}
-	return &ping
+	return ""
+}
 
+func timeRFC3339(val sql.NullTime) *time.Time {
+	if val.Valid {
+		v, err := time.Parse(time.RFC3339, val.Time.String())
+		if err != nil || v.IsZero() {
+			return nil
+		}
+		return &v
+	}
+	return nil
 }
