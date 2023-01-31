@@ -36,7 +36,7 @@ func (s *AuthService) CreateAuth(ctx context.Context, auth *dots.Auth) error {
 			if err != nil {
 				return fmt.Errorf("postgres.auth: cannot find user by email %w", err)
 			}
-			if len(u) == 0 {
+			if len(uu) == 0 {
 				err = createUser(ctx, tx, auth.User)
 				if err != nil {
 					return fmt.Errorf("postgres.auth: cannot create new user %w", err)
@@ -74,7 +74,7 @@ func createAuth(ctx context.Context, tx *Tx, auth *dots.Auth) (err error) {
 		return err
 	}
 
-	auth.CreatedAt = time.Now().UTC().Truncate(time.Second)
+	auth.CreatedAt = tx.now
 	auth.UpdatedAt = auth.CreatedAt
 	var expiry time.Time
 	if !auth.Expiry.IsZero() {
@@ -207,7 +207,7 @@ func updateAuth(
 		}
 		auth.Expiry = rfctime
 	}
-	auth.UpdatedAt = time.Now().UTC().Truncate(time.Second)
+	auth.UpdatedAt = tx.now
 
 	err = auth.Validate()
 	if err != nil {

@@ -16,10 +16,15 @@ type DB struct {
 
 	ctx    context.Context
 	cancel func()
+
+	Now func() time.Time
 }
 
 func NewDB(dsn string) *DB {
-	db := &DB{DSN: dsn}
+	db := &DB{
+		DSN: dsn,
+		Now: time.Now,
+	}
 	db.ctx, db.cancel = context.WithCancel(context.Background())
 
 	return db
@@ -48,7 +53,8 @@ func (db *DB) Close() error {
 
 type Tx struct {
 	*sql.Tx
-	db *DB
+	db  *DB
+	now time.Time
 }
 
 func (db *DB) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) {
@@ -58,8 +64,9 @@ func (db *DB) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) {
 	}
 
 	return &Tx{
-		Tx: tx,
-		db: db,
+		Tx:  tx,
+		db:  db,
+		now: db.Now().UTC().Truncate(time.Second),
 	}, nil
 }
 

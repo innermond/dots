@@ -2,7 +2,10 @@ package postgres
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
+	"io"
 	"strings"
 	"time"
 
@@ -46,23 +49,37 @@ func createUser(ctx context.Context, tx *Tx, u *dots.User) error {
 		return err
 	}
 
-	created_at := time.Now().UTC().Truncate(time.Second)
+	var email *string
+	if u.Email != "" {
+		email = &u.Email
+	}
+
+	apiKey := make([]byte, 32)
+	if _, err := io.ReadFull(rand.Reader, apiKey); err != nil {
+		return err
+	}
+	u.ApiKey = hex.EncodeToString(apiKey)
+
+	now := tx.now
 	err := tx.QueryRowContext(
 		ctx, `
 		INSERT INTO "user" (
 			name,
 			email,
-			created_at
+			apy_key,
+			created_at,
+			updated_at
 		)
-		values ($1, $2, $3) returning id
+		values ($1, $2, $3, $4) returning id
 	`,
-		u.Name, u.Email, created_at,
+		u.Name, email, u.ApiKey, now, now,
 	).Scan(&u.ID)
 	if err != nil {
 		return err
 	}
 
-	u.CreatedAt = created_at
+	u.CreatedAt = now
+	u.UpdatedAt = now
 
 	return nil
 }

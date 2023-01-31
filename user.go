@@ -9,12 +9,14 @@ type User struct {
 	ID        int       `json:"id"`
 	Name      string    `json:"name"`
 	Email     string    `json:"email"`
+	ApiKey    string    `json:"api_key"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
 type UserFilter struct {
-	ID    *int    `json:"id"`
-	Email *string `json:"email"`
+	ID     *int    `json:"id"`
+	Email  *string `json:"email"`
+	ApiKey *string `json:"api_key"`
 
 	Offset int `json:"offset"`
 	Limit  int `json:"limit"`
