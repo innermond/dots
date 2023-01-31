@@ -181,3 +181,20 @@ func findUser(ctx context.Context, tx *Tx, filter dots.UserFilter) (_ []*dots.Us
 
 	return users, n, nil
 }
+
+func deleteUser(ctx context.Context, tx *Tx, id int) error {
+	uu, _, err := findUser(ctx, tx, dots.UserFilter{ID: &id})
+	if err != nil {
+		return fmt.Errorf("postgres.user: cannot find user: %w", err)
+	}
+	if len(uu) == 0 {
+		return dots.Errorf(dots.ENOTFOUND, "user not found")
+	}
+
+	_, err = tx.ExecContext(ctx, `delete from "user" where id = $1`, id)
+	if err != nil {
+		return fmt.Errorf("postgres.user: cannot delete user: %w", err)
+	}
+
+	return nil
+}
