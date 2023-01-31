@@ -44,11 +44,9 @@ func main() {
 	server.ClientID = clientId
 	server.ClientSecret = clientSecret
 
-	pingService := postgres.NewPingService(db)
 	authService := postgres.NewAuthService(db)
 	userService := postgres.NewUserService(db)
 
-	server.PingService = pingService
 	server.UserService = userService
 	server.AuthService = authService
 
