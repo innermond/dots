@@ -37,7 +37,12 @@ func (u *User) Validate() error {
 var UserZero = &User{}
 
 func UserIsZero(u *User) bool {
-	return u.ID == 0 && u.Name == "" && u.CreatedAt.IsZero() && u.UpdatedAt.IsZero()
+	return u.ID == 0 &&
+		u.Name == "" &&
+		u.Email == "" &&
+		u.ApiKey == "" &&
+		u.CreatedAt.IsZero() &&
+		u.UpdatedAt.IsZero()
 }
 
 type UserService interface {

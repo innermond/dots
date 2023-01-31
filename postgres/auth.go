@@ -88,22 +88,23 @@ func createAuth(ctx context.Context, tx *Tx, auth *dots.Auth) (err error) {
 		user_id, 
 		source, source_id, 
 		access_token, refresh_token, 
-		expiry
-		) VALUES ($1, $2, $3, $4, $5, $6)
-		returning id
-	)`
+		expiry,
+		created_at, updated_at
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		returning id`
 
-	var id *int
+	var id int = 0
 	err = tx.QueryRowContext(ctx, sqlstr,
 		auth.UserID,
 		auth.Source, auth.SourceID,
 		auth.AccessToken, auth.RefreshToken,
 		expiry,
-	).Scan(id)
+		auth.CreatedAt, auth.UpdatedAt,
+	).Scan(&id)
 	if err != nil {
 		return err
 	}
-	auth.ID = int(*id)
+	auth.ID = id
 	return nil
 }
 
@@ -168,6 +169,9 @@ func findAuth(ctx context.Context, tx *Tx, filter dots.AuthFilter) (_ []*dots.Au
 			&updatedAt,
 			&n,
 		)
+		if err == sql.ErrNoRows {
+			return nil, 0, dots.Errorf(dots.ENOTFOUND, "auth not found")
+		}
 		if err != nil {
 			return nil, 0, err
 		}
@@ -222,4 +226,21 @@ func updateAuth(
 		return auth, err
 	}
 	return auth, nil
+}
+
+func deleteAuth(ctx context.Context, tx *Tx, id int) error {
+	aa, _, err := findAuth(ctx, tx, dots.AuthFilter{ID: &id})
+	if err != nil {
+		return err
+	}
+	if len(aa) == 0 {
+		return dots.Errorf(dots.ENOTFOUND, "auth not found")
+	}
+
+	_, err = tx.ExecContext(ctx, `delete from "auth" where id = $1`, id)
+	if err != nil {
+		return fmt.Errorf("postgres.auth: cannot delete auth: %w", err)
+	}
+
+	return nil
 }

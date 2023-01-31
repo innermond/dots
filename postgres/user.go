@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"crypto/rand"
+	"database/sql"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -66,11 +67,11 @@ func createUser(ctx context.Context, tx *Tx, u *dots.User) error {
 		INSERT INTO "user" (
 			name,
 			email,
-			apy_key,
+			api_key,
 			created_at,
 			updated_at
 		)
-		values ($1, $2, $3, $4) returning id
+		values ($1, $2, $3, $4, $5) returning id
 	`,
 		u.Name, email, u.ApiKey, now, now,
 	).Scan(&u.ID)
@@ -152,6 +153,9 @@ func findUser(ctx context.Context, tx *Tx, filter dots.UserFilter) (_ []*dots.Us
 	`+formatLimitOffset(filter.Limit, filter.Offset),
 		args...,
 	)
+	if err == sql.ErrNoRows {
+		return nil, 0, dots.Errorf(dots.ENOTFOUND, "user not found")
+	}
 	if err != nil {
 		return nil, 0, err
 	}

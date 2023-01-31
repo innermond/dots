@@ -15,9 +15,9 @@ type Auth struct {
 	User         *User     `json:"user"`
 	Source       string    `json:"source"`
 	SourceID     string    `json:"source_id"`
-	AccessToken  string    `json:"access_token"`
-	RefreshToken string    `json:"refresh_token"`
-	Expiry       time.Time `json:"expiry"`
+	AccessToken  string    `json:"-"`
+	RefreshToken string    `json:"-"`
+	Expiry       time.Time `json:"-"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
 }
