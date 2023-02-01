@@ -1,1 +1,1 @@
-alter table "auth" alter column expiry set null;
+alter table "auth" alter column expiry drop not null;
