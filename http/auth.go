@@ -15,8 +15,19 @@ import (
 )
 
 func (s *Server) registerAuthRoutes() {
+	s.router.HandleFunc("/logout", s.handleLogout).Methods("DELETE")
 	s.router.HandleFunc("/oauth/github", s.handleOAuthGithub).Methods("GET")
 	s.router.HandleFunc("/oauth/github/callback", s.handleOAuthGithubCallback).Methods("GET")
+}
+
+func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
+	err := s.setSession(w, Session{})
+	if err != nil {
+		Error(w, r, err)
+		return
+	}
+
+	http.Redirect(w, r, "/", http.StatusFound)
 }
 
 func (s *Server) handleOAuthGithub(w http.ResponseWriter, r *http.Request) {
@@ -101,7 +112,7 @@ func (s *Server) handleOAuthGithubCallback(w http.ResponseWriter, r *http.Reques
 	}
 
 	if !tok.Expiry.IsZero() {
-		auth.Expiry = tok.Expiry
+		auth.Expiry = &tok.Expiry
 	}
 
 	err = s.AuthService.CreateAuth(r.Context(), auth)

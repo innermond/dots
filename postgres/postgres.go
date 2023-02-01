@@ -81,13 +81,13 @@ func formatLimitOffset(limit, offset int) string {
 	return ""
 }
 
-func timeRFC3339(val sql.NullTime) *time.Time {
+func timeRFC3339(val sql.NullTime) time.Time {
 	if val.Valid {
 		v, err := time.Parse(time.RFC3339, val.Time.String())
-		if err != nil || v.IsZero() {
-			return nil
+		if err != nil {
+			return (*sql.NullTime)(nil).Time
 		}
-		return &v
+		return v
 	}
-	return nil
+	return (*sql.NullTime)(nil).Time
 }

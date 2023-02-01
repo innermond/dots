@@ -10,16 +10,16 @@ const (
 )
 
 type Auth struct {
-	ID           int       `json:"id"`
-	UserID       int       `json:"user_id"`
-	User         *User     `json:"user"`
-	Source       string    `json:"source"`
-	SourceID     string    `json:"source_id"`
-	AccessToken  string    `json:"-"`
-	RefreshToken string    `json:"-"`
-	Expiry       time.Time `json:"-"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	ID           int        `json:"id"`
+	UserID       int        `json:"user_id"`
+	User         *User      `json:"user"`
+	Source       string     `json:"source"`
+	SourceID     string     `json:"source_id"`
+	AccessToken  string     `json:"-"`
+	RefreshToken string     `json:"-"`
+	Expiry       *time.Time `json:"-"`
+	CreatedAt    time.Time  `json:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at"`
 }
 
 func (a *Auth) Validate() error {

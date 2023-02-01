@@ -48,7 +48,7 @@ func (s *AuthService) CreateAuth(ctx context.Context, auth *dots.Auth) error {
 		}
 	} else {
 		other := others[0]
-		other, err = updateAuth(ctx, tx, other.ID, auth.AccessToken, auth.RefreshToken, &auth.Expiry)
+		other, err = updateAuth(ctx, tx, other.ID, auth.AccessToken, auth.RefreshToken, auth.Expiry)
 		if err != nil {
 			return err
 		}
@@ -76,9 +76,9 @@ func createAuth(ctx context.Context, tx *Tx, auth *dots.Auth) (err error) {
 
 	auth.CreatedAt = tx.now
 	auth.UpdatedAt = auth.CreatedAt
-	var expiry time.Time
-	if !auth.Expiry.IsZero() {
-		expiry, err = time.Parse(time.RFC3339, auth.Expiry.String())
+	var expiry *time.Time
+	if auth.Expiry != nil {
+		*expiry, err = time.Parse(time.RFC3339, auth.Expiry.String())
 		if err != nil {
 			return err
 		}
@@ -154,7 +154,7 @@ func findAuth(ctx context.Context, tx *Tx, filter dots.AuthFilter) (_ []*dots.Au
 	auths := make([]*dots.Auth, 0)
 	for rows.Next() {
 		var auth dots.Auth
-		var expiry sql.NullTime
+		var expiry *time.Time
 		var createdAt sql.NullTime
 		var updatedAt sql.NullTime
 		err := rows.Scan(
@@ -175,9 +175,11 @@ func findAuth(ctx context.Context, tx *Tx, filter dots.AuthFilter) (_ []*dots.Au
 		if err != nil {
 			return nil, 0, err
 		}
-		auth.Expiry = *timeRFC3339(expiry)
-		auth.CreatedAt = *timeRFC3339(createdAt)
-		auth.UpdatedAt = *timeRFC3339(updatedAt)
+		if expiry != nil {
+			auth.Expiry = expiry
+		}
+		auth.CreatedAt = timeRFC3339(createdAt)
+		auth.UpdatedAt = timeRFC3339(updatedAt)
 		auths = append(auths, &auth)
 	}
 	if err := rows.Err(); err != nil {
@@ -209,7 +211,7 @@ func updateAuth(
 		if err != nil {
 			return nil, err
 		}
-		auth.Expiry = rfctime
+		auth.Expiry = &rfctime
 	}
 	auth.UpdatedAt = tx.now
 
