@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -114,10 +115,10 @@ func (s *Server) OpenSecureCookie() error {
 }
 
 func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
-	err := s.setSession(w, Session{})
-	if err != nil {
+	ses, err := s.getSession(r)
+	if err != nil && err != http.ErrNoCookie {
 		Error(w, r, err)
 		return
 	}
-	w.Write([]byte("index is working!"))
+	json.NewEncoder(w).Encode(&ses)
 }

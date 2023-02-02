@@ -206,8 +206,8 @@ func updateAuth(
 	auth := aa[0]
 	auth.AccessToken = accessToken
 	auth.RefreshToken = refreshToken
-	if expiry != nil && !expiry.IsZero() {
-		rfctime, err := time.Parse(time.RFC3339, expiry.String())
+	if expiry != nil {
+		rfctime, err := time.Parse(time.RFC3339, expiry.Format(time.RFC3339))
 		if err != nil {
 			return nil, err
 		}
@@ -223,7 +223,7 @@ func updateAuth(
 	_, err = tx.ExecContext(ctx, `
 		update "auth"
 		set access_token = $1, refresh_token = $2, expiry = $3, updated_at = $4
-	`)
+	`, auth.AccessToken, auth.RefreshToken, auth.Expiry, auth.UpdatedAt)
 	if err != nil {
 		return auth, err
 	}

@@ -13,6 +13,10 @@ type Session struct {
 	State       string `json:"state"`
 }
 
+func (ses *Session) IsZero() bool {
+	return ses.UserID == 0
+}
+
 func (s *Server) MarshalSession(session Session) (string, error) {
 	return s.sc.Encode(SessionCookieName, session)
 }

@@ -83,7 +83,8 @@ func formatLimitOffset(limit, offset int) string {
 
 func timeRFC3339(val sql.NullTime) time.Time {
 	if val.Valid {
-		v, err := time.Parse(time.RFC3339, val.Time.String())
+		vs := val.Time.Format(time.RFC3339)
+		v, err := time.Parse(time.RFC3339, vs)
 		if err != nil {
 			return (*sql.NullTime)(nil).Time
 		}
