@@ -38,23 +38,22 @@ func NewServer() *Server {
 	// because it uses defer it must be called first
 	// so its defer function will be the last in the stack, like a safety net
 	s.router.Use(reportPanic)
-
 	s.server.Handler = http.HandlerFunc(s.serveHTTP)
+	s.router.NotFoundHandler = http.HandlerFunc(s.handleNotFound)
+	s.router.Use(s.authenticate)
 
-	router := s.router.PathPrefix("/").Subrouter()
-	router.Use(s.authenticate)
-
-	router.HandleFunc("/", s.handleIndex).Methods("GET")
+	s.router.HandleFunc("/", s.handleIndex).Methods("GET")
 
 	{
 		router := s.router.PathPrefix("/").Subrouter()
 		router.Use(s.noAuthenticate)
-		s.registerAuthRoutes()
+		s.registerAuthRoutes(router)
 	}
 
 	{
-		router := s.router.PathPrefix("/").Subrouter()
+		router := s.router.PathPrefix("/me").Subrouter()
 		router.Use(s.yesAuthenticate)
+		s.registerUserRoutes(router)
 	}
 
 	return s
@@ -118,6 +117,12 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	json.NewEncoder(w).Encode(&ses)
+}
+
+func (s *Server) handleNotFound(w http.ResponseWriter, r *http.Request) {
+	resp := map[string]string{}
+	resp["error"] = "not found"
+	json.NewEncoder(w).Encode(&resp)
 }
 
 func reportPanic(next http.Handler) http.Handler {

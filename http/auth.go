@@ -10,15 +10,16 @@ import (
 	"strconv"
 
 	"github.com/google/go-github/v32/github"
+	"github.com/gorilla/mux"
 	"github.com/innermond/dots"
 	"golang.org/x/oauth2"
 )
 
-func (s *Server) registerAuthRoutes() {
-	s.router.HandleFunc("/login", s.handleLogin).Methods("GET")
-	s.router.HandleFunc("/logout", s.handleLogout).Methods("GET")
-	s.router.HandleFunc("/oauth/github", s.handleOAuthGithub).Methods("GET")
-	s.router.HandleFunc("/oauth/github/callback", s.handleOAuthGithubCallback).Methods("GET")
+func (s *Server) registerAuthRoutes(router *mux.Router) {
+	router.HandleFunc("/login", s.handleLogin).Methods("GET")
+	router.HandleFunc("/logout", s.handleLogout).Methods("GET")
+	router.HandleFunc("/oauth/github", s.handleOAuthGithub).Methods("GET")
+	router.HandleFunc("/oauth/github/callback", s.handleOAuthGithubCallback).Methods("GET")
 }
 
 func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
@@ -35,9 +36,9 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 
 	if !ses.IsZero() {
 		http.Redirect(w, r, "/", http.StatusFound)
+	} else {
+		http.Redirect(w, r, "/oauth/github", http.StatusFound)
 	}
-
-	http.Redirect(w, r, "/oauth/github", http.StatusFound)
 }
 
 func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {

@@ -86,7 +86,7 @@ func (u *User) UnmarshalJSON(b []byte) error {
 	if err := json.Unmarshal(b, &user); err != nil {
 		return err
 	}
-	layout := "2006-01-02T15:04:05"
+	layout := "2006-01-02T15:04:05+00:00"
 	createdAt, err := time.Parse(layout, user.CreatedAt)
 	if err != nil {
 		return err
