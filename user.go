@@ -2,16 +2,22 @@ package dots
 
 import (
 	"context"
+	"database/sql/driver"
+	"encoding/json"
+	"errors"
 	"time"
 )
 
 type User struct {
-	ID        int       `json:"id"`
-	Name      string    `json:"name"`
-	Email     string    `json:"email"`
-	ApiKey    string    `json:"api_key"`
+	ID     int    `json:"id"`
+	Name   string `json:"name"`
+	Email  string `json:"email"`
+	ApiKey string `json:"api_key"`
+
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
+
+	Auths []*Auth `json:"auths"`
 }
 type UserFilter struct {
 	ID     *int    `json:"id"`
@@ -48,4 +54,50 @@ func UserIsZero(u *User) bool {
 type UserService interface {
 	CreateUser(context.Context, *User) error
 	FindUser(context.Context, UserFilter) ([]*User, int, error)
+	FindUserByID(context.Context, int) (*User, error)
+}
+
+func (u User) Value() (driver.Value, error) {
+	return json.Marshal(u)
+}
+
+func (u *User) Scan(v interface{}) error {
+	b, ok := v.([]byte)
+	if !ok {
+		return errors.New("dots.user type assertion failed")
+	}
+	return json.Unmarshal(b, &u)
+}
+
+type userAlias User
+type userTimeString struct {
+	userAlias
+
+	CreatedAt string `json:"created_at"`
+	UpdatedAt string `json:"updated_at"`
+}
+
+func (u *User) UnmarshalJSON(b []byte) error {
+	if string(b) == "null" || string(b) == `""` {
+		return nil
+	}
+
+	var user userTimeString
+	if err := json.Unmarshal(b, &user); err != nil {
+		return err
+	}
+	layout := "2006-01-02T15:04:05"
+	createdAt, err := time.Parse(layout, user.CreatedAt)
+	if err != nil {
+		return err
+	}
+	updatedAt, err := time.Parse(layout, user.UpdatedAt)
+	if err != nil {
+		return err
+	}
+
+	u.CreatedAt = createdAt
+	u.UpdatedAt = updatedAt
+
+	return nil
 }

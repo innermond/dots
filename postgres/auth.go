@@ -105,6 +105,9 @@ func createAuth(ctx context.Context, tx *Tx, auth *dots.Auth) (err error) {
 		return err
 	}
 	auth.ID = id
+	if err := attachAuthUser(ctx, tx, auth); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -139,7 +142,8 @@ func findAuth(ctx context.Context, tx *Tx, filter dots.AuthFilter) (_ []*dots.Au
 			source, source_id, 
 			access_token, refresh_token, 
 			expiry, created_at, updated_at,
-			count(*) over()
+			count(*) over(),
+			(select coalesce(jsonb_agg(u.*), '[{}]'::jsonb) from "user" u where u.id = user_id limit 1)::json->0 "user"
 		from "auth"
 		where `+strings.Join(where, " and ")+`
 		order by id asc
@@ -157,6 +161,7 @@ func findAuth(ctx context.Context, tx *Tx, filter dots.AuthFilter) (_ []*dots.Au
 		var expiry *time.Time
 		var createdAt sql.NullTime
 		var updatedAt sql.NullTime
+		var u dots.User
 		err := rows.Scan(
 			&auth.ID,
 			&auth.UserID,
@@ -168,6 +173,7 @@ func findAuth(ctx context.Context, tx *Tx, filter dots.AuthFilter) (_ []*dots.Au
 			&createdAt,
 			&updatedAt,
 			&n,
+			&u,
 		)
 		if err == sql.ErrNoRows {
 			return nil, 0, dots.Errorf(dots.ENOTFOUND, "auth not found")
@@ -244,5 +250,13 @@ func deleteAuth(ctx context.Context, tx *Tx, id int) error {
 		return fmt.Errorf("postgres.auth: cannot delete auth: %w", err)
 	}
 
+	return nil
+}
+
+func attachAuthUser(ctx context.Context, tx *Tx, a *dots.Auth) (err error) {
+	a.User, err = findUserByID(ctx, tx, a.UserID)
+	if err != nil {
+		return err
+	}
 	return nil
 }

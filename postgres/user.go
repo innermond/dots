@@ -21,6 +21,26 @@ func NewUserService(db *DB) *UserService {
 	return &UserService{db: db}
 }
 
+func (s *UserService) FindUserByID(ctx context.Context, id int) (*dots.User, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	u, err := findUserByID(ctx, tx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	err = attachUserAuths(ctx, tx, u)
+	if err != nil {
+		return u, err
+	}
+
+	return u, nil
+}
+
 func (s *UserService) CreateUser(ctx context.Context, u *dots.User) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -29,6 +49,10 @@ func (s *UserService) CreateUser(ctx context.Context, u *dots.User) error {
 	defer tx.Rollback()
 
 	if err = createUser(ctx, tx, u); err != nil {
+		return err
+	}
+	err = attachUserAuths(ctx, tx, u)
+	if err != nil {
 		return err
 	}
 
@@ -186,6 +210,16 @@ func findUser(ctx context.Context, tx *Tx, filter dots.UserFilter) (_ []*dots.Us
 	return users, n, nil
 }
 
+func findUserByID(ctx context.Context, tx *Tx, id int) (*dots.User, error) {
+	uu, _, err := findUser(ctx, tx, dots.UserFilter{ID: &id, Limit: 1})
+	if err != nil {
+		return nil, err
+	} else if len(uu) == 0 {
+		return nil, fmt.Errorf("postgres.user: user not found")
+	}
+	return uu[0], nil
+}
+
 func deleteUser(ctx context.Context, tx *Tx, id int) error {
 	uu, _, err := findUser(ctx, tx, dots.UserFilter{ID: &id})
 	if err != nil {
@@ -200,5 +234,13 @@ func deleteUser(ctx context.Context, tx *Tx, id int) error {
 		return fmt.Errorf("postgres.user: cannot delete user: %w", err)
 	}
 
+	return nil
+}
+
+func attachUserAuths(ctx context.Context, tx *Tx, u *dots.User) (err error) {
+	u.Auths, _, err = findAuth(ctx, tx, dots.AuthFilter{UserID: &u.ID})
+	if err != nil {
+		return err
+	}
 	return nil
 }

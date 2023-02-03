@@ -1,6 +1,9 @@
 package dots
 
-import "context"
+import (
+	"context"
+	"log"
+)
 
 type key int
 
@@ -16,8 +19,8 @@ func NewContextWithUser(ctx context.Context, u *User) context.Context {
 func UserFromContext(ctx context.Context) *User {
 	u, ok := ctx.Value(userContextKey).(*User)
 	if !ok {
-		// TODO reporting not ok
-		return UserZero
+		log.Printf("dots: user not found in context: %v\n", u)
+		return &User{}
 	}
 
 	return u

@@ -42,9 +42,20 @@ func NewServer() *Server {
 	s.server.Handler = http.HandlerFunc(s.serveHTTP)
 
 	router := s.router.PathPrefix("/").Subrouter()
+	router.Use(s.authenticate)
+
 	router.HandleFunc("/", s.handleIndex).Methods("GET")
 
-	s.registerAuthRoutes()
+	{
+		router := s.router.PathPrefix("/").Subrouter()
+		router.Use(s.noAuthenticate)
+		s.registerAuthRoutes()
+	}
+
+	{
+		router := s.router.PathPrefix("/").Subrouter()
+		router.Use(s.yesAuthenticate)
+	}
 
 	return s
 }
@@ -70,20 +81,6 @@ func (s *Server) OAuth2Config() *oauth2.Config {
 
 func (s *Server) ListenAndServe(domain string) error {
 	return http.ListenAndServe(domain, s.router)
-}
-
-func reportPanic(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		defer func() {
-			if err := recover(); err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-				// do something with err
-				w.Write([]byte(fmt.Errorf("panic: %w", err).Error()))
-			}
-		}()
-
-		next.ServeHTTP(w, r)
-	})
 }
 
 func (s *Server) OpenSecureCookie() error {
@@ -121,4 +118,67 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	json.NewEncoder(w).Encode(&ses)
+}
+
+func reportPanic(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if err := recover(); err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				// do something with err
+				w.Write([]byte(fmt.Errorf("panic: %w", err).Error()))
+			}
+		}()
+
+		next.ServeHTTP(w, r)
+	})
+}
+
+func (s *Server) authenticate(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ses, _ := s.getSession(r)
+		if ses.UserID != 0 {
+			u, err := s.UserService.FindUserByID(r.Context(), ses.UserID)
+			if err == nil {
+				r = r.WithContext(dots.NewContextWithUser(r.Context(), u))
+			} else {
+				log.Printf("cannot find session user %d: %s", ses.UserID, err)
+			}
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func (s *Server) yesAuthenticate(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		u := dots.UserFromContext(r.Context())
+		if u.ID != 0 {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		redirectURL := r.URL
+		redirectURL.Scheme, redirectURL.Host = "", ""
+		ses, err := s.getSession(r)
+		if err != nil {
+			log.Printf("cannot get session: %s", err)
+		}
+		ses.RedirectURL = redirectURL.String()
+		err = s.setSession(w, ses)
+		if err != nil {
+			log.Printf("cannot set session: %s", err)
+		}
+		http.Redirect(w, r, "/login", http.StatusFound)
+	})
+}
+
+func (s *Server) noAuthenticate(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		u := dots.UserFromContext(r.Context())
+		if u.ID != 0 {
+			http.Redirect(w, r, "/", http.StatusFound)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
