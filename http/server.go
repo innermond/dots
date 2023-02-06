@@ -14,7 +14,7 @@ import (
 	"github.com/gorilla/securecookie"
 	"github.com/innermond/dots"
 	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/github"
+	"golang.org/x/oauth2/google"
 )
 
 type Server struct {
@@ -73,8 +73,13 @@ func (s *Server) OAuth2Config() *oauth2.Config {
 	return &oauth2.Config{
 		ClientID:     s.ClientID,
 		ClientSecret: s.ClientSecret,
-		Scopes:       []string{},
-		Endpoint:     github.Endpoint,
+		Scopes: []string{
+			"https://www.googleapis.com/auth/userinfo.email",
+			"https://www.googleapis.com/auth/userinfo.profile",
+			"openid",
+		},
+		RedirectURL: "http://localhost:8080/oauth/google/callback",
+		Endpoint:    google.Endpoint,
 	}
 }
 
@@ -116,12 +121,16 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 		Error(w, r, err)
 		return
 	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(&ses)
 }
 
 func (s *Server) handleNotFound(w http.ResponseWriter, r *http.Request) {
 	resp := map[string]string{}
 	resp["error"] = "not found"
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusNotFound)
 	json.NewEncoder(w).Encode(&resp)
 }
 

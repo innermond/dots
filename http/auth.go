@@ -3,23 +3,21 @@ package http
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
-	"strconv"
 
-	"github.com/google/go-github/v32/github"
 	"github.com/gorilla/mux"
 	"github.com/innermond/dots"
-	"golang.org/x/oauth2"
 )
 
 func (s *Server) registerAuthRoutes(router *mux.Router) {
 	router.HandleFunc("/login", s.handleLogin).Methods("GET")
 	router.HandleFunc("/logout", s.handleLogout).Methods("GET")
-	router.HandleFunc("/oauth/github", s.handleOAuthGithub).Methods("GET")
-	router.HandleFunc("/oauth/github/callback", s.handleOAuthGithubCallback).Methods("GET")
+	router.HandleFunc("/oauth/google", s.handleOAuthGoogle).Methods("GET")
+	router.HandleFunc("/oauth/google/callback", s.handleOAuthGoogleCallback).Methods("GET")
 }
 
 func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
@@ -37,7 +35,7 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	if !ses.IsZero() {
 		http.Redirect(w, r, "/", http.StatusFound)
 	} else {
-		http.Redirect(w, r, "/oauth/github", http.StatusFound)
+		http.Redirect(w, r, "/oauth/google", http.StatusFound)
 	}
 }
 
@@ -51,7 +49,7 @@ func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", http.StatusFound)
 }
 
-func (s *Server) handleOAuthGithub(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleOAuthGoogle(w http.ResponseWriter, r *http.Request) {
 	session, err := s.getSession(r)
 	if err != nil {
 		Error(w, r, err)
@@ -76,7 +74,7 @@ func (s *Server) handleOAuthGithub(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, authUrl, http.StatusFound)
 }
 
-func (s *Server) handleOAuthGithubCallback(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleOAuthGoogleCallback(w http.ResponseWriter, r *http.Request) {
 	session, err := s.getSession(r)
 	if err != nil {
 		Error(w, r, err)
@@ -88,27 +86,38 @@ func (s *Server) handleOAuthGithubCallback(w http.ResponseWriter, r *http.Reques
 		Error(w, r, errors.New("oauth state mismatch"))
 	}
 
-	tok, err := s.OAuth2Config().Exchange(r.Context(), code)
+	oauth := s.OAuth2Config()
+	tok, err := oauth.Exchange(r.Context(), code)
 	if err != nil {
 		Error(w, r, fmt.Errorf("oauth exchange error: %s", err))
 		return
 	}
 
-	client := github.NewClient(
-		oauth2.NewClient(
-			r.Context(),
-			oauth2.StaticTokenSource(
-				&oauth2.Token{AccessToken: tok.AccessToken},
-			),
-		),
-	)
-
-	u, _, err := client.Users.Get(r.Context(), "")
+	const oauthGoogleURLAPI = "https://www.googleapis.com/oauth2/v2/userinfo"
+	client := oauth.Client(r.Context(), tok)
+	resp, err := client.Get(oauthGoogleURLAPI)
 	if err != nil {
-		Error(w, r, fmt.Errorf("cannot fetch github user: %s", err))
+		Error(w, r, fmt.Errorf("http: response error %s", err))
 		return
-	} else if u.ID == nil {
-		Error(w, r, errors.New("user ID not given by Github"))
+	}
+	cnt, err := io.ReadAll(resp.Body)
+	if err != nil {
+		Error(w, r, fmt.Errorf("http: cannot read response %s", err))
+		return
+	}
+
+	type authResponse struct {
+		ID            *string `json:"id"`
+		Name          *string `json:"name"`
+		Login         *string `json:"login"`
+		Email         *string `json:"email"`
+		VerifiedEmail *bool   `json:"verified_email"`
+	}
+
+	var u authResponse
+	err = json.Unmarshal(cnt, &u)
+	if err != nil {
+		Error(w, r, fmt.Errorf("http: cannot decode response %s", err))
 		return
 	}
 
@@ -125,8 +134,8 @@ func (s *Server) handleOAuthGithubCallback(w http.ResponseWriter, r *http.Reques
 	}
 
 	auth := &dots.Auth{
-		Source:       dots.AuthSourceGithub,
-		SourceID:     strconv.FormatInt(*u.ID, 10),
+		Source:       dots.AuthSourceGoogle,
+		SourceID:     *u.ID,
 		AccessToken:  tok.AccessToken,
 		RefreshToken: tok.RefreshToken,
 		User:         &dots.User{Name: name, Email: email},

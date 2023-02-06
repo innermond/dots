@@ -78,10 +78,12 @@ func createAuth(ctx context.Context, tx *Tx, auth *dots.Auth) (err error) {
 	auth.UpdatedAt = auth.CreatedAt
 	var expiry *time.Time
 	if auth.Expiry != nil {
-		*expiry, err = time.Parse(time.RFC3339, auth.Expiry.String())
+		tmp := auth.Expiry.Format(time.RFC3339)
+		_expiry, err := time.Parse(time.RFC3339, tmp)
 		if err != nil {
 			return err
 		}
+		expiry = &_expiry
 	}
 
 	sqlstr := `INSERT INTO "auth" (

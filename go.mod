@@ -3,6 +3,7 @@ module github.com/innermond/dots
 go 1.19
 
 require (
+	cloud.google.com/go/compute/metadata v0.2.0 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/go-github/v32 v32.1.0 // indirect
 	github.com/google/go-querystring v1.0.0 // indirect

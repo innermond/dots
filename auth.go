@@ -7,6 +7,7 @@ import (
 
 const (
 	AuthSourceGithub = "github"
+	AuthSourceGoogle = "google"
 )
 
 type Auth struct {

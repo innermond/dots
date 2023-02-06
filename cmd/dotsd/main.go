@@ -22,8 +22,8 @@ func main() {
 		log.Fatal(err)
 	}
 
-	clientId := os.Getenv("DOTS_GITHUB_CLIENT_ID")
-	clientSecret := os.Getenv("DOTS_GITHUB_CLIENT_SECRET")
+	clientId := os.Getenv("DOTS_GOOGLE_CLIENT_ID")
+	clientSecret := os.Getenv("DOTS_GOOGLE_CLIENT_SECRET")
 	if clientId == "" || clientSecret == "" {
 		log.Fatal("client credentials are missing")
 	}
