@@ -180,7 +180,8 @@ func (s *Server) yesAuthenticate(next http.Handler) http.Handler {
 func (s *Server) noAuthenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		u := dots.UserFromContext(r.Context())
-		if u.ID != 0 {
+		isLogout := r.URL.Path == "/logout"
+		if u.ID != 0 && !isLogout {
 			http.Redirect(w, r, "/", http.StatusFound)
 			return
 		}
