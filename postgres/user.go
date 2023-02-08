@@ -168,12 +168,14 @@ func findUser(ctx context.Context, tx *Tx, filter dots.UserFilter) (_ []*dots.Us
 
 	rows, err := tx.QueryContext(ctx, `
 	select
-		id, name, email,
-		created_at, updated_at,
+		--id, name, email, api_key,
+		--created_at, updated_at,
+		coalesce(jsonb_agg(u.*), '[{}]'::jsonb)::jsonb->0 "user",
 		count(*) over()
-	from "user"
+	from "user" u
 	where	`+strings.Join(where, " and ")+`
-	order by id asc
+	group by u.id
+	--order by id asc
 	`+formatLimitOffset(filter.Limit, filter.Offset),
 		args...,
 	)
@@ -188,14 +190,16 @@ func findUser(ctx context.Context, tx *Tx, filter dots.UserFilter) (_ []*dots.Us
 	users := []*dots.User{}
 	for rows.Next() {
 		var u dots.User
-		var createdAt time.Time
-		var updatedAt time.Time
+		//var createdAt time.Time
+		//var updatedAt time.Time
 		err := rows.Scan(
-			&u.ID,
+			/*&u.ID,
 			&u.Name,
 			&u.Email,
+			&u.ApiKey,
 			&createdAt,
-			&updatedAt,
+			&updatedAt,*/
+			&u,
 			&n,
 		)
 		if err != nil {

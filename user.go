@@ -96,6 +96,10 @@ func (u *User) UnmarshalJSON(b []byte) error {
 		return err
 	}
 
+	u.ID = user.ID
+	u.Name = user.Name
+	u.Email = user.Email
+	u.ApiKey = user.ApiKey
 	u.CreatedAt = createdAt
 	u.UpdatedAt = updatedAt
 
