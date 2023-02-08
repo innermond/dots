@@ -23,6 +23,10 @@ type Auth struct {
 	UpdatedAt    time.Time  `json:"updated_at"`
 }
 
+func (a *Auth) IsUserPersisted() bool {
+	return a.User == nil || a.User.ID == 0
+}
+
 func (a *Auth) Validate() error {
 	if a.UserID == 0 {
 		return Errorf(EINVALID, "user required")
@@ -41,7 +45,7 @@ type AuthFilter struct {
 	UserID    *int       `json:"user_id"`
 	Source    *string    `json:"source"`
 	SourceID  *string    `json:"source_id"`
-	Expiry    *time.Time `json:"expity"`
+	Expiry    *time.Time `json:"expiry"`
 	CreatedAt *time.Time `json:"created_at"`
 	UpdatedAt *time.Time `json:"updated_at"`
 

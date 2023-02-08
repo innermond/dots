@@ -44,6 +44,7 @@ func (s *AuthService) CreateAuth(ctx context.Context, auth *dots.Auth) error {
 				auth.UserID = auth.User.ID
 			} else {
 				auth.User = uu[0]
+				auth.UserID = auth.User.ID
 			}
 		}
 	} else {
@@ -52,7 +53,6 @@ func (s *AuthService) CreateAuth(ctx context.Context, auth *dots.Auth) error {
 		if err != nil {
 			return err
 		}
-		// TODO attach user
 		*auth = *other
 		return tx.Commit()
 	}
