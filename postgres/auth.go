@@ -145,7 +145,7 @@ func findAuth(ctx context.Context, tx *Tx, filter dots.AuthFilter) (_ []*dots.Au
 			access_token, refresh_token, 
 			expiry, created_at, updated_at,
 			count(*) over(),
-			(select coalesce(jsonb_agg(u.*), '[{}]'::jsonb) from "user" u where u.id = user_id limit 1)::json->0 "user"
+			(select coalesce(jsonb_agg(u.*), '[{}]'::jsonb) from "user" u where u.id = user_id limit 1)::jsonb->0 "user"
 		from "auth"
 		where `+strings.Join(where, " and ")+`
 		order by id asc
