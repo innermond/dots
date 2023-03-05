@@ -1,5 +1,6 @@
 .env
 .securecookie
+__debug_bin
 tok
 postgres-data
 redis-data

@@ -25,7 +25,7 @@ func main() {
 	clientId := os.Getenv("DOTS_GOOGLE_CLIENT_ID")
 	clientSecret := os.Getenv("DOTS_GOOGLE_CLIENT_SECRET")
 	if clientId == "" || clientSecret == "" {
-		log.Fatal("client credentials are missing")
+		log.Fatal("app credentials are missing")
 	}
 
 	dsn := os.Getenv("DOTS_DSN")
