@@ -27,6 +27,8 @@ type Server struct {
 
 	UserService dots.UserService
 	AuthService dots.AuthService
+
+	EntryTypeService dots.EntryTypeService
 }
 
 func NewServer() *Server {
@@ -56,6 +58,11 @@ func NewServer() *Server {
 		s.registerUserRoutes(router)
 	}
 
+	{
+		router := s.router.PathPrefix("/entry-types").Subrouter()
+		router.Use(s.yesAuthenticate)
+		s.registerEntryTypeRoutes(router)
+	}
 	return s
 }
 
@@ -128,7 +135,7 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleNotFound(w http.ResponseWriter, r *http.Request) {
 	resp := map[string]string{}
-	resp["error"] = "not found"
+	resp["error"] = fmt.Sprintf("[server] '%s' not found", r.URL.Path)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusNotFound)
 	json.NewEncoder(w).Encode(&resp)

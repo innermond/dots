@@ -46,9 +46,11 @@ func main() {
 
 	authService := postgres.NewAuthService(db)
 	userService := postgres.NewUserService(db)
+	entryTypeService := postgres.NewEntryTypeService(db)
 
 	server.UserService = userService
 	server.AuthService = authService
+	server.EntryTypeService = entryTypeService
 
 	ctx, cancel := context.WithCancel(context.Background())
 	c := make(chan os.Signal, 1)

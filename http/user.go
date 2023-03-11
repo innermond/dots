@@ -8,7 +8,7 @@ import (
 )
 
 func (s *Server) registerUserRoutes(router *mux.Router) {
-	router.HandleFunc("/", s.handleUserIndex).Methods("GET")
+	router.HandleFunc("", s.handleUserIndex).Methods("GET")
 }
 
 func (s *Server) handleUserIndex(w http.ResponseWriter, r *http.Request) {
