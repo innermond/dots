@@ -19,6 +19,7 @@ type User struct {
 
 	Auths []*Auth `json:"auths"`
 }
+
 type UserFilter struct {
 	ID     *int    `json:"id"`
 	Email  *string `json:"email"`
@@ -27,6 +28,7 @@ type UserFilter struct {
 	Offset int `json:"offset"`
 	Limit  int `json:"limit"`
 }
+
 type UserUpdate struct {
 	Name  *string `json:"name"`
 	Email *string `json:"email"`
