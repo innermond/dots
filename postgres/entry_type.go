@@ -79,8 +79,47 @@ values
 	return nil
 }
 
-func updateEntryType(ctx context.Context, tx *Tx, id int, upd *dots.EntryTypeUpdate) (*dots.EntryType, error) {
-	return nil, nil
+func updateEntryType(ctx context.Context, tx *Tx, id int, updata *dots.EntryTypeUpdate) (*dots.EntryType, error) {
+	ee, _, err := findEntryType(ctx, tx, dots.EntryTypeFilter{ID: &id, Limit: 1})
+	if err != nil {
+		return nil, fmt.Errorf("postgres.entry type: cannot retrieve entry type %w", err)
+	}
+	if len(ee) == 0 {
+		return nil, dots.Errorf(dots.ENOTFOUND, "entry type not found")
+	}
+	et := ee[0]
+
+	set, args := []string{}, []interface{}{}
+	if v := updata.Code; v != nil {
+		et.Code = *v
+		set, args = append(set, "code = ?"), append(args, *v)
+	}
+	if v := updata.Unit; v != nil {
+		et.Unit = *v
+		set, args = append(set, "unit = ?"), append(args, *v)
+	}
+	if v := updata.Description; v != nil {
+		et.Description = v
+		set, args = append(set, "description = ?"), append(args, *v)
+	}
+
+	for inx, v := range set {
+		v = strings.Replace(v, "?", fmt.Sprintf("$%d", inx+1), 1)
+		set[inx] = v
+	}
+	args = append(args, id)
+
+	sqlstr := `
+		update entry_type
+		set ` + strings.Join(set, ", ") + `
+		where	id = ` + fmt.Sprintf("$%d", len(args))
+
+	_, err = tx.ExecContext(ctx, sqlstr, args...)
+	if err != nil {
+		return nil, fmt.Errorf("postgres.entry type: cannot update %w", err)
+	}
+
+	return et, nil
 }
 
 func findEntryType(ctx context.Context, tx *Tx, filter dots.EntryTypeFilter) (_ []*dots.EntryType, n int, err error) {
@@ -106,7 +145,7 @@ func findEntryType(ctx context.Context, tx *Tx, filter dots.EntryTypeFilter) (_ 
 	}
 
 	rows, err := tx.QueryContext(ctx, `
-		select id, code, description, unit, tid, count(*) over() from entry_code
+		select id, code, description, unit, tid, count(*) over() from entry_type
 		where `+strings.Join(where, " and ")+` `+formatLimitOffset(filter.Limit, filter.Offset),
 		args...,
 	)
@@ -121,7 +160,7 @@ func findEntryType(ctx context.Context, tx *Tx, filter dots.EntryTypeFilter) (_ 
 	entryTypes := []*dots.EntryType{}
 	for rows.Next() {
 		var et dots.EntryType
-		err := rows.Scan(&et.ID, &et.Code, &et.Unit, &et.Tid, &n)
+		err := rows.Scan(&et.ID, &et.Code, &et.Description, &et.Unit, &et.Tid, &n)
 		if err != nil {
 			return nil, 0, err
 		}

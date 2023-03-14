@@ -112,7 +112,7 @@ func createUser(ctx context.Context, tx *Tx, u *dots.User) error {
 func updateUser(ctx context.Context, tx *Tx, id int, updata *dots.UserUpdate) (*dots.User, error) {
 	uu, _, err := findUser(ctx, tx, dots.UserFilter{ID: &id, Limit: 1})
 	if err != nil {
-		return nil, fmt.Errorf("postgres.user: cannot find user %w", err)
+		return nil, fmt.Errorf("postgres.user: cannot retrieve user %w", err)
 	}
 	if len(uu) == 0 {
 		return nil, dots.Errorf(dots.ENOTFOUND, "user not found")

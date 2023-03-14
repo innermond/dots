@@ -1,13 +1,15 @@
 package dots
 
-import "context"
+import (
+	"context"
+)
 
 type EntryType struct {
-	ID          int    `json:"id"`
-	Code        string `json:"code"`
-	Description string `json:"description"`
-	Unit        string `json:"unit"`
-	Tid         int    `json:"tid"`
+	ID          int     `json:"id"`
+	Code        string  `json:"code"`
+	Description *string `json:"description"`
+	Unit        string  `json:"unit"`
+	Tid         int     `json:"tid"`
 }
 
 func (et *EntryType) Validate() error {
@@ -24,7 +26,7 @@ func (et *EntryType) Validate() error {
 
 type EntryTypeService interface {
 	CreateEntryType(context.Context, *EntryType) error
-	UpdateEntryType(context.Context, int, EntryTypeUpdate) (*EntryType, error)
+	UpdateEntryType(context.Context, int, *EntryTypeUpdate) (*EntryType, error)
 }
 
 type EntryTypeFilter struct {

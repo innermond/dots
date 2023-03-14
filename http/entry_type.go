@@ -11,7 +11,7 @@ import (
 
 func (s *Server) registerEntryTypeRoutes(router *mux.Router) {
 	router.HandleFunc("", s.handleEntryTypeCreate).Methods("POST")
-	router.HandleFunc("{id}/edit", s.handleEntryTypeUpdate).Methods("PATCH")
+	router.HandleFunc("/{id}/edit", s.handleEntryTypeUpdate).Methods("PATCH")
 }
 
 func (s *Server) handleEntryTypeCreate(w http.ResponseWriter, r *http.Request) {
@@ -49,9 +49,19 @@ func (s *Server) handleEntryTypeUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	u := dots.UserFromContext(r.Context())
+	updata.Tid = &u.ID
+
 	if err := updata.Valid(); err != nil {
 		Error(w, r, err)
 		return
 	}
 
+	et, err := s.EntryTypeService.UpdateEntryType(r.Context(), id, &updata)
+	if err != nil {
+		Error(w, r, err)
+		return
+	}
+
+	respondJSON[dots.EntryType](w, r, http.StatusOK, et)
 }
