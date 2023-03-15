@@ -29,6 +29,7 @@ type Server struct {
 	AuthService dots.AuthService
 
 	EntryTypeService dots.EntryTypeService
+	EntryService     dots.EntryService
 }
 
 func NewServer() *Server {
@@ -63,6 +64,13 @@ func NewServer() *Server {
 		router.Use(s.yesAuthenticate)
 		s.registerEntryTypeRoutes(router)
 	}
+
+	{
+		router := s.router.PathPrefix("/entries").Subrouter()
+		router.Use(s.yesAuthenticate)
+		s.registerEntryRoutes(router)
+	}
+
 	return s
 }
 
