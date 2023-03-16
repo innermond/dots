@@ -19,6 +19,8 @@ func (e *Entry) Validate() error {
 
 type EntryService interface {
 	CreateEntry(context.Context, *Entry) error
+	UpdateEntry(context.Context, int, *EntryUpdate) (*Entry, error)
+	FindEntry(context.Context, *EntryFilter) ([]*Entry, int, error)
 }
 
 type EntryFilter struct {
@@ -30,4 +32,19 @@ type EntryFilter struct {
 
 	Offset int `json:"offset"`
 	Limit  int `json:"limit"`
+}
+
+type EntryUpdate struct {
+	EntryTypeID *int       `json:"entry_type_id"`
+	DateAdded   *time.Time `json:"date_added"`
+	Quantity    *float64   `json:"quantity"`
+	CompanyID   *int       `json:"company_id"`
+}
+
+func (eu *EntryUpdate) Valid() error {
+	if eu.EntryTypeID == nil || eu.Quantity == nil || eu.CompanyID == nil {
+		return Errorf(EINVALID, "entry type, quantity and company are required")
+	}
+
+	return nil
 }

@@ -48,7 +48,6 @@ func (s *EntryTypeService) UpdateEntryType(ctx context.Context, id int, upd *dot
 	tx.Commit()
 
 	return et, nil
-
 }
 
 func createEntryType(ctx context.Context, tx *Tx, et *dots.EntryType) error {
