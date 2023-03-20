@@ -33,6 +33,16 @@ func (s *EntryTypeService) CreateEntryType(ctx context.Context, et *dots.EntryTy
 	return nil
 }
 
+func (s *EntryTypeService) FindEntryType(ctx context.Context, filter *dots.EntryTypeFilter) ([]*dots.EntryType, int, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer tx.Rollback()
+
+	return findEntryType(ctx, tx, *filter)
+}
+
 func (s *EntryTypeService) UpdateEntryType(ctx context.Context, id int, upd *dots.EntryTypeUpdate) (*dots.EntryType, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {

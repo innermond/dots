@@ -27,6 +27,7 @@ func (et *EntryType) Validate() error {
 type EntryTypeService interface {
 	CreateEntryType(context.Context, *EntryType) error
 	UpdateEntryType(context.Context, int, *EntryTypeUpdate) (*EntryType, error)
+	FindEntryType(context.Context, *EntryTypeFilter) ([]*EntryType, int, error)
 }
 
 type EntryTypeFilter struct {

@@ -12,6 +12,7 @@ import (
 func (s *Server) registerEntryTypeRoutes(router *mux.Router) {
 	router.HandleFunc("", s.handleEntryTypeCreate).Methods("POST")
 	router.HandleFunc("/{id}/edit", s.handleEntryTypeUpdate).Methods("PATCH")
+	router.HandleFunc("", s.handleEntryTypeFind).Methods("GET")
 }
 
 func (s *Server) handleEntryTypeCreate(w http.ResponseWriter, r *http.Request) {
@@ -64,4 +65,25 @@ func (s *Server) handleEntryTypeUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondJSON[dots.EntryType](w, r, http.StatusOK, et)
+}
+
+func (s *Server) handleEntryTypeFind(w http.ResponseWriter, r *http.Request) {
+	var filter dots.EntryTypeFilter
+	ok := encodeJSON[dots.EntryTypeFilter](w, r, &filter)
+	if !ok {
+		return
+	}
+
+	ee, n, err := s.EntryTypeService.FindEntryType(r.Context(), &filter)
+	if err != nil {
+		Error(w, r, err)
+		return
+	}
+
+	respondJSON[findEntryTypeResponse](w, r, http.StatusFound, &findEntryTypeResponse{EntryTypes: ee, N: n})
+}
+
+type findEntryTypeResponse struct {
+	EntryTypes []*dots.EntryType `json:"entrY_types"`
+	N          int               `json:"n"`
 }

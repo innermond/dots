@@ -48,11 +48,15 @@ func main() {
 	userService := postgres.NewUserService(db)
 	entryTypeService := postgres.NewEntryTypeService(db)
 	entryService := postgres.NewEntryService(db)
+	drainService := postgres.NewDrainService(db)
+	companyService := postgres.NewCompanyService(db)
 
 	server.UserService = userService
 	server.AuthService = authService
 	server.EntryTypeService = entryTypeService
 	server.EntryService = entryService
+	server.DrainService = drainService
+	server.CompanyService = companyService
 
 	ctx, cancel := context.WithCancel(context.Background())
 	c := make(chan os.Signal, 1)
