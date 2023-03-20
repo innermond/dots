@@ -32,6 +32,7 @@ type Server struct {
 	EntryService     dots.EntryService
 	DrainService     dots.DrainService
 	CompanyService   dots.CompanyService
+	DeedService      dots.DeedService
 }
 
 func NewServer() *Server {
@@ -83,6 +84,12 @@ func NewServer() *Server {
 		router := s.router.PathPrefix("/companies").Subrouter()
 		router.Use(s.yesAuthenticate)
 		s.registerCompanyRoutes(router)
+	}
+
+	{
+		router := s.router.PathPrefix("/deeds").Subrouter()
+		router.Use(s.yesAuthenticate)
+		s.registerDeedRoutes(router)
 	}
 
 	return s
