@@ -233,3 +233,22 @@ func (s *Server) noAuthenticate(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 	})
 }
+
+// TODO invcestigate error
+/*func handleCreate[T any](fn func(context.Context, *T) error) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var e T
+
+		if ok := inputJSON[T](w, r, &e); !ok {
+			return
+		}
+
+		err := fn(r.Context(), &e)
+		if err != nil {
+			Error(w, r, err)
+			return
+		}
+
+		outputJSON[T](w, r, http.StatusCreated, &e)
+	}
+}*/

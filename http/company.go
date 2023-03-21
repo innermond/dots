@@ -1,7 +1,6 @@
 package http
 
 import (
-	"encoding/json"
 	"net/http"
 	"strconv"
 
@@ -28,7 +27,7 @@ func (s *Server) handlecompanyCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respondJSON[dots.Company](w, r, http.StatusCreated, &c)
+	outputJSON[dots.Company](w, r, http.StatusCreated, &c)
 }
 
 func (s *Server) handleCompanyUpdate(w http.ResponseWriter, r *http.Request) {
@@ -39,8 +38,7 @@ func (s *Server) handleCompanyUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var updata dots.CompanyUpdate
-	if err := json.NewDecoder(r.Body).Decode(&updata); err != nil {
-		Error(w, r, dots.Errorf(dots.EINVALID, "edit company: invalid json body"))
+	if ok := inputJSON[dots.CompanyUpdate](w, r, &updata); !ok {
 		return
 	}
 
@@ -58,7 +56,7 @@ func (s *Server) handleCompanyUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respondJSON[dots.Company](w, r, http.StatusOK, c)
+	outputJSON[dots.Company](w, r, http.StatusOK, c)
 }
 
 func (s *Server) handleCompanyFind(w http.ResponseWriter, r *http.Request) {
@@ -74,7 +72,7 @@ func (s *Server) handleCompanyFind(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respondJSON[findCompanyResponse](w, r, http.StatusFound, &findCompanyResponse{Companys: ee, N: n})
+	outputJSON[findCompanyResponse](w, r, http.StatusFound, &findCompanyResponse{Companys: ee, N: n})
 }
 
 type findCompanyResponse struct {

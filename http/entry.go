@@ -28,7 +28,7 @@ func (s *Server) handleEntryCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respondJSON[dots.Entry](w, r, http.StatusCreated, &e)
+	outputJSON[dots.Entry](w, r, http.StatusCreated, &e)
 }
 
 func (s *Server) handleEntryUpdate(w http.ResponseWriter, r *http.Request) {
@@ -57,7 +57,7 @@ func (s *Server) handleEntryUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respondJSON[dots.Entry](w, r, http.StatusOK, e)
+	outputJSON[dots.Entry](w, r, http.StatusOK, e)
 }
 
 func (s *Server) handleEntryFind(w http.ResponseWriter, r *http.Request) {
@@ -73,7 +73,7 @@ func (s *Server) handleEntryFind(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respondJSON[findEntryResponse](w, r, http.StatusFound, &findEntryResponse{Entries: ee, N: n})
+	outputJSON[findEntryResponse](w, r, http.StatusFound, &findEntryResponse{Entries: ee, N: n})
 }
 
 type findEntryResponse struct {

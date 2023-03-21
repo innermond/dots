@@ -28,7 +28,7 @@ func (s *Server) handleDeedCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respondJSON[dots.Deed](w, r, http.StatusCreated, &d)
+	outputJSON[dots.Deed](w, r, http.StatusCreated, &d)
 }
 
 func (s *Server) handleDeedUpdate(w http.ResponseWriter, r *http.Request) {
@@ -57,7 +57,7 @@ func (s *Server) handleDeedUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respondJSON[dots.Deed](w, r, http.StatusOK, d)
+	outputJSON[dots.Deed](w, r, http.StatusOK, d)
 }
 
 func (s *Server) handleDeedFind(w http.ResponseWriter, r *http.Request) {
@@ -73,7 +73,7 @@ func (s *Server) handleDeedFind(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respondJSON[findDeedResponse](w, r, http.StatusFound, &findDeedResponse{Deeds: dd, N: n})
+	outputJSON[findDeedResponse](w, r, http.StatusFound, &findDeedResponse{Deeds: dd, N: n})
 }
 
 type findDeedResponse struct {

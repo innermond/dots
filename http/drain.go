@@ -64,7 +64,7 @@ func (s *Server) handleDrainUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respondJSON[dots.Drain](w, r, http.StatusOK, et)
+	outputJSON[dots.Drain](w, r, http.StatusOK, et)
 }
 
 func (s *Server) handleDrainFind(w http.ResponseWriter, r *http.Request) {
@@ -80,7 +80,7 @@ func (s *Server) handleDrainFind(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respondJSON[findDrainResponse](w, r, http.StatusFound, &findDrainResponse{Drains: ee, N: n})
+	outputJSON[findDrainResponse](w, r, http.StatusFound, &findDrainResponse{Drains: ee, N: n})
 }
 
 type findDrainResponse struct {

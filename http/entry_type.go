@@ -64,7 +64,7 @@ func (s *Server) handleEntryTypeUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respondJSON[dots.EntryType](w, r, http.StatusOK, et)
+	outputJSON[dots.EntryType](w, r, http.StatusOK, et)
 }
 
 func (s *Server) handleEntryTypeFind(w http.ResponseWriter, r *http.Request) {
@@ -80,7 +80,7 @@ func (s *Server) handleEntryTypeFind(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respondJSON[findEntryTypeResponse](w, r, http.StatusFound, &findEntryTypeResponse{EntryTypes: ee, N: n})
+	outputJSON[findEntryTypeResponse](w, r, http.StatusFound, &findEntryTypeResponse{EntryTypes: ee, N: n})
 }
 
 type findEntryTypeResponse struct {
