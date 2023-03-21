@@ -45,7 +45,7 @@ func (s *Server) handleCompanyUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	u := dots.UserFromContext(r.Context())
-	updata.Tid = &u.ID
+	updata.TID = &u.ID
 
 	if err := updata.Valid(); err != nil {
 		Error(w, r, err)

@@ -83,7 +83,7 @@ values
 	if err != nil {
 		return err
 	}
-	et.Tid = user.ID
+	et.TID = user.ID
 
 	return nil
 }
@@ -142,7 +142,7 @@ func findEntryType(ctx context.Context, tx *Tx, filter dots.EntryTypeFilter) (_ 
 	if v := filter.Unit; v != nil {
 		where, args = append(where, "unit = ?"), append(args, *v)
 	}
-	if v := filter.Tid; v != nil {
+	if v := filter.TID; v != nil {
 		where, args = append(where, "tid = ?"), append(args, *v)
 	}
 	for inx, v := range where {
@@ -169,7 +169,7 @@ func findEntryType(ctx context.Context, tx *Tx, filter dots.EntryTypeFilter) (_ 
 	entryTypes := []*dots.EntryType{}
 	for rows.Next() {
 		var et dots.EntryType
-		err := rows.Scan(&et.ID, &et.Code, &et.Description, &et.Unit, &et.Tid, &n)
+		err := rows.Scan(&et.ID, &et.Code, &et.Description, &et.Unit, &et.TID, &n)
 		if err != nil {
 			return nil, 0, err
 		}

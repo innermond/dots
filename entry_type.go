@@ -9,7 +9,7 @@ type EntryType struct {
 	Code        string  `json:"code"`
 	Description *string `json:"description"`
 	Unit        string  `json:"unit"`
-	Tid         int     `json:"tid"`
+	TID         int     `json:"tid"`
 }
 
 func (et *EntryType) Validate() error {
@@ -35,7 +35,7 @@ type EntryTypeFilter struct {
 	Code        *string `json:"code"`
 	Description *string `json:"description"`
 	Unit        *string `json:"unit"`
-	Tid         *int    `json:"tid"`
+	TID         *int    `json:"tid"`
 
 	Offset int `json:"offset"`
 	Limit  int `json:"limit"`
@@ -45,14 +45,14 @@ type EntryTypeUpdate struct {
 	Code        *string `json:"code"`
 	Description *string `json:"description"`
 	Unit        *string `json:"unit"`
-	Tid         *int    `json:"tid"`
+	TID         *int    `json:"tid"`
 }
 
 func (etu *EntryTypeUpdate) Valid() error {
 	if etu.Code == nil || etu.Unit == nil {
 		return Errorf(EINVALID, "entry type code and unit are required")
 	}
-	if etu.Tid == nil {
+	if etu.TID == nil {
 		return Errorf(EINVALID, "entry type owner missing")
 	}
 

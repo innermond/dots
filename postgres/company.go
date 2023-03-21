@@ -74,7 +74,7 @@ func findCompany(ctx context.Context, tx *Tx, filter *dots.CompanyFilter) (_ []*
 	if v := filter.RN; v != nil {
 		where, args = append(where, "rn = ?"), append(args, *v)
 	}
-	if v := filter.Tid; v != nil {
+	if v := filter.TID; v != nil {
 		where, args = append(where, "tid = ?"), append(args, *v)
 	}
 	for inx, v := range where {
@@ -101,7 +101,7 @@ func findCompany(ctx context.Context, tx *Tx, filter *dots.CompanyFilter) (_ []*
 	companies := []*dots.Company{}
 	for rows.Next() {
 		var e dots.Company
-		err := rows.Scan(&e.ID, &e.Longname, &e.TIN, &e.RN, &e.Tid, &n)
+		err := rows.Scan(&e.ID, &e.Longname, &e.TIN, &e.RN, &e.TID, &n)
 		if err != nil {
 			return nil, 0, err
 		}

@@ -4,7 +4,7 @@ import "context"
 
 type Company struct {
 	ID       int    `json:"id"`
-	Tid      int    `json:"tid"`
+	TID      int    `json:"tid"`
 	Longname string `json:"longname"`
 	TIN      string `json:"tin"`
 	RN       string `json:"rn"`
@@ -16,7 +16,7 @@ func (c *Company) Validate() error {
 
 type CompanyFilter struct {
 	ID       *int    `json:"id"`
-	Tid      *int    `json:"tid"`
+	TID      *int    `json:"tid"`
 	Longname *string `json:"longname"`
 	TIN      *string `json:"tin"`
 	RN       *string `json:"rn"`
@@ -32,7 +32,7 @@ type CompanyService interface {
 }
 
 type CompanyUpdate struct {
-	Tid      *int    `json:"tid"`
+	TID      *int    `json:"tid"`
 	Longname *string `json:"longname"`
 	TIN      *string `json:"tin"`
 	RN       *string `json:"rn"`
