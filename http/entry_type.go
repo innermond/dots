@@ -69,7 +69,7 @@ func (s *Server) handleEntryTypeUpdate(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleEntryTypeFind(w http.ResponseWriter, r *http.Request) {
 	var filter dots.EntryTypeFilter
-	ok := encodeJSON[dots.EntryTypeFilter](w, r, &filter)
+	ok := inputJSON[dots.EntryTypeFilter](w, r, &filter)
 	if !ok {
 		return
 	}

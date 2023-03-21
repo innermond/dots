@@ -18,7 +18,7 @@ func (s *Server) registerEntryRoutes(router *mux.Router) {
 func (s *Server) handleEntryCreate(w http.ResponseWriter, r *http.Request) {
 	var e dots.Entry
 
-	if ok := encodeJSON[dots.Entry](w, r, &e); !ok {
+	if ok := inputJSON[dots.Entry](w, r, &e); !ok {
 		return
 	}
 
@@ -62,7 +62,7 @@ func (s *Server) handleEntryUpdate(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleEntryFind(w http.ResponseWriter, r *http.Request) {
 	var filter dots.EntryFilter
-	ok := encodeJSON[dots.EntryFilter](w, r, &filter)
+	ok := inputJSON[dots.EntryFilter](w, r, &filter)
 	if !ok {
 		return
 	}

@@ -18,7 +18,7 @@ func (s *Server) registerCompanyRoutes(router *mux.Router) {
 func (s *Server) handlecompanyCreate(w http.ResponseWriter, r *http.Request) {
 	var c dots.Company
 
-	if ok := encodeJSON[dots.Company](w, r, &c); !ok {
+	if ok := inputJSON[dots.Company](w, r, &c); !ok {
 		return
 	}
 
@@ -63,7 +63,7 @@ func (s *Server) handleCompanyUpdate(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleCompanyFind(w http.ResponseWriter, r *http.Request) {
 	var filter dots.CompanyFilter
-	ok := encodeJSON[dots.CompanyFilter](w, r, &filter)
+	ok := inputJSON[dots.CompanyFilter](w, r, &filter)
 	if !ok {
 		return
 	}

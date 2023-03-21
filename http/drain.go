@@ -69,7 +69,7 @@ func (s *Server) handleDrainUpdate(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleDrainFind(w http.ResponseWriter, r *http.Request) {
 	var filter dots.DrainFilter
-	ok := encodeJSON[dots.DrainFilter](w, r, &filter)
+	ok := inputJSON[dots.DrainFilter](w, r, &filter)
 	if !ok {
 		return
 	}

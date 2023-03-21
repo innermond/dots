@@ -18,7 +18,7 @@ func (s *Server) registerDeedRoutes(router *mux.Router) {
 func (s *Server) handleDeedCreate(w http.ResponseWriter, r *http.Request) {
 	var d dots.Deed
 
-	if ok := encodeJSON[dots.Deed](w, r, &d); !ok {
+	if ok := inputJSON[dots.Deed](w, r, &d); !ok {
 		return
 	}
 
@@ -62,7 +62,7 @@ func (s *Server) handleDeedUpdate(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleDeedFind(w http.ResponseWriter, r *http.Request) {
 	var filter dots.DeedFilter
-	ok := encodeJSON[dots.DeedFilter](w, r, &filter)
+	ok := inputJSON[dots.DeedFilter](w, r, &filter)
 	if !ok {
 		return
 	}
