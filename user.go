@@ -6,13 +6,16 @@ import (
 	"encoding/json"
 	"errors"
 	"time"
+
+	"github.com/innermond/dots/autz"
 )
 
 type User struct {
-	ID     int    `json:"id"`
-	Name   string `json:"name"`
-	Email  string `json:"email"`
-	ApiKey string `json:"api_key"`
+	ID     int          `json:"id"`
+	Name   string       `json:"name"`
+	Email  string       `json:"email"`
+	ApiKey string       `json:"api_key"`
+	Power  []autz.Power `json:"power"`
 
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
@@ -49,6 +52,7 @@ func UserIsZero(u *User) bool {
 		u.Name == "" &&
 		u.Email == "" &&
 		u.ApiKey == "" &&
+		u.Power == nil &&
 		u.CreatedAt.IsZero() &&
 		u.UpdatedAt.IsZero()
 }
@@ -102,6 +106,7 @@ func (u *User) UnmarshalJSON(b []byte) error {
 	u.Name = user.Name
 	u.Email = user.Email
 	u.ApiKey = user.ApiKey
+	u.Power = user.Power
 	u.CreatedAt = createdAt
 	u.UpdatedAt = updatedAt
 
