@@ -1,3 +1,5 @@
+alter table "user" drop column power;
+
 create table subject (
   name text not null unique
 );
