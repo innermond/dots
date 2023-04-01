@@ -18,8 +18,7 @@ func (s *Server) registerEntryTypeRoutes(router *mux.Router) {
 func (s *Server) handleEntryTypeCreate(w http.ResponseWriter, r *http.Request) {
 	var et dots.EntryType
 
-	if err := json.NewDecoder(r.Body).Decode(&et); err != nil {
-		Error(w, r, dots.Errorf(dots.EINVALID, "new entry type: invalid json body"))
+	if ok := inputJSON[dots.EntryType](w, r, &et, "create entry type"); !ok {
 		return
 	}
 
@@ -29,12 +28,7 @@ func (s *Server) handleEntryTypeCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-TYpe", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	if err := json.NewEncoder(w).Encode(et); err != nil {
-		LogError(r, err)
-		return
-	}
+	outputJSON[dots.EntryType](w, r, http.StatusCreated, &et)
 }
 
 func (s *Server) handleEntryTypeUpdate(w http.ResponseWriter, r *http.Request) {
@@ -69,7 +63,7 @@ func (s *Server) handleEntryTypeUpdate(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleEntryTypeFind(w http.ResponseWriter, r *http.Request) {
 	var filter dots.EntryTypeFilter
-	ok := inputJSON[dots.EntryTypeFilter](w, r, &filter)
+	ok := inputJSON[dots.EntryTypeFilter](w, r, &filter, "find entry type")
 	if !ok {
 		return
 	}

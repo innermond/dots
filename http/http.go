@@ -2,6 +2,7 @@ package http
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 
@@ -13,9 +14,10 @@ func LogError(r *http.Request, err error) {
 }
 
 // inputjSON decodes JSON stream into a struct pointed by e param
-func inputJSON[T any](w http.ResponseWriter, r *http.Request, e *T) bool {
+func inputJSON[T any](w http.ResponseWriter, r *http.Request, e *T, prefix string) bool {
 	if err := json.NewDecoder(r.Body).Decode(e); err != nil {
-		Error(w, r, dots.Errorf(dots.EINVALID, "the supplied input cannot be decoded"))
+		msg := fmt.Sprintf("%s: the supplied input cannot be decoded", prefix)
+		Error(w, r, dots.Errorf(dots.EINVALID, msg))
 		return false
 	}
 

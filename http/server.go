@@ -25,6 +25,8 @@ type Server struct {
 	ClientID     string
 	ClientSecret string
 
+	AutzService dots.AutzService
+
 	UserService dots.UserService
 	AuthService dots.AuthService
 
@@ -239,7 +241,7 @@ func (s *Server) noAuthenticate(next http.Handler) http.Handler {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var e T
 
-		if ok := inputJSON[T](w, r, &e); !ok {
+		if ok := inputJSON[T](w, r, &e, "generic create"); !ok {
 			return
 		}
 

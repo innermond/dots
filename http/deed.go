@@ -1,7 +1,6 @@
 package http
 
 import (
-	"encoding/json"
 	"net/http"
 	"strconv"
 
@@ -18,7 +17,7 @@ func (s *Server) registerDeedRoutes(router *mux.Router) {
 func (s *Server) handleDeedCreate(w http.ResponseWriter, r *http.Request) {
 	var d dots.Deed
 
-	if ok := inputJSON[dots.Deed](w, r, &d); !ok {
+	if ok := inputJSON[dots.Deed](w, r, &d, "create deed"); !ok {
 		return
 	}
 
@@ -39,12 +38,10 @@ func (s *Server) handleDeedUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var updata dots.DeedUpdate
-	if err := json.NewDecoder(r.Body).Decode(&updata); err != nil {
-		Error(w, r, dots.Errorf(dots.EINVALID, "edit deed: invalid json body"))
+	ok := inputJSON[dots.DeedUpdate](w, r, &updata, "update deed")
+	if !ok {
 		return
 	}
-
-	//u := dots.UserFromContext(r.Context())
 
 	if err := updata.Valid(); err != nil {
 		Error(w, r, err)
@@ -62,7 +59,7 @@ func (s *Server) handleDeedUpdate(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleDeedFind(w http.ResponseWriter, r *http.Request) {
 	var filter dots.DeedFilter
-	ok := inputJSON[dots.DeedFilter](w, r, &filter)
+	ok := inputJSON[dots.DeedFilter](w, r, &filter, "find deed")
 	if !ok {
 		return
 	}
