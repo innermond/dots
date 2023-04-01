@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/innermond/dots"
+	"github.com/innermond/dots/autz"
 )
 
 type AuthService struct {
@@ -37,6 +38,8 @@ func (s *AuthService) CreateAuth(ctx context.Context, auth *dots.Auth) error {
 				return fmt.Errorf("postgres.auth: cannot find user by email %w", err)
 			}
 			if len(uu) == 0 {
+				// add default powers
+				auth.User.Power = autz.PowerToManageOwn
 				err = createUser(ctx, tx, auth.User)
 				if err != nil {
 					return fmt.Errorf("postgres.auth: cannot create new user %w", err)
