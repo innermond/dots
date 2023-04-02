@@ -49,8 +49,8 @@ type EntryTypeUpdate struct {
 }
 
 func (etu *EntryTypeUpdate) Valid() error {
-	if etu.Code == nil || etu.Unit == nil {
-		return Errorf(EINVALID, "entry type code and unit are required")
+	if etu.Code == nil && etu.Unit == nil && etu.Description == nil {
+		return Errorf(EINVALID, "entry type code or unit or description are required")
 	}
 	if etu.TID == nil {
 		return Errorf(EINVALID, "entry type owner missing")

@@ -25,8 +25,6 @@ type Server struct {
 	ClientID     string
 	ClientSecret string
 
-	AutzService dots.AutzService
-
 	UserService dots.UserService
 	AuthService dots.AuthService
 

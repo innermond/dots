@@ -45,6 +45,15 @@ func (p Power) Description() string {
 	return ""
 }
 
+func PowersContains(pp []Power, op Power) bool {
+	for _, p := range pp {
+		if p == op {
+			return true
+		}
+	}
+	return false
+}
+
 var PowerToManageOwn = []Power{CreateOwn, WriteOwn}
 
 func (p *Power) UnmarshalJSON(b []byte) error {
