@@ -39,7 +39,7 @@ func (s *AuthService) CreateAuth(ctx context.Context, auth *dots.Auth) error {
 			}
 			if len(uu) == 0 {
 				// add default powers
-				auth.User.Power = autz.PowerToManageOwn
+				auth.User.Powers = autz.PowerToManageOwn
 				err = createUser(ctx, tx, auth.User)
 				if err != nil {
 					return fmt.Errorf("postgres.auth: cannot create new user %w", err)

@@ -92,13 +92,13 @@ func createUser(ctx context.Context, tx *Tx, u *dots.User) error {
 			name,
 			email,
 			api_key,
-			power,
+			powers,
 			created_at,
 			updated_at
 		)
 		values ($1, $2, $3, $4, $5, $6) returning id
 	`,
-		u.Name, email, u.ApiKey, u.Power, now, now,
+		u.Name, email, u.ApiKey, u.Powers, now, now,
 	).Scan(&u.ID)
 	if err != nil {
 		return err
