@@ -24,15 +24,10 @@ func (s *EntryTypeService) CreateEntryType(ctx context.Context, et *dots.EntryTy
 	}
 	defer tx.Rollback()
 
-	user := dots.UserFromContext(ctx)
-	if user.ID == 0 {
-		return dots.Errorf(dots.EUNAUTHORIZED, "unauthorized user")
+	if canerr := dots.CanCreateOwn(ctx); canerr != nil {
+		return canerr
 	}
-
-	// authorization: can user do it further?
-	if !dots.PowersContains(user.Powers, dots.CreateOwn) {
-		return dots.Errorf(dots.EUNAUTHORIZED, "unauthorized create")
-	}
+	et.TID = dots.UserFromContext(ctx).ID
 
 	if err := createEntryType(ctx, tx, et); err != nil {
 		return err
@@ -67,7 +62,16 @@ func (s *EntryTypeService) UpdateEntryType(ctx context.Context, id int, upd *dot
 	}
 	defer tx.Rollback()
 
-	if canerr := dots.CanWriteOwn(ctx, id); canerr != nil {
+	ee, n, err := s.FindEntryType(ctx, &dots.EntryTypeFilter{ID: &id, Limit: 1})
+	if err != nil {
+		return nil, err
+	}
+	// TODO: returns error not found?
+	if n == 0 {
+		return nil, nil
+	}
+	tid := ee[0].TID
+	if canerr := dots.CanWriteOwn(ctx, tid); canerr != nil {
 		return nil, canerr
 	}
 
@@ -91,20 +95,20 @@ func createEntryType(ctx context.Context, tx *Tx, et *dots.EntryType) error {
 		return err
 	}
 
+	sqlstr := `
+insert into entry_type
+(code, unit, description, tid)
+values
+($1, $2, $3, $4) returning id
+`
 	err := tx.QueryRowContext(
 		ctx,
-		`
-insert into entry_type
-(code, unit, tid)
-values
-($1, $2, $3) returning id
-		`,
-		et.Code, et.Unit, user.ID,
+		sqlstr,
+		et.Code, et.Unit, et.Description, et.TID,
 	).Scan(&et.ID)
 	if err != nil {
 		return err
 	}
-	et.TID = user.ID
 
 	return nil
 }

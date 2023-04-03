@@ -31,3 +31,17 @@ func CanReadOwn(ctx context.Context) error {
 
 	return nil
 }
+
+func CanCreateOwn(ctx context.Context) error {
+	user := UserFromContext(ctx)
+	if user.ID == 0 {
+		return Errorf(EUNAUTHORIZED, "unauthorized user")
+	}
+
+	canCreateOwn := PowersContains(user.Powers, CreateOwn)
+	if !canCreateOwn {
+		return Errorf(EUNAUTHORIZED, "unauthorized operation")
+	}
+
+	return nil
+}
