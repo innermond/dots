@@ -2,8 +2,6 @@ package dots
 
 import (
 	"context"
-
-	"github.com/innermond/dots/autz"
 )
 
 func CanWriteOwn(ctx context.Context, tid int) error {
@@ -12,8 +10,22 @@ func CanWriteOwn(ctx context.Context, tid int) error {
 		return Errorf(EUNAUTHORIZED, "unauthorized user")
 	}
 
-	canWriteOwn := autz.PowersContains(user.Powers, autz.WriteOwn) && user.ID == tid
+	canWriteOwn := PowersContains(user.Powers, WriteOwn) && user.ID == tid
 	if !canWriteOwn {
+		return Errorf(EUNAUTHORIZED, "unauthorized operation")
+	}
+
+	return nil
+}
+
+func CanReadOwn(ctx context.Context) error {
+	user := UserFromContext(ctx)
+	if user.ID == 0 {
+		return Errorf(EUNAUTHORIZED, "unauthorized user")
+	}
+
+	canReadOwn := PowersContains(user.Powers, ReadOwn)
+	if !canReadOwn {
 		return Errorf(EUNAUTHORIZED, "unauthorized operation")
 	}
 

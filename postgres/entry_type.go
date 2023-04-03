@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/innermond/dots"
-	"github.com/innermond/dots/autz"
 )
 
 type EntryTypeService struct {
@@ -31,7 +30,7 @@ func (s *EntryTypeService) CreateEntryType(ctx context.Context, et *dots.EntryTy
 	}
 
 	// authorization: can user do it further?
-	if !autz.PowersContains(user.Powers, autz.CreateOwn) {
+	if !dots.PowersContains(user.Powers, dots.CreateOwn) {
 		return dots.Errorf(dots.EUNAUTHORIZED, "unauthorized create")
 	}
 
@@ -50,6 +49,13 @@ func (s *EntryTypeService) FindEntryType(ctx context.Context, filter *dots.Entry
 		return nil, 0, err
 	}
 	defer tx.Rollback()
+
+	if canerr := dots.CanReadOwn(ctx); canerr != nil {
+		return nil, 0, canerr
+	}
+	if filter.TID == nil {
+		filter.TID = &dots.UserFromContext(ctx).ID
+	}
 
 	return findEntryType(ctx, tx, *filter)
 }

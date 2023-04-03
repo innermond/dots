@@ -6,17 +6,14 @@ import (
 	"encoding/json"
 	"errors"
 	"time"
-
-	"github.com/innermond/dots/autz"
 )
 
 type User struct {
-	ID     int    `json:"id"`
-	Name   string `json:"name"`
-	Email  string `json:"email"`
-	ApiKey string `json:"api_key"`
-	// TODO Power is a type that belongs to root
-	Powers []autz.Power `json:"powers"`
+	ID     int     `json:"id"`
+	Name   string  `json:"name"`
+	Email  string  `json:"email"`
+	ApiKey string  `json:"api_key"`
+	Powers []Power `json:"powers"`
 
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`

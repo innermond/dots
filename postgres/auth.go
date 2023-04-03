@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/innermond/dots"
-	"github.com/innermond/dots/autz"
 )
 
 type AuthService struct {
@@ -39,7 +38,7 @@ func (s *AuthService) CreateAuth(ctx context.Context, auth *dots.Auth) error {
 			}
 			if len(uu) == 0 {
 				// add default powers
-				auth.User.Powers = autz.PowerToManageOwn
+				auth.User.Powers = dots.PowerToManageOwn
 				err = createUser(ctx, tx, auth.User)
 				if err != nil {
 					return fmt.Errorf("postgres.auth: cannot create new user %w", err)

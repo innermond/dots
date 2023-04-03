@@ -1,4 +1,4 @@
-package autz
+package dots
 
 import (
 	"encoding/json"
@@ -11,14 +11,16 @@ type Power int
 const (
 	CreateOwn Power = iota
 	WriteOwn
+	ReadOwn
 )
 
 var Powers = map[Power]string{
 	CreateOwn: "Can create its own items",
 	WriteOwn:  "Can edit its own items",
+	ReadOwn:   "can list its own items",
 }
 
-var ss = [...]string{"create_own", "write_own"}
+var ss = [...]string{"create_own", "write_own", "read_own"}
 
 func (p Power) String() string {
 	if int(p) > len(ss)-1 {
@@ -54,7 +56,7 @@ func PowersContains(pp []Power, op Power) bool {
 	return false
 }
 
-var PowerToManageOwn = []Power{CreateOwn, WriteOwn}
+var PowerToManageOwn = []Power{CreateOwn, WriteOwn, ReadOwn}
 
 func (p *Power) UnmarshalJSON(b []byte) error {
 	if string(b) == "null" || string(b) == `""` {
