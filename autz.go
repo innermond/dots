@@ -4,6 +4,20 @@ import (
 	"context"
 )
 
+func CanDoAnything(ctx context.Context) error {
+	user := UserFromContext(ctx)
+	if user.ID == 0 {
+		return Errorf(EUNAUTHORIZED, "unauthorized user")
+	}
+
+	canDoAny := PowersContains(user.Powers, DoAnything)
+	if canDoAny {
+		return nil
+	}
+
+	return Errorf(EUNAUTHORIZED, "unauthorized operation")
+}
+
 func CanWriteOwn(ctx context.Context, tid int) error {
 	user := UserFromContext(ctx)
 	if user.ID == 0 {

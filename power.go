@@ -9,18 +9,20 @@ type Power int
 
 // create powers
 const (
-	CreateOwn Power = iota
+	DoAnything Power = iota
+	CreateOwn
 	WriteOwn
 	ReadOwn
 )
 
 var Powers = map[Power]string{
-	CreateOwn: "Can create its own items",
-	WriteOwn:  "Can edit its own items",
-	ReadOwn:   "can list its own items",
+	DoAnything: "do anything for all",
+	CreateOwn:  "Can create its own items",
+	WriteOwn:   "Can edit its own items",
+	ReadOwn:    "can list its own items",
 }
 
-var ss = [...]string{"create_own", "write_own", "read_own"}
+var ss = [...]string{"do_anything", "create_own", "write_own", "read_own"}
 
 func (p Power) String() string {
 	if int(p) > len(ss)-1 {

@@ -45,12 +45,15 @@ func (s *EntryTypeService) FindEntryType(ctx context.Context, filter *dots.Entry
 	}
 	defer tx.Rollback()
 
+	if canerr := dots.CanDoAnything(ctx); canerr == nil {
+		return findEntryType(ctx, tx, *filter)
+	}
+
 	if canerr := dots.CanReadOwn(ctx); canerr != nil {
 		return nil, 0, canerr
 	}
-	if filter.TID == nil {
-		filter.TID = &dots.UserFromContext(ctx).ID
-	}
+	// lock search to own
+	filter.TID = &dots.UserFromContext(ctx).ID
 
 	return findEntryType(ctx, tx, *filter)
 }
