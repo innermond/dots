@@ -180,6 +180,9 @@ func findEntryType(ctx context.Context, tx *Tx, filter dots.EntryTypeFilter) (_ 
 		v = strings.Replace(v, "?", fmt.Sprintf("$%d", inx), 1)
 		where[inx] = v
 	}
+	if len(where) == 1 {
+		return nil, 0, dots.Errorf(dots.ENOTFOUND, "entry type not found")
+	}
 
 	rows, err := tx.QueryContext(ctx, `
 		select id, code, description, unit, tid, count(*) over() from entry_type
