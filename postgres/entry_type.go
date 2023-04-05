@@ -69,11 +69,15 @@ func (s *EntryTypeService) UpdateEntryType(ctx context.Context, id int, upd *dot
 	if err != nil {
 		return nil, err
 	}
-	// TODO: returns error not found?
 	if n == 0 {
-		return nil, nil
+		return nil, dots.Errorf(dots.ENOTFOUND, "entry type not found")
 	}
 	tid := ee[0].TID
+
+	if canerr := dots.CanDoAnything(ctx); canerr == nil {
+		return updateEntryType(ctx, tx, id, upd)
+	}
+
 	if canerr := dots.CanWriteOwn(ctx, tid); canerr != nil {
 		return nil, canerr
 	}
@@ -179,9 +183,6 @@ func findEntryType(ctx context.Context, tx *Tx, filter dots.EntryTypeFilter) (_ 
 		}
 		v = strings.Replace(v, "?", fmt.Sprintf("$%d", inx), 1)
 		where[inx] = v
-	}
-	if len(where) == 1 {
-		return nil, 0, dots.Errorf(dots.ENOTFOUND, "entry type not found")
 	}
 
 	rows, err := tx.QueryContext(ctx, `

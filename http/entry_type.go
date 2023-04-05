@@ -2,7 +2,6 @@ package http
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -43,8 +42,7 @@ func (s *Server) handleEntryTypeUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var updata dots.EntryTypeUpdate
-	if err := json.NewDecoder(r.Body).Decode(&updata); err != nil {
-		Error(w, r, dots.Errorf(dots.EINVALID, "edit entry type: invalid json body"))
+	if ok := inputJSON[dots.EntryTypeUpdate](w, r, &updata, "edit entry type"); !ok {
 		return
 	}
 
