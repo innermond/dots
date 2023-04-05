@@ -48,7 +48,7 @@ func (s *Server) handleDeedUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	d, err := s.DeedService.UpdateDeed(r.Context(), id, &updata)
+	d, err := s.DeedService.UpdateDeed(r.Context(), id, updata)
 	if err != nil {
 		Error(w, r, err)
 		return

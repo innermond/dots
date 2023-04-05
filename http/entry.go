@@ -51,7 +51,7 @@ func (s *Server) handleEntryUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	e, err := s.EntryService.UpdateEntry(r.Context(), id, &updata)
+	e, err := s.EntryService.UpdateEntry(r.Context(), id, updata)
 	if err != nil {
 		Error(w, r, err)
 		return

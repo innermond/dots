@@ -19,7 +19,7 @@ func (e *Entry) Validate() error {
 
 type EntryService interface {
 	CreateEntry(context.Context, *Entry) error
-	UpdateEntry(context.Context, int, *EntryUpdate) (*Entry, error)
+	UpdateEntry(context.Context, int, EntryUpdate) (*Entry, error)
 	FindEntry(context.Context, *EntryFilter) ([]*Entry, int, error)
 }
 

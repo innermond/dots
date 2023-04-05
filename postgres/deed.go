@@ -43,7 +43,7 @@ func (s *DeedService) FindDeed(ctx context.Context, filter *dots.DeedFilter) ([]
 	return findDeed(ctx, tx, filter)
 }
 
-func (s *DeedService) UpdateDeed(ctx context.Context, id int, upd *dots.DeedUpdate) (*dots.Deed, error) {
+func (s *DeedService) UpdateDeed(ctx context.Context, id int, upd dots.DeedUpdate) (*dots.Deed, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
@@ -87,7 +87,7 @@ values
 	return nil
 }
 
-func updateDeed(ctx context.Context, tx *Tx, id int, updata *dots.DeedUpdate) (*dots.Deed, error) {
+func updateDeed(ctx context.Context, tx *Tx, id int, updata dots.DeedUpdate) (*dots.Deed, error) {
 	dd, _, err := findDeed(ctx, tx, &dots.DeedFilter{ID: &id, Limit: 1})
 	if err != nil {
 		return nil, fmt.Errorf("postgres.deed: cannot retrieve deed %w", err)

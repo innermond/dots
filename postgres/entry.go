@@ -43,7 +43,7 @@ func (s *EntryService) FindEntry(ctx context.Context, filter *dots.EntryFilter) 
 	return findEntry(ctx, tx, filter)
 }
 
-func (s *EntryService) UpdateEntry(ctx context.Context, id int, upd *dots.EntryUpdate) (*dots.Entry, error) {
+func (s *EntryService) UpdateEntry(ctx context.Context, id int, upd dots.EntryUpdate) (*dots.Entry, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
@@ -87,7 +87,7 @@ values
 	return nil
 }
 
-func updateEntry(ctx context.Context, tx *Tx, id int, updata *dots.EntryUpdate) (*dots.Entry, error) {
+func updateEntry(ctx context.Context, tx *Tx, id int, updata dots.EntryUpdate) (*dots.Entry, error) {
 	ee, _, err := findEntry(ctx, tx, &dots.EntryFilter{ID: &id, Limit: 1})
 	if err != nil {
 		return nil, fmt.Errorf("postgres.entry: cannot retrieve entry %w", err)

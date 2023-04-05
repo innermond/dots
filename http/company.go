@@ -50,7 +50,7 @@ func (s *Server) handleCompanyUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	c, err := s.CompanyService.UpdateCompany(r.Context(), id, &updata)
+	c, err := s.CompanyService.UpdateCompany(r.Context(), id, updata)
 	if err != nil {
 		Error(w, r, err)
 		return

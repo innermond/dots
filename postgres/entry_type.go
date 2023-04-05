@@ -58,7 +58,7 @@ func (s *EntryTypeService) FindEntryType(ctx context.Context, filter *dots.Entry
 	return findEntryType(ctx, tx, *filter)
 }
 
-func (s *EntryTypeService) UpdateEntryType(ctx context.Context, id int, upd *dots.EntryTypeUpdate) (*dots.EntryType, error) {
+func (s *EntryTypeService) UpdateEntryType(ctx context.Context, id int, upd dots.EntryTypeUpdate) (*dots.EntryType, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
@@ -120,7 +120,7 @@ values
 	return nil
 }
 
-func updateEntryType(ctx context.Context, tx *Tx, id int, updata *dots.EntryTypeUpdate) (*dots.EntryType, error) {
+func updateEntryType(ctx context.Context, tx *Tx, id int, updata dots.EntryTypeUpdate) (*dots.EntryType, error) {
 	ee, _, err := findEntryType(ctx, tx, dots.EntryTypeFilter{ID: &id, Limit: 1})
 	if err != nil {
 		return nil, fmt.Errorf("postgres.entry type: cannot retrieve entry type %w", err)

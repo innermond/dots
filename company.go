@@ -30,7 +30,7 @@ type CompanyService interface {
 	// hydrate the input param to reflect changes, hence
 	// the input param must be a pointer
 	CreateCompany(context.Context, *Company) error
-	UpdateCompany(context.Context, int, *CompanyUpdate) (*Company, error)
+	UpdateCompany(context.Context, int, CompanyUpdate) (*Company, error)
 	FindCompany(context.Context, *CompanyFilter) ([]*Company, int, error)
 }
 

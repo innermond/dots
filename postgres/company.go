@@ -43,7 +43,7 @@ func (s *CompanyService) FindCompany(ctx context.Context, filter *dots.CompanyFi
 	return findCompany(ctx, tx, filter)
 }
 
-func (s *CompanyService) UpdateCompany(ctx context.Context, id int, upd *dots.CompanyUpdate) (*dots.Company, error) {
+func (s *CompanyService) UpdateCompany(ctx context.Context, id int, upd dots.CompanyUpdate) (*dots.Company, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
@@ -141,7 +141,7 @@ values
 	return nil
 }
 
-func updateCompany(ctx context.Context, tx *Tx, id int, updata *dots.CompanyUpdate) (*dots.Company, error) {
+func updateCompany(ctx context.Context, tx *Tx, id int, updata dots.CompanyUpdate) (*dots.Company, error) {
 	cc, _, err := findCompany(ctx, tx, &dots.CompanyFilter{ID: &id, Limit: 1})
 	if err != nil {
 		return nil, fmt.Errorf("postgres.company: cannot retrieve company type %w", err)

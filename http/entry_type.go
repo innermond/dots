@@ -54,7 +54,7 @@ func (s *Server) handleEntryTypeUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	et, err := s.EntryTypeService.UpdateEntryType(r.Context(), id, &updata)
+	et, err := s.EntryTypeService.UpdateEntryType(r.Context(), id, updata)
 	if err != nil {
 		Error(w, r, err)
 		return
