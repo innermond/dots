@@ -24,6 +24,10 @@ func (s *EntryTypeService) CreateEntryType(ctx context.Context, et *dots.EntryTy
 	}
 	defer tx.Rollback()
 
+	if canerr := dots.CanDoAnything(ctx); canerr == nil {
+		return createEntryType(ctx, tx, et)
+	}
+
 	if canerr := dots.CanCreateOwn(ctx); canerr != nil {
 		return canerr
 	}

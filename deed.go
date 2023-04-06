@@ -13,6 +13,9 @@ type Deed struct {
 	Quantity  float64         `json:"quantity"`
 	Unit      string          `json:"unit"`
 	UnitPrice decimal.Decimal `json:"unitprice"`
+
+	EntryID         *int     `json:"entry_id"`
+	DrainedQuantity *float64 `json:"drained_quantity"`
 }
 
 func (d *Deed) Validate() error {
@@ -43,6 +46,9 @@ type DeedUpdate struct {
 	Quantity  *float64         `json:"quantity"`
 	Unit      *string          `json:"unit"`
 	UnitPrice *decimal.Decimal `json:"unitprice"`
+
+	EntryID         *int     `json:"entry_id"`
+	DrainedQuantity *float64 `json:"drained_quantity"`
 }
 
 func (du *DeedUpdate) Valid() error {

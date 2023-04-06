@@ -24,6 +24,24 @@ func (s *DeedService) CreateDeed(ctx context.Context, d *dots.Deed) error {
 	}
 	defer tx.Rollback()
 
+	if canerr := dots.CanDoAnything(ctx); canerr == nil {
+		return createDeed(ctx, tx, d)
+	}
+
+	if canerr := dots.CanCreateOwn(ctx); canerr != nil {
+		return canerr
+	}
+
+	if d.EntryID != nil && d.DrainedQuantity != nil {
+		// lock create to own
+		// need deed ID and entry ID that belong to companies of user
+		uid := dots.UserFromContext(ctx).ID
+		err = entryBelongsToUser(ctx, tx, uid, *d.EntryID)
+		if err != nil {
+			return err
+		}
+	}
+
 	if err := createDeed(ctx, tx, d); err != nil {
 		return err
 	}
@@ -49,6 +67,14 @@ func (s *DeedService) UpdateDeed(ctx context.Context, id int, upd dots.DeedUpdat
 		return nil, err
 	}
 	defer tx.Rollback()
+
+	if canerr := dots.CanDoAnything(ctx); canerr == nil {
+		return updateDeed(ctx, tx, id, upd)
+	}
+
+	if canerr := dots.CanCreateOwn(ctx); canerr != nil {
+		return nil, canerr
+	}
 
 	d, err := updateDeed(ctx, tx, id, upd)
 	if err != nil {
@@ -82,6 +108,20 @@ values
 	).Scan(&d.ID)
 	if err != nil {
 		return err
+	}
+
+	if d.EntryID != nil && d.DrainedQuantity != nil {
+		d := dots.Drain{
+			DeedID:   d.ID,
+			EntryID:  *d.EntryID,
+			Quantity: *d.DrainedQuantity,
+		}
+
+		err = createDrain(ctx, tx, d)
+		if err != nil {
+			return err
+		}
+
 	}
 
 	return nil
@@ -133,6 +173,20 @@ func updateDeed(ctx context.Context, tx *Tx, id int, updata dots.DeedUpdate) (*d
 	_, err = tx.ExecContext(ctx, sqlstr, args...)
 	if err != nil {
 		return nil, fmt.Errorf("postgres.deed: cannot update %w", err)
+	}
+
+	if updata.EntryID != nil && updata.DrainedQuantity != nil {
+		d := dots.Drain{
+			DeedID:   id,
+			EntryID:  *updata.EntryID,
+			Quantity: *updata.DrainedQuantity,
+		}
+
+		err = createDrain(ctx, tx, d)
+		if err != nil {
+			return e, err
+		}
+
 	}
 
 	return e, nil
