@@ -33,7 +33,7 @@ func (s *EntryService) CreateEntry(ctx context.Context, e *dots.Entry) error {
 	return nil
 }
 
-func (s *EntryService) FindEntry(ctx context.Context, filter *dots.EntryFilter) ([]*dots.Entry, int, error) {
+func (s *EntryService) FindEntry(ctx context.Context, filter dots.EntryFilter) ([]*dots.Entry, int, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, 0, err
@@ -88,7 +88,7 @@ values
 }
 
 func updateEntry(ctx context.Context, tx *Tx, id int, updata dots.EntryUpdate) (*dots.Entry, error) {
-	ee, _, err := findEntry(ctx, tx, &dots.EntryFilter{ID: &id, Limit: 1})
+	ee, _, err := findEntry(ctx, tx, dots.EntryFilter{ID: &id, Limit: 1})
 	if err != nil {
 		return nil, fmt.Errorf("postgres.entry: cannot retrieve entry %w", err)
 	}
@@ -134,7 +134,7 @@ func updateEntry(ctx context.Context, tx *Tx, id int, updata dots.EntryUpdate) (
 	return e, nil
 }
 
-func findEntry(ctx context.Context, tx *Tx, filter *dots.EntryFilter) (_ []*dots.Entry, n int, err error) {
+func findEntry(ctx context.Context, tx *Tx, filter dots.EntryFilter) (_ []*dots.Entry, n int, err error) {
 	where, args := []string{"1 = 1"}, []interface{}{}
 	if v := filter.ID; v != nil {
 		where, args = append(where, "id = ?"), append(args, *v)

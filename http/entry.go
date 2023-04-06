@@ -67,7 +67,7 @@ func (s *Server) handleEntryFind(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ee, n, err := s.EntryService.FindEntry(r.Context(), &filter)
+	ee, n, err := s.EntryService.FindEntry(r.Context(), filter)
 	if err != nil {
 		Error(w, r, err)
 		return
