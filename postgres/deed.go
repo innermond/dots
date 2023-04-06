@@ -194,3 +194,23 @@ func findDeed(ctx context.Context, tx *Tx, filter dots.DeedFilter) (_ []*dots.De
 
 	return deeds, n, nil
 }
+
+func deedBelongsToUser(ctx context.Context, tx *Tx, u int, d int) error {
+	sqlstr := `select exists(select d.id
+from deed d
+where d.company_id = any(select id
+from company c
+where c.tid = $1
+and d.id = $2));
+`
+	var exists bool
+	err := tx.QueryRowContext(ctx, sqlstr, u, d).Scan(&exists)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return dots.Errorf(dots.EUNAUTHORIZED, "foreign deed")
+	}
+
+	return nil
+}

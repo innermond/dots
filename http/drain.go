@@ -15,8 +15,8 @@ func (s *Server) registerDrainRoutes(router *mux.Router) {
 }
 
 func (s *Server) handleDrainCreate(w http.ResponseWriter, r *http.Request) {
-	var et dots.Drain
 
+	var et dots.Drain
 	if err := json.NewDecoder(r.Body).Decode(&et); err != nil {
 		Error(w, r, dots.Errorf(dots.EINVALID, "new entry type: invalid json body"))
 		return

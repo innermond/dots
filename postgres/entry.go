@@ -211,3 +211,23 @@ func findEntry(ctx context.Context, tx *Tx, filter dots.EntryFilter) (_ []*dots.
 
 	return entries, n, nil
 }
+
+func entryBelongsToUser(ctx context.Context, tx *Tx, u int, e int) error {
+	sqlstr := `select exists(select e.id
+from entry e
+where e.company_id = any(select id
+from company c
+where c.tid = $1
+and e.id = $2));
+`
+	var exists bool
+	err := tx.QueryRowContext(ctx, sqlstr, u, e).Scan(&exists)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return dots.Errorf(dots.EUNAUTHORIZED, "foreign entry")
+	}
+
+	return nil
+}

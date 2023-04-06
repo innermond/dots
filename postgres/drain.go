@@ -21,6 +21,26 @@ func (s *DrainService) CreateDrain(ctx context.Context, d *dots.Drain) error {
 	}
 	defer tx.Rollback()
 
+	if canerr := dots.CanDoAnything(ctx); canerr == nil {
+		return createDrain(ctx, tx, d)
+	}
+
+	if canerr := dots.CanCreateOwn(ctx); canerr != nil {
+		return canerr
+	}
+
+	// lock create to own
+	// need deed ID and entry ID that belong to companies of user
+	uid := dots.UserFromContext(ctx).ID
+	err = entryBelongsToUser(ctx, tx, uid, d.EntryID)
+	if err != nil {
+		return err
+	}
+	err = deedBelongsToUser(ctx, tx, uid, d.DeedID)
+	if err != nil {
+		return err
+	}
+
 	if err := createDrain(ctx, tx, d); err != nil {
 		return err
 	}
@@ -35,7 +55,7 @@ func createDrain(ctx context.Context, tx *Tx, d *dots.Drain) error {
 		return err
 	}
 
-	err := tx.QueryRowContext(
+	_, err := tx.ExecContext(
 		ctx,
 		`
 insert into drain
@@ -44,7 +64,7 @@ values
 ($1, $2, $3)
 		`,
 		d.DeedID, d.EntryID, d.Quantity,
-	).Scan()
+	)
 	if err != nil {
 		return err
 	}
