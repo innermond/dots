@@ -64,7 +64,7 @@ func (s *Server) handleDeedFind(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	dd, n, err := s.DeedService.FindDeed(r.Context(), &filter)
+	dd, n, err := s.DeedService.FindDeed(r.Context(), filter)
 	if err != nil {
 		Error(w, r, err)
 		return

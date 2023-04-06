@@ -33,7 +33,7 @@ func (s *DeedService) CreateDeed(ctx context.Context, d *dots.Deed) error {
 	return nil
 }
 
-func (s *DeedService) FindDeed(ctx context.Context, filter *dots.DeedFilter) ([]*dots.Deed, int, error) {
+func (s *DeedService) FindDeed(ctx context.Context, filter dots.DeedFilter) ([]*dots.Deed, int, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, 0, err
@@ -88,7 +88,7 @@ values
 }
 
 func updateDeed(ctx context.Context, tx *Tx, id int, updata dots.DeedUpdate) (*dots.Deed, error) {
-	dd, _, err := findDeed(ctx, tx, &dots.DeedFilter{ID: &id, Limit: 1})
+	dd, _, err := findDeed(ctx, tx, dots.DeedFilter{ID: &id, Limit: 1})
 	if err != nil {
 		return nil, fmt.Errorf("postgres.deed: cannot retrieve deed %w", err)
 	}
@@ -138,7 +138,7 @@ func updateDeed(ctx context.Context, tx *Tx, id int, updata dots.DeedUpdate) (*d
 	return e, nil
 }
 
-func findDeed(ctx context.Context, tx *Tx, filter *dots.DeedFilter) (_ []*dots.Deed, n int, err error) {
+func findDeed(ctx context.Context, tx *Tx, filter dots.DeedFilter) (_ []*dots.Deed, n int, err error) {
 	where, args := []string{"1 = 1"}, []interface{}{}
 	if v := filter.ID; v != nil {
 		where, args = append(where, "id = ?"), append(args, *v)
