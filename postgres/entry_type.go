@@ -38,7 +38,7 @@ func (s *EntryTypeService) CreateEntryType(ctx context.Context, et *dots.EntryTy
 	return nil
 }
 
-func (s *EntryTypeService) FindEntryType(ctx context.Context, filter *dots.EntryTypeFilter) ([]*dots.EntryType, int, error) {
+func (s *EntryTypeService) FindEntryType(ctx context.Context, filter dots.EntryTypeFilter) ([]*dots.EntryType, int, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, 0, err
@@ -46,7 +46,7 @@ func (s *EntryTypeService) FindEntryType(ctx context.Context, filter *dots.Entry
 	defer tx.Rollback()
 
 	if canerr := dots.CanDoAnything(ctx); canerr == nil {
-		return findEntryType(ctx, tx, *filter)
+		return findEntryType(ctx, tx, filter)
 	}
 
 	if canerr := dots.CanReadOwn(ctx); canerr != nil {
@@ -55,7 +55,7 @@ func (s *EntryTypeService) FindEntryType(ctx context.Context, filter *dots.Entry
 	// lock search to own
 	filter.TID = &dots.UserFromContext(ctx).ID
 
-	return findEntryType(ctx, tx, *filter)
+	return findEntryType(ctx, tx, filter)
 }
 
 func (s *EntryTypeService) UpdateEntryType(ctx context.Context, id int, upd dots.EntryTypeUpdate) (*dots.EntryType, error) {
@@ -65,7 +65,7 @@ func (s *EntryTypeService) UpdateEntryType(ctx context.Context, id int, upd dots
 	}
 	defer tx.Rollback()
 
-	ee, n, err := s.FindEntryType(ctx, &dots.EntryTypeFilter{ID: &id, Limit: 1})
+	ee, n, err := s.FindEntryType(ctx, dots.EntryTypeFilter{ID: &id, Limit: 1})
 	if err != nil {
 		return nil, err
 	}

@@ -83,7 +83,7 @@ func (s *Server) handleEntryTypeFind(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ee, n, err := s.EntryTypeService.FindEntryType(r.Context(), &filter)
+	ee, n, err := s.EntryTypeService.FindEntryType(r.Context(), filter)
 	if err != nil {
 		Error(w, r, err)
 		return
