@@ -33,7 +33,7 @@ func (s *CompanyService) CreateCompany(ctx context.Context, c *dots.Company) err
 	return nil
 }
 
-func (s *CompanyService) FindCompany(ctx context.Context, filter *dots.CompanyFilter) ([]*dots.Company, int, error) {
+func (s *CompanyService) FindCompany(ctx context.Context, filter dots.CompanyFilter) ([]*dots.Company, int, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, 0, err
@@ -60,7 +60,7 @@ func (s *CompanyService) UpdateCompany(ctx context.Context, id int, upd dots.Com
 	return c, nil
 }
 
-func findCompany(ctx context.Context, tx *Tx, filter *dots.CompanyFilter) (_ []*dots.Company, n int, err error) {
+func findCompany(ctx context.Context, tx *Tx, filter dots.CompanyFilter) (_ []*dots.Company, n int, err error) {
 	where, args := []string{"1 = 1"}, []interface{}{}
 	if v := filter.ID; v != nil {
 		where, args = append(where, "id = ?"), append(args, *v)
@@ -142,7 +142,7 @@ values
 }
 
 func updateCompany(ctx context.Context, tx *Tx, id int, updata dots.CompanyUpdate) (*dots.Company, error) {
-	cc, _, err := findCompany(ctx, tx, &dots.CompanyFilter{ID: &id, Limit: 1})
+	cc, _, err := findCompany(ctx, tx, dots.CompanyFilter{ID: &id, Limit: 1})
 	if err != nil {
 		return nil, fmt.Errorf("postgres.company: cannot retrieve company type %w", err)
 	}

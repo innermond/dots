@@ -66,7 +66,7 @@ func (s *Server) handleCompanyFind(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ee, n, err := s.CompanyService.FindCompany(r.Context(), &filter)
+	ee, n, err := s.CompanyService.FindCompany(r.Context(), filter)
 	if err != nil {
 		Error(w, r, err)
 		return
@@ -76,6 +76,6 @@ func (s *Server) handleCompanyFind(w http.ResponseWriter, r *http.Request) {
 }
 
 type findCompanyResponse struct {
-	Companys []*dots.Company `json:"entrY_types"`
+	Companys []*dots.Company `json:"companies"`
 	N        int             `json:"n"`
 }
