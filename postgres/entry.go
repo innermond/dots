@@ -24,6 +24,19 @@ func (s *EntryService) CreateEntry(ctx context.Context, e *dots.Entry) error {
 	}
 	defer tx.Rollback()
 
+	if canerr := dots.CanDoAnything(ctx); canerr == nil {
+		return createEntry(ctx, tx, e)
+	}
+
+	if canerr := dots.CanCreateOwn(ctx); canerr != nil {
+		return canerr
+	}
+
+	uid := dots.UserFromContext(ctx).ID
+	if err := companyBelongsToUser(ctx, tx, uid, e.CompanyID); err != nil {
+		return err
+	}
+
 	if err := createEntry(ctx, tx, e); err != nil {
 		return err
 	}

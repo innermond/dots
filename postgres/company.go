@@ -183,3 +183,22 @@ func updateCompany(ctx context.Context, tx *Tx, id int, updata dots.CompanyUpdat
 
 	return ct, nil
 }
+
+func companyBelongsToUser(ctx context.Context, tx *Tx, u int, companyID int) error {
+	sqlstr := `select exists(
+select id
+from company c
+where c.id = $1 and c.tid = $2
+);
+`
+	var exists bool
+	err := tx.QueryRowContext(ctx, sqlstr, u, companyID).Scan(&exists)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return dots.Errorf(dots.EUNAUTHORIZED, "foreign entry")
+	}
+
+	return nil
+}
