@@ -87,6 +87,29 @@ func (s *EntryService) UpdateEntry(ctx context.Context, id int, upd dots.EntryUp
 	}
 	defer tx.Rollback()
 
+	if canerr := dots.CanDoAnything(ctx); canerr == nil {
+		return updateEntry(ctx, tx, id, upd)
+	}
+
+	uid := dots.UserFromContext(ctx).ID
+	if upd.CompanyID != nil {
+		err := companyBelongsToUser(ctx, tx, uid, *upd.CompanyID)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if upd.EntryTypeID != nil {
+		err := entryTypeBelongsToUser(ctx, tx, uid, *upd.EntryTypeID)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if canerr := dots.CanWriteOwn(ctx, uid); canerr != nil {
+		return nil, canerr
+	}
+
 	e, err := updateEntry(ctx, tx, id, upd)
 	if err != nil {
 		return nil, err

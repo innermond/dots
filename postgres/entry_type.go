@@ -217,3 +217,20 @@ func findEntryType(ctx context.Context, tx *Tx, filter dots.EntryTypeFilter) (_ 
 
 	return entryTypes, n, nil
 }
+
+func entryTypeBelongsToUser(ctx context.Context, tx *Tx, u int, e int) error {
+	sqlstr := `select exists(select e.id
+from entry_type e
+where e.tid = $1 and e.id = $2);
+`
+	var exists bool
+	err := tx.QueryRowContext(ctx, sqlstr, u, e).Scan(&exists)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return dots.Errorf(dots.EUNAUTHORIZED, "foreign entry")
+	}
+
+	return nil
+}
