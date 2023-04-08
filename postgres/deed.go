@@ -117,7 +117,7 @@ values
 			Quantity: *d.DrainedQuantity,
 		}
 
-		err = createDrain(ctx, tx, d)
+		err = createOrUpdateDrain(ctx, tx, d)
 		if err != nil {
 			return err
 		}
@@ -182,7 +182,7 @@ func updateDeed(ctx context.Context, tx *Tx, id int, updata dots.DeedUpdate) (*d
 			Quantity: *updata.DrainedQuantity,
 		}
 
-		err = createDrain(ctx, tx, d)
+		err = createOrUpdateDrain(ctx, tx, d)
 		if err != nil {
 			return e, err
 		}

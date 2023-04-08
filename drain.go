@@ -13,7 +13,7 @@ func (d *Drain) Validate() error {
 }
 
 type DrainService interface {
-	CreateDrain(context.Context, Drain) error
+	CreateOrUpdateDrain(context.Context, Drain) error
 	//UpdateDrain(context.Context, int, *Drain) (*Drain, error)
 	//FindDrain(context.Context, *DrainFilter) ([]*Drain, int, error)
 }

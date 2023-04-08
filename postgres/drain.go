@@ -14,7 +14,7 @@ func NewDrainService(db *DB) *DrainService {
 	return &DrainService{db: db}
 }
 
-func (s *DrainService) CreateDrain(ctx context.Context, d dots.Drain) error {
+func (s *DrainService) CreateOrUpdateDrain(ctx context.Context, d dots.Drain) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -22,7 +22,7 @@ func (s *DrainService) CreateDrain(ctx context.Context, d dots.Drain) error {
 	defer tx.Rollback()
 
 	if canerr := dots.CanDoAnything(ctx); canerr == nil {
-		return createDrain(ctx, tx, d)
+		return createOrUpdateDrain(ctx, tx, d)
 	}
 
 	if canerr := dots.CanCreateOwn(ctx); canerr != nil {
@@ -41,7 +41,7 @@ func (s *DrainService) CreateDrain(ctx context.Context, d dots.Drain) error {
 		return err
 	}
 
-	if err := createDrain(ctx, tx, d); err != nil {
+	if err := createOrUpdateDrain(ctx, tx, d); err != nil {
 		return err
 	}
 
@@ -50,7 +50,7 @@ func (s *DrainService) CreateDrain(ctx context.Context, d dots.Drain) error {
 	return nil
 }
 
-func createDrain(ctx context.Context, tx *Tx, d dots.Drain) error {
+func createOrUpdateDrain(ctx context.Context, tx *Tx, d dots.Drain) error {
 	if err := d.Validate(); err != nil {
 		return err
 	}
@@ -62,7 +62,7 @@ insert into drain
 (deed_id, entry_id, quantity)
 values
 ($1, $2, $3)
-on conflict (deed_id, entry_id) do update set quantity = drain.quantity + EXCLUDED.quantity
+on conflict (deed_id, entry_id) do update set quantity = EXCLUDED.quantity
 		`,
 		d.DeedID, d.EntryID, d.Quantity,
 	)

@@ -22,7 +22,7 @@ func (s *Server) handleDrainCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := s.DrainService.CreateDrain(r.Context(), et)
+	err := s.DrainService.CreateOrUpdateDrain(r.Context(), et)
 	if err != nil {
 		Error(w, r, err)
 		return
