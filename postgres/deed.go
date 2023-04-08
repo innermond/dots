@@ -72,6 +72,7 @@ func (s *DeedService) UpdateDeed(ctx context.Context, id int, upd dots.DeedUpdat
 		return updateDeed(ctx, tx, id, upd)
 	}
 
+	// TODO CanWriteOwn?
 	if canerr := dots.CanCreateOwn(ctx); canerr != nil {
 		return nil, canerr
 	}

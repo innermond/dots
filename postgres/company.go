@@ -24,6 +24,14 @@ func (s *CompanyService) CreateCompany(ctx context.Context, c *dots.Company) err
 	}
 	defer tx.Rollback()
 
+	if canerr := dots.CanDoAnything(ctx); canerr == nil {
+		return createCompany(ctx, tx, c)
+	}
+
+	if canerr := dots.CanCreateOwn(ctx); canerr != nil {
+		return canerr
+	}
+
 	if err := createCompany(ctx, tx, c); err != nil {
 		return err
 	}
@@ -40,6 +48,18 @@ func (s *CompanyService) FindCompany(ctx context.Context, filter dots.CompanyFil
 	}
 	defer tx.Rollback()
 
+	if canerr := dots.CanDoAnything(ctx); canerr == nil {
+		return findCompany(ctx, tx, filter)
+	}
+
+	if canerr := dots.CanReadOwn(ctx); canerr != nil {
+		return nil, 0, canerr
+	}
+
+	// lock search to own
+	uid := dots.UserFromContext(ctx).ID
+	filter.TID = &uid
+
 	return findCompany(ctx, tx, filter)
 }
 
@@ -49,6 +69,24 @@ func (s *CompanyService) UpdateCompany(ctx context.Context, id int, upd dots.Com
 		return nil, err
 	}
 	defer tx.Rollback()
+
+	if canerr := dots.CanDoAnything(ctx); canerr == nil {
+		return updateCompany(ctx, tx, id, upd)
+	}
+
+	uid := dots.UserFromContext(ctx).ID
+	err = companyBelongsToUser(ctx, tx, uid, id)
+	if err != nil {
+		return nil, err
+	}
+
+	if upd.TID != nil && uid != *upd.TID {
+		return nil, dots.Errorf(dots.EINVALID, "update company: unexpected user")
+	}
+
+	if canerr := dots.CanWriteOwn(ctx, *upd.TID); canerr != nil {
+		return nil, canerr
+	}
 
 	c, err := updateCompany(ctx, tx, id, upd)
 	if err != nil {
