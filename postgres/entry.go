@@ -253,8 +253,8 @@ func entryBelongsToUser(ctx context.Context, tx *Tx, u int, e int) error {
 from entry e
 where e.company_id = any(select id
 from company c
-where c.tid = $1
-and e.id = $2));
+where c.tid = $1)
+and e.id = $2);
 `
 	var exists bool
 	err := tx.QueryRowContext(ctx, sqlstr, u, e).Scan(&exists)

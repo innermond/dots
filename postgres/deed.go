@@ -32,10 +32,15 @@ func (s *DeedService) CreateDeed(ctx context.Context, d *dots.Deed) error {
 		return canerr
 	}
 
+	uid := dots.UserFromContext(ctx).ID
+
+	if err := companyBelongsToUser(ctx, tx, uid, d.CompanyID); err != nil {
+		return err
+	}
+
 	if d.EntryID != nil && d.DrainedQuantity != nil {
 		// lock create to own
 		// need deed ID and entry ID that belong to companies of user
-		uid := dots.UserFromContext(ctx).ID
 		err = entryBelongsToUser(ctx, tx, uid, *d.EntryID)
 		if err != nil {
 			return err
@@ -72,8 +77,24 @@ func (s *DeedService) UpdateDeed(ctx context.Context, id int, upd dots.DeedUpdat
 		return updateDeed(ctx, tx, id, upd)
 	}
 
-	// TODO CanWriteOwn?
-	if canerr := dots.CanCreateOwn(ctx); canerr != nil {
+	uid := dots.UserFromContext(ctx).ID
+
+	if upd.CompanyID != nil {
+		err = companyBelongsToUser(ctx, tx, uid, *upd.CompanyID)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if err := deedBelongsToUser(ctx, tx, uid, id); err != nil {
+		return nil, err
+	}
+
+	deedUserID := deedGetUser(ctx, tx, id)
+	if deedUserID == nil {
+		return nil, dots.Errorf(dots.EINVALID, "deed user conflict")
+	}
+	if canerr := dots.CanWriteOwn(ctx, *deedUserID); canerr != nil {
 		return nil, canerr
 	}
 
@@ -255,8 +276,8 @@ func deedBelongsToUser(ctx context.Context, tx *Tx, u int, d int) error {
 from deed d
 where d.company_id = any(select id
 from company c
-where c.tid = $1
-and d.id = $2));
+where c.tid = $1)
+and d.id = $2);
 `
 	var exists bool
 	err := tx.QueryRowContext(ctx, sqlstr, u, d).Scan(&exists)
@@ -268,4 +289,20 @@ and d.id = $2));
 	}
 
 	return nil
+}
+
+func deedGetUser(ctx context.Context, tx *Tx, d int) *int {
+	sqlstr := `select c.tid
+from company c
+where c.id = (select d.company_id 
+from deed d
+where d.id = $1)
+`
+	var uid int
+	err := tx.QueryRowContext(ctx, sqlstr, d).Scan(&uid)
+	if err != nil {
+		return nil
+	}
+
+	return &uid
 }
