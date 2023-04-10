@@ -253,6 +253,9 @@ func findDeed(ctx context.Context, tx *Tx, filter dots.DeedFilter, lockOwnID *in
 	if v := filter.CompanyID; v != nil {
 		where, args = append(where, "company_id = ?"), append(args, *v)
 	}
+	if lockOwnID != nil {
+		where, args = append(where, "company_id = any(select id from company where tid = ?)"), append(args, *lockOwnID)
+	}
 	for inx, v := range where {
 		if !strings.Contains(v, "?") {
 			continue
@@ -263,9 +266,6 @@ func findDeed(ctx context.Context, tx *Tx, filter dots.DeedFilter, lockOwnID *in
 
 	sqlstr := `select id, title, unit, unitprice, quantity, company_id, count(*) over() from deed
 		where `
-	if lockOwnID != nil {
-		where, args = append(where, "company_id = any(select id from company where tid = ?)"), append(args, *lockOwnID)
-	}
 	rows, err := tx.QueryContext(ctx, sqlstr+strings.Join(where, " and ")+` `+formatLimitOffset(filter.Limit, filter.Offset),
 		args...,
 	)
