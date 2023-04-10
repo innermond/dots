@@ -63,7 +63,26 @@ func (s *DeedService) FindDeed(ctx context.Context, filter dots.DeedFilter) ([]*
 	}
 	defer tx.Rollback()
 
-	return findDeed(ctx, tx, filter)
+	if canerr := dots.CanDoAnything(ctx); canerr == nil {
+		return findDeed(ctx, tx, filter, nil)
+	}
+
+	if canerr := dots.CanReadOwn(ctx); canerr != nil {
+		return nil, 0, canerr
+	}
+
+	// check search to own
+	uid := dots.UserFromContext(ctx).ID
+	if filter.CompanyID != nil {
+		err := companyBelongsToUser(ctx, tx, uid, *filter.CompanyID)
+		if err != nil {
+			return nil, 0, err
+		}
+		return findDeed(ctx, tx, filter, nil)
+	} else {
+		// lock search to own
+		return findDeed(ctx, tx, filter, &uid)
+	}
 }
 
 func (s *DeedService) UpdateDeed(ctx context.Context, id int, upd dots.DeedUpdate) (*dots.Deed, error) {
@@ -150,7 +169,7 @@ values
 }
 
 func updateDeed(ctx context.Context, tx *Tx, id int, updata dots.DeedUpdate) (*dots.Deed, error) {
-	dd, _, err := findDeed(ctx, tx, dots.DeedFilter{ID: &id, Limit: 1})
+	dd, _, err := findDeed(ctx, tx, dots.DeedFilter{ID: &id, Limit: 1}, nil)
 	if err != nil {
 		return nil, fmt.Errorf("postgres.deed: cannot retrieve deed %w", err)
 	}
@@ -214,7 +233,7 @@ func updateDeed(ctx context.Context, tx *Tx, id int, updata dots.DeedUpdate) (*d
 	return e, nil
 }
 
-func findDeed(ctx context.Context, tx *Tx, filter dots.DeedFilter) (_ []*dots.Deed, n int, err error) {
+func findDeed(ctx context.Context, tx *Tx, filter dots.DeedFilter, lockOwnID *int) (_ []*dots.Deed, n int, err error) {
 	where, args := []string{"1 = 1"}, []interface{}{}
 	if v := filter.ID; v != nil {
 		where, args = append(where, "id = ?"), append(args, *v)
@@ -242,9 +261,12 @@ func findDeed(ctx context.Context, tx *Tx, filter dots.DeedFilter) (_ []*dots.De
 		where[inx] = v
 	}
 
-	rows, err := tx.QueryContext(ctx, `
-		select id, title, unit, unitprice, quantity, company_id, count(*) over() from deed
-		where `+strings.Join(where, " and ")+` `+formatLimitOffset(filter.Limit, filter.Offset),
+	sqlstr := `select id, title, unit, unitprice, quantity, company_id, count(*) over() from deed
+		where `
+	if lockOwnID != nil {
+		where, args = append(where, "company_id = any(select id from company where tid = ?)"), append(args, *lockOwnID)
+	}
+	rows, err := tx.QueryContext(ctx, sqlstr+strings.Join(where, " and ")+` `+formatLimitOffset(filter.Limit, filter.Offset),
 		args...,
 	)
 	if err == sql.ErrNoRows {
