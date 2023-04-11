@@ -127,7 +127,7 @@ func (s *DeedService) UpdateDeed(ctx context.Context, id int, upd dots.DeedUpdat
 	return d, nil
 }
 
-func (s *DeedService) DeleteDeed(ctx context.Context, filter dots.DeedFilter) (int, error) {
+func (s *DeedService) DeleteDeed(ctx context.Context, filter dots.DeedDelete) (int, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, err
@@ -327,7 +327,7 @@ func findDeed(ctx context.Context, tx *Tx, filter dots.DeedFilter, lockOwnID *in
 	return deeds, n, nil
 }
 
-func deleteDeed(ctx context.Context, tx *Tx, filter dots.DeedFilter, lockOwnID *int) (n int, err error) {
+func deleteDeed(ctx context.Context, tx *Tx, filter dots.DeedDelete, lockOwnID *int) (n int, err error) {
 	where, args := []string{"1 = 1"}, []interface{}{}
 	if v := filter.ID; v != nil {
 		where, args = append(where, "id = ?"), append(args, *v)
@@ -358,9 +358,13 @@ func deleteDeed(ctx context.Context, tx *Tx, filter dots.DeedFilter, lockOwnID *
 		where[inx] = v
 	}
 
-	sqlstr := "update deed set deleted_at = now() where "
+	kind := "now()"
+	if filter.Resurect {
+		kind = "null"
+	}
+	sqlstr := "update deed set deleted_at = " + kind + " where "
 	sqlstr = sqlstr + strings.Join(where, " and ") + " " + formatLimitOffset(filter.Limit, filter.Offset)
-	fmt.Println(sqlstr, args)
+
 	result, err := tx.ExecContext(
 		ctx,
 		sqlstr,

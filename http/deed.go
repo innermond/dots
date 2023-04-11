@@ -75,12 +75,15 @@ func (s *Server) handleDeedFind(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleDeedDelete(w http.ResponseWriter, r *http.Request) {
-	var filter dots.DeedFilter
-	ok := inputJSON[dots.DeedFilter](w, r, &filter, "delete deed")
+	var filter dots.DeedDelete
+	ok := inputJSON[dots.DeedDelete](w, r, &filter, "delete deed")
 	if !ok {
 		return
 	}
 
+	if r.URL.Query().Get("resurect") != "" {
+		filter.Resurect = true
+	}
 	n, err := s.DeedService.DeleteDeed(r.Context(), filter)
 	if err != nil {
 		Error(w, r, err)

@@ -26,7 +26,7 @@ type DeedService interface {
 	CreateDeed(context.Context, *Deed) error
 	UpdateDeed(context.Context, int, DeedUpdate) (*Deed, error)
 	FindDeed(context.Context, DeedFilter) ([]*Deed, int, error)
-	DeleteDeed(context.Context, DeedFilter) (int, error)
+	DeleteDeed(context.Context, DeedDelete) (int, error)
 }
 
 type DeedFilter struct {
@@ -39,6 +39,12 @@ type DeedFilter struct {
 
 	Offset int `json:"offset"`
 	Limit  int `json:"limit"`
+}
+
+type DeedDelete struct {
+	DeedFilter
+
+	Resurect bool
 }
 
 type DeedUpdate struct {
