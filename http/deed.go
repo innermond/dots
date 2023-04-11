@@ -12,6 +12,7 @@ func (s *Server) registerDeedRoutes(router *mux.Router) {
 	router.HandleFunc("", s.handleDeedCreate).Methods("POST")
 	router.HandleFunc("/{id}/edit", s.handleDeedUpdate).Methods("PATCH")
 	router.HandleFunc("", s.handleDeedFind).Methods("GET")
+	router.HandleFunc("", s.handleDeedDelete).Methods("PATCH")
 }
 
 func (s *Server) handleDeedCreate(w http.ResponseWriter, r *http.Request) {
@@ -73,7 +74,27 @@ func (s *Server) handleDeedFind(w http.ResponseWriter, r *http.Request) {
 	outputJSON[findDeedResponse](w, r, http.StatusFound, &findDeedResponse{Deeds: dd, N: n})
 }
 
+func (s *Server) handleDeedDelete(w http.ResponseWriter, r *http.Request) {
+	var filter dots.DeedFilter
+	ok := inputJSON[dots.DeedFilter](w, r, &filter, "delete deed")
+	if !ok {
+		return
+	}
+
+	n, err := s.DeedService.DeleteDeed(r.Context(), filter)
+	if err != nil {
+		Error(w, r, err)
+		return
+	}
+
+	outputJSON[deleteDeedResponse](w, r, http.StatusFound, &deleteDeedResponse{N: n})
+}
+
 type findDeedResponse struct {
 	Deeds []*dots.Deed `json:"deeds"`
 	N     int          `json:"n"`
+}
+
+type deleteDeedResponse struct {
+	N int `json:"n"`
 }

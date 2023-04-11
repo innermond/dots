@@ -127,6 +127,40 @@ func (s *DeedService) UpdateDeed(ctx context.Context, id int, upd dots.DeedUpdat
 	return d, nil
 }
 
+func (s *DeedService) DeleteDeed(ctx context.Context, filter dots.DeedFilter) (int, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback()
+
+	if canerr := dots.CanDoAnything(ctx); canerr == nil {
+		return deleteDeed(ctx, tx, filter, nil)
+	}
+
+	if canerr := dots.CanDeleteOwn(ctx); canerr != nil {
+		return 0, canerr
+	}
+
+	var n int
+	// check search to own
+	uid := dots.UserFromContext(ctx).ID
+	if filter.CompanyID != nil {
+		err = companyBelongsToUser(ctx, tx, uid, *filter.CompanyID)
+		if err != nil {
+			return 0, err
+		}
+		n, err = deleteDeed(ctx, tx, filter, nil)
+	} else {
+		// lock delete to own
+		n, err = deleteDeed(ctx, tx, filter, &uid)
+	}
+
+	tx.Commit()
+
+	return n, err
+}
+
 func createDeed(ctx context.Context, tx *Tx, d *dots.Deed) error {
 	user := dots.UserFromContext(ctx)
 	if user.ID == 0 {
@@ -291,6 +325,57 @@ func findDeed(ctx context.Context, tx *Tx, filter dots.DeedFilter, lockOwnID *in
 	}
 
 	return deeds, n, nil
+}
+
+func deleteDeed(ctx context.Context, tx *Tx, filter dots.DeedFilter, lockOwnID *int) (n int, err error) {
+	where, args := []string{"1 = 1"}, []interface{}{}
+	if v := filter.ID; v != nil {
+		where, args = append(where, "id = ?"), append(args, *v)
+	}
+	if v := filter.Title; v != nil {
+		where, args = append(where, "title = ?"), append(args, *v)
+	}
+	if v := filter.Quantity; v != nil {
+		where, args = append(where, "quantity = ?"), append(args, *v)
+	}
+	if v := filter.Unit; v != nil {
+		where, args = append(where, "unit = ?"), append(args, *v)
+	}
+	if v := filter.UnitPrice; v != nil {
+		where, args = append(where, "unitprice = ?"), append(args, *v)
+	}
+	if v := filter.CompanyID; v != nil {
+		where, args = append(where, "company_id = ?"), append(args, *v)
+	}
+	if lockOwnID != nil {
+		where, args = append(where, "company_id = any(select id from company where tid = ?)"), append(args, *lockOwnID)
+	}
+	for inx, v := range where {
+		if !strings.Contains(v, "?") {
+			continue
+		}
+		v = strings.Replace(v, "?", fmt.Sprintf("$%d", inx), 1)
+		where[inx] = v
+	}
+
+	sqlstr := "update deed set deleted_at = now() where "
+	sqlstr = sqlstr + strings.Join(where, " and ") + " " + formatLimitOffset(filter.Limit, filter.Offset)
+	fmt.Println(sqlstr, args)
+	result, err := tx.ExecContext(
+		ctx,
+		sqlstr,
+		args...,
+	)
+	if err != nil {
+		return 0, fmt.Errorf("postgres.deed: cannot soft delete %w", err)
+	}
+
+	n64, err := result.RowsAffected()
+	if err != nil {
+		return 0, err
+	}
+
+	return int(n64), nil
 }
 
 func deedBelongsToUser(ctx context.Context, tx *Tx, u int, d int) error {

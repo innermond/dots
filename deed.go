@@ -26,6 +26,7 @@ type DeedService interface {
 	CreateDeed(context.Context, *Deed) error
 	UpdateDeed(context.Context, int, DeedUpdate) (*Deed, error)
 	FindDeed(context.Context, DeedFilter) ([]*Deed, int, error)
+	DeleteDeed(context.Context, DeedFilter) (int, error)
 }
 
 type DeedFilter struct {

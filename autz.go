@@ -18,6 +18,20 @@ func CanDoAnything(ctx context.Context) error {
 	return Errorf(EUNAUTHORIZED, "unauthorized operation")
 }
 
+func CanDeleteOwn(ctx context.Context) error {
+	user := UserFromContext(ctx)
+	if user.ID == 0 {
+		return Errorf(EUNAUTHORIZED, "unauthorized user")
+	}
+
+	canDeleteOwn := PowersContains(user.Powers, DeleteOwn)
+	if !canDeleteOwn {
+		return Errorf(EUNAUTHORIZED, "unauthorized operation")
+	}
+
+	return nil
+}
+
 func CanWriteOwn(ctx context.Context, tid int) error {
 	user := UserFromContext(ctx)
 	if user.ID == 0 {

@@ -13,6 +13,7 @@ const (
 	CreateOwn
 	WriteOwn
 	ReadOwn
+	DeleteOwn
 )
 
 var Powers = map[Power]string{
@@ -20,9 +21,10 @@ var Powers = map[Power]string{
 	CreateOwn:  "Can create its own items",
 	WriteOwn:   "Can edit its own items",
 	ReadOwn:    "can list its own items",
+	DeleteOwn:  "can delete its own items",
 }
 
-var ss = [...]string{"do_anything", "create_own", "write_own", "read_own"}
+var ss = [...]string{"do_anything", "create_own", "write_own", "read_own", "delete_own"}
 
 func (p Power) String() string {
 	if int(p) > len(ss)-1 {
