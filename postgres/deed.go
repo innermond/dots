@@ -287,6 +287,9 @@ func findDeed(ctx context.Context, tx *Tx, filter dots.DeedFilter, lockOwnID *in
 	if v := filter.CompanyID; v != nil {
 		where, args = append(where, "company_id = ?"), append(args, *v)
 	}
+	if v := filter.DeletedAtTo; v != nil {
+		where, args = append(where, "deleted_at <= ?"), append(args, *v)
+	}
 	if lockOwnID != nil {
 		where, args = append(where, "company_id = any(select id from company where tid = ?)"), append(args, *lockOwnID)
 	}
@@ -298,9 +301,24 @@ func findDeed(ctx context.Context, tx *Tx, filter dots.DeedFilter, lockOwnID *in
 		where[inx] = v
 	}
 
+	// WARN: placeholder ? is connected with position in "where"
+	// so any unrelated with position (read replacement $n)
+	// MUST be added AFTER the "for" cycle
+	// that binds value with placeholder
+
+	// the presence of deleted key with empty value
+	// signals to find ONLY deleted records
+	if filter.DeletedAtTo == nil {
+		where = append(where, "deleted_at is null")
+	}
+
 	sqlstr := `select id, title, unit, unitprice, quantity, company_id, count(*) over() from deed
 		where `
-	rows, err := tx.QueryContext(ctx, sqlstr+strings.Join(where, " and ")+` `+formatLimitOffset(filter.Limit, filter.Offset),
+	sqlstr = sqlstr + strings.Join(where, " and ") + ` ` + formatLimitOffset(filter.Limit, filter.Offset)
+	fmt.Println(sqlstr)
+	rows, err := tx.QueryContext(
+		ctx,
+		sqlstr,
 		args...,
 	)
 	if err == sql.ErrNoRows {

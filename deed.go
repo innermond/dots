@@ -2,6 +2,7 @@ package dots
 
 import (
 	"context"
+	"time"
 
 	"github.com/shopspring/decimal"
 )
@@ -14,8 +15,8 @@ type Deed struct {
 	Unit      string          `json:"unit"`
 	UnitPrice decimal.Decimal `json:"unitprice"`
 
-	EntryID         *int     `json:"entry_id"`
-	DrainedQuantity *float64 `json:"drained_quantity"`
+	EntryID         *int     `json:"entry_id,omitempty"`
+	DrainedQuantity *float64 `json:"drained_quantity,omitempty"`
 }
 
 func (d *Deed) Validate() error {
@@ -39,6 +40,9 @@ type DeedFilter struct {
 
 	Offset int `json:"offset"`
 	Limit  int `json:"limit"`
+
+	DeletedAtFrom *time.Time `json:"deleted_at_from,omitempty"`
+	DeletedAtTo   *time.Time `json:"deleted_at_to,omitempty"`
 }
 
 type DeedDelete struct {
