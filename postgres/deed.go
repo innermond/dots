@@ -314,7 +314,7 @@ func findDeed(ctx context.Context, tx *Tx, filter dots.DeedFilter, lockOwnID *in
 
 	// the presence of deleted key with empty value
 	// signals to find ONLY deleted records
-	if filter.DeletedAtTo == nil {
+	if filter.DeletedAtTo == nil && filter.DeletedAtFrom == nil {
 		where = append(where, "deleted_at is null")
 	}
 
