@@ -13,6 +13,7 @@ func (s *Server) registerEntryRoutes(router *mux.Router) {
 	router.HandleFunc("", s.handleEntryCreate).Methods("POST")
 	router.HandleFunc("/{id}/edit", s.handleEntryUpdate).Methods("PATCH")
 	router.HandleFunc("", s.handleEntryFind).Methods("GET")
+	router.HandleFunc("", s.handleEntryDelete).Methods("PATCH")
 }
 
 func (s *Server) handleEntryCreate(w http.ResponseWriter, r *http.Request) {
@@ -76,7 +77,30 @@ func (s *Server) handleEntryFind(w http.ResponseWriter, r *http.Request) {
 	outputJSON[findEntryResponse](w, r, http.StatusFound, &findEntryResponse{Entries: ee, N: n})
 }
 
+func (s *Server) handleEntryDelete(w http.ResponseWriter, r *http.Request) {
+	var filter dots.EntryDelete
+	ok := inputJSON[dots.EntryDelete](w, r, &filter, "delete entry")
+	if !ok {
+		return
+	}
+
+	if r.URL.Query().Get("resurect") != "" {
+		filter.Resurect = true
+	}
+	n, err := s.EntryService.DeleteEntry(r.Context(), filter)
+	if err != nil {
+		Error(w, r, err)
+		return
+	}
+
+	outputJSON[deleteEntryResponse](w, r, http.StatusFound, &deleteEntryResponse{N: n})
+}
+
 type findEntryResponse struct {
 	Entries []*dots.Entry `json:"entries"`
 	N       int           `json:"n"`
+}
+
+type deleteEntryResponse struct {
+	N int `json:"n"`
 }

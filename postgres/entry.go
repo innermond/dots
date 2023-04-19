@@ -120,6 +120,40 @@ func (s *EntryService) UpdateEntry(ctx context.Context, id int, upd dots.EntryUp
 	return e, nil
 }
 
+func (s *EntryService) DeleteEntry(ctx context.Context, filter dots.EntryDelete) (int, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback()
+
+	if canerr := dots.CanDoAnything(ctx); canerr == nil {
+		return deleteEntry(ctx, tx, filter, nil)
+	}
+
+	if canerr := dots.CanDeleteOwn(ctx); canerr != nil {
+		return 0, canerr
+	}
+
+	var n int
+	// check search to own
+	uid := dots.UserFromContext(ctx).ID
+	if filter.CompanyID != nil {
+		err = companyBelongsToUser(ctx, tx, uid, *filter.CompanyID)
+		if err != nil {
+			return 0, err
+		}
+		n, err = deleteEntry(ctx, tx, filter, nil)
+	} else {
+		// lock delete to own
+		n, err = deleteEntry(ctx, tx, filter, &uid)
+	}
+
+	tx.Commit()
+
+	return n, err
+}
+
 func createEntry(ctx context.Context, tx *Tx, e *dots.Entry) error {
 	user := dots.UserFromContext(ctx)
 	if user.ID == 0 {
@@ -261,6 +295,67 @@ func findEntry(ctx context.Context, tx *Tx, filter dots.EntryFilter) (_ []*dots.
 	}
 
 	return entries, n, nil
+}
+
+func deleteEntry(ctx context.Context, tx *Tx, filter dots.EntryDelete, lockOwnID *int) (n int, err error) {
+	where, args := []string{"1 = 1"}, []interface{}{}
+	if v := filter.ID; v != nil {
+		where, args = append(where, "id = ?"), append(args, *v)
+	}
+	if v := filter.EntryTypeID; v != nil {
+		where, args = append(where, "entry_type_id = ?"), append(args, *v)
+	}
+	if v := filter.DateAdded; v != nil {
+		where, args = append(where, "date_added = ?"), append(args, *v)
+	}
+	if v := filter.Quantity; v != nil {
+		where, args = append(where, "quantity = ?"), append(args, *v)
+	}
+	if v := filter.CompanyID; v != nil {
+		where, args = append(where, "company_id = ?"), append(args, *v)
+	}
+	if v := filter.DeletedAtFrom; v != nil {
+		// >= ? is intentional
+		where, args = append(where, "deleted_at >= ?"), append(args, *v)
+	}
+	if v := filter.DeletedAtTo; v != nil {
+		// < ? is intentional
+		// avoid double counting exact midnight values
+		where, args = append(where, "deleted_at < ?"), append(args, *v)
+	}
+	if lockOwnID != nil {
+		where, args = append(where, "company_id = any(select id from company where tid = ?)"), append(args, *lockOwnID)
+	}
+	for inx, v := range where {
+		if !strings.Contains(v, "?") {
+			continue
+		}
+		v = strings.Replace(v, "?", fmt.Sprintf("$%d", inx), 1)
+		where[inx] = v
+	}
+
+	kind := "now()"
+	if filter.Resurect {
+		kind = "null"
+	}
+	sqlstr := "update entry set deleted_at = %s where id in( select id from entry where %s)"
+	sqlstr = fmt.Sprintf(sqlstr, kind, strings.Join(where, " and ")+" "+formatLimitOffset(filter.Limit, filter.Offset))
+
+	result, err := tx.ExecContext(
+		ctx,
+		sqlstr,
+		args...,
+	)
+	if err != nil {
+		return 0, fmt.Errorf("postgres.entry: cannot soft delete %w", err)
+	}
+
+	n64, err := result.RowsAffected()
+	if err != nil {
+		return 0, err
+	}
+
+	return int(n64), nil
 }
 
 func entryBelongsToUser(ctx context.Context, tx *Tx, u int, e int) error {

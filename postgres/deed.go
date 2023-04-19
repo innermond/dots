@@ -371,6 +371,15 @@ func deleteDeed(ctx context.Context, tx *Tx, filter dots.DeedDelete, lockOwnID *
 	if v := filter.CompanyID; v != nil {
 		where, args = append(where, "company_id = ?"), append(args, *v)
 	}
+	if v := filter.DeletedAtFrom; v != nil {
+		// >= ? is intentional
+		where, args = append(where, "deleted_at >= ?"), append(args, *v)
+	}
+	if v := filter.DeletedAtTo; v != nil {
+		// < ? is intentional
+		// avoid double counting exact midnight values
+		where, args = append(where, "deleted_at < ?"), append(args, *v)
+	}
 	if lockOwnID != nil {
 		where, args = append(where, "company_id = any(select id from company where tid = ?)"), append(args, *lockOwnID)
 	}
