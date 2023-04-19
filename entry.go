@@ -32,6 +32,9 @@ type EntryFilter struct {
 
 	Offset int `json:"offset"`
 	Limit  int `json:"limit"`
+
+	DeletedAtFrom *PartialTime `json:"deleted_at_from,omitempty"`
+	DeletedAtTo   *PartialTime `json:"deleted_at_to,omitempty"`
 }
 
 type EntryUpdate struct {

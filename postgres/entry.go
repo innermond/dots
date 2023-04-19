@@ -211,6 +211,15 @@ func findEntry(ctx context.Context, tx *Tx, filter dots.EntryFilter) (_ []*dots.
 	if v := filter.CompanyID; v != nil {
 		where, args = append(where, "company_id = ?"), append(args, *v)
 	}
+	if v := filter.DeletedAtFrom; v != nil {
+		// >= ? is intentional
+		where, args = append(where, "deleted_at >= ?"), append(args, *v)
+	}
+	if v := filter.DeletedAtTo; v != nil {
+		// < ? is intentional
+		// avoid double counting exact midnight values
+		where, args = append(where, "deleted_at < ?"), append(args, *v)
+	}
 	for inx, v := range where {
 		if !strings.Contains(v, "?") {
 			continue
@@ -218,10 +227,16 @@ func findEntry(ctx context.Context, tx *Tx, filter dots.EntryFilter) (_ []*dots.
 		v = strings.Replace(v, "?", fmt.Sprintf("$%d", inx), 1)
 		where[inx] = v
 	}
+	if filter.DeletedAtTo == nil && filter.DeletedAtFrom == nil {
+		where = append(where, "deleted_at is null")
+	}
 
-	rows, err := tx.QueryContext(ctx, `
-		select id, entry_type_id, date_added, quantity, company_id, count(*) over() from entry
-		where `+strings.Join(where, " and ")+` `+formatLimitOffset(filter.Limit, filter.Offset),
+	sqlstr := "select id, entry_type_id, date_added, quantity, company_id, count(*) over() from entry where "
+	sqlstr = sqlstr + strings.Join(where, " and ") + " " + formatLimitOffset(filter.Limit, filter.Offset)
+	fmt.Println(sqlstr)
+	rows, err := tx.QueryContext(
+		ctx,
+		sqlstr,
 		args...,
 	)
 	if err == sql.ErrNoRows {
