@@ -16,6 +16,7 @@ func (s *Server) registerEntryTypeRoutes(router *mux.Router) {
 	router.HandleFunc("", s.handleEntryTypeCreate).Methods("POST")
 	router.HandleFunc("/{id}/edit", s.handleEntryTypeUpdate).Methods("PATCH")
 	router.HandleFunc("", s.handleEntryTypeFind).Methods("GET")
+	router.HandleFunc("", s.handleEntryTypeDelete).Methods("PATCH")
 }
 
 func (s *Server) handleEntryTypeCreate(w http.ResponseWriter, r *http.Request) {
@@ -92,7 +93,30 @@ func (s *Server) handleEntryTypeFind(w http.ResponseWriter, r *http.Request) {
 	outputJSON[findEntryTypeResponse](w, r, http.StatusFound, &findEntryTypeResponse{EntryTypes: ee, N: n})
 }
 
+func (s *Server) handleEntryTypeDelete(w http.ResponseWriter, r *http.Request) {
+	var filter dots.EntryTypeDelete
+	ok := inputJSON[dots.EntryTypeDelete](w, r, &filter, "delete entry type")
+	if !ok {
+		return
+	}
+
+	if r.URL.Query().Get("resurect") != "" {
+		filter.Resurect = true
+	}
+	n, err := s.EntryTypeService.DeleteEntryType(r.Context(), filter)
+	if err != nil {
+		Error(w, r, err)
+		return
+	}
+
+	outputJSON[deleteEntryTypeResponse](w, r, http.StatusFound, &deleteEntryTypeResponse{N: n})
+}
+
 type findEntryTypeResponse struct {
 	EntryTypes []*dots.EntryType `json:"entrY_types"`
 	N          int               `json:"n"`
+}
+
+type deleteEntryTypeResponse struct {
+	N int `json:"n"`
 }

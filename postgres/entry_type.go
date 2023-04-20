@@ -96,6 +96,40 @@ func (s *EntryTypeService) UpdateEntryType(ctx context.Context, id int, upd dots
 	return et, nil
 }
 
+func (s *EntryTypeService) DeleteEntryType(ctx context.Context, filter dots.EntryTypeDelete) (int, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback()
+
+	if canerr := dots.CanDoAnything(ctx); canerr == nil {
+		return deleteEntryType(ctx, tx, filter, nil)
+	}
+
+	if canerr := dots.CanDeleteOwn(ctx); canerr != nil {
+		return 0, canerr
+	}
+
+	var n int
+	// check search to own
+	uid := dots.UserFromContext(ctx).ID
+	if filter.CompanyID != nil {
+		err = companyBelongsToUser(ctx, tx, uid, *filter.CompanyID)
+		if err != nil {
+			return 0, err
+		}
+		n, err = deleteEntryType(ctx, tx, filter, nil)
+	} else {
+		// lock delete to own
+		n, err = deleteEntryType(ctx, tx, filter, &uid)
+	}
+
+	tx.Commit()
+
+	return n, err
+}
+
 func createEntryType(ctx context.Context, tx *Tx, et *dots.EntryType) error {
 	user := dots.UserFromContext(ctx)
 	if user.ID == 0 {
@@ -168,6 +202,57 @@ func updateEntryType(ctx context.Context, tx *Tx, id int, updata dots.EntryTypeU
 }
 
 func findEntryType(ctx context.Context, tx *Tx, filter dots.EntryTypeFilter) (_ []*dots.EntryType, n int, err error) {
+	where, args := []string{"1 = 1"}, []interface{}{}
+	if v := filter.ID; v != nil {
+		where, args = append(where, "id = ?"), append(args, *v)
+	}
+	if v := filter.Code; v != nil {
+		where, args = append(where, "code = ?"), append(args, *v)
+	}
+	if v := filter.Unit; v != nil {
+		where, args = append(where, "unit = ?"), append(args, *v)
+	}
+	if v := filter.TID; v != nil {
+		where, args = append(where, "tid = ?"), append(args, *v)
+	}
+	for inx, v := range where {
+		if !strings.Contains(v, "?") {
+			continue
+		}
+		v = strings.Replace(v, "?", fmt.Sprintf("$%d", inx), 1)
+		where[inx] = v
+	}
+
+	rows, err := tx.QueryContext(ctx, `
+		select id, code, description, unit, tid, count(*) over() from entry_type
+		where `+strings.Join(where, " and ")+` `+formatLimitOffset(filter.Limit, filter.Offset),
+		args...,
+	)
+	if err == sql.ErrNoRows {
+		return nil, 0, dots.Errorf(dots.ENOTFOUND, "entry type not found")
+	}
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	entryTypes := []*dots.EntryType{}
+	for rows.Next() {
+		var et dots.EntryType
+		err := rows.Scan(&et.ID, &et.Code, &et.Description, &et.Unit, &et.TID, &n)
+		if err != nil {
+			return nil, 0, err
+		}
+		entryTypes = append(entryTypes, &et)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
+
+	return entryTypes, n, nil
+}
+
+func deleteEntryType(ctx context.Context, tx *Tx, filter dots.EntryTypeFilter) (n int, err error) {
 	where, args := []string{"1 = 1"}, []interface{}{}
 	if v := filter.ID; v != nil {
 		where, args = append(where, "id = ?"), append(args, *v)

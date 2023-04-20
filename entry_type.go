@@ -28,6 +28,7 @@ type EntryTypeService interface {
 	CreateEntryType(context.Context, *EntryType) error
 	UpdateEntryType(context.Context, int, EntryTypeUpdate) (*EntryType, error)
 	FindEntryType(context.Context, EntryTypeFilter) ([]*EntryType, int, error)
+	DeleteEntryType(context.Context, EntryTypeDelete) (int, error)
 }
 
 type EntryTypeFilter struct {
@@ -39,6 +40,12 @@ type EntryTypeFilter struct {
 
 	Offset int `json:"offset"`
 	Limit  int `json:"limit"`
+}
+
+type EntryTypeDelete struct {
+	EntryFilter
+
+	Resurect bool
 }
 
 type EntryTypeUpdate struct {
