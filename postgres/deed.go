@@ -321,7 +321,6 @@ func findDeed(ctx context.Context, tx *Tx, filter dots.DeedFilter, lockOwnID *in
 	sqlstr := `select id, title, unit, unitprice, quantity, company_id, count(*) over() from deed
 		where `
 	sqlstr = sqlstr + strings.Join(where, " and ") + ` ` + formatLimitOffset(filter.Limit, filter.Offset)
-	fmt.Println(sqlstr)
 	rows, err := tx.QueryContext(
 		ctx,
 		sqlstr,
@@ -391,9 +390,12 @@ func deleteDeed(ctx context.Context, tx *Tx, filter dots.DeedDelete, lockOwnID *
 		where[inx] = v
 	}
 
-	kind := "now()"
+	kind := "date_trunc('second;, now())::timestamptz"
 	if filter.Resurect {
 		kind = "null"
+		where = append(where, "deleted_at is not null")
+	} else {
+		where = append(where, "deleted_at is null")
 	}
 	sqlstr := "update deed set deleted_at = " + kind + " where "
 	sqlstr = sqlstr + strings.Join(where, " and ") + " " + formatLimitOffset(filter.Limit, filter.Offset)
