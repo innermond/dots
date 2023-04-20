@@ -333,12 +333,19 @@ func deleteEntry(ctx context.Context, tx *Tx, filter dots.EntryDelete, lockOwnID
 		v = strings.Replace(v, "?", fmt.Sprintf("$%d", inx), 1)
 		where[inx] = v
 	}
+	where = append(where, "d.entry_id is null")
 
-	kind := "now()"
+	kind := "date_trunc('second', now())::timestamptz"
 	if filter.Resurect {
 		kind = "null"
+		where = append(where, "e.deleted_at is not null")
+	} else {
+		where = append(where, "e.deleted_at is null")
 	}
-	sqlstr := "update entry set deleted_at = %s where id in( select id from entry where %s)"
+	sqlstr := `update entry set deleted_at = %s where id = any(
+		select id
+		from entry e left join drain d on(e.id = d.entry_id)
+		where %s)`
 	sqlstr = fmt.Sprintf(sqlstr, kind, strings.Join(where, " and ")+" "+formatLimitOffset(filter.Limit, filter.Offset))
 
 	result, err := tx.ExecContext(
