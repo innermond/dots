@@ -390,7 +390,7 @@ func deleteDeed(ctx context.Context, tx *Tx, filter dots.DeedDelete, lockOwnID *
 		where[inx] = v
 	}
 
-	kind := "date_trunc('second;, now())::timestamptz"
+	kind := "date_trunc('minute', now())::timestamptz"
 	if filter.Resurect {
 		kind = "null"
 		where = append(where, "deleted_at is not null")

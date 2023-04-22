@@ -285,7 +285,7 @@ func deleteEntryType(ctx context.Context, tx *Tx, filter dots.EntryTypeDelete) (
 	}
 	where = append(where, "e.id is null")
 
-	kind := "date_trunc('second', now())::timestamptz"
+	kind := "date_trunc('minute', now())::timestamptz"
 	if filter.Resurect {
 		kind = "null"
 		where = append(where, "et.deleted_at is not null")

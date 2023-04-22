@@ -168,9 +168,9 @@ func createEntry(ctx context.Context, tx *Tx, e *dots.Entry) error {
 		ctx,
 		`
 insert into entry
-(entry_type_id, quantity, company_id)
+(entry_type_id, quantity, company_id, date_added)
 values
-($1, $2, $3) returning id, date_added
+($1, $2, $3, date_trunc('minute', now())::timestamptz) returning id, date_added
 		`,
 		e.EntryTypeID, e.Quantity, e.CompanyID,
 	).Scan(&e.ID, &e.DateAdded)
@@ -335,7 +335,7 @@ func deleteEntry(ctx context.Context, tx *Tx, filter dots.EntryDelete, lockOwnID
 	}
 	where = append(where, "d.entry_id is null")
 
-	kind := "date_trunc('second', now())::timestamptz"
+	kind := "date_trunc('minute', now())::timestamptz"
 	if filter.Resurect {
 		kind = "null"
 		where = append(where, "e.deleted_at is not null")
