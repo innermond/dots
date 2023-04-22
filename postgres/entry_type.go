@@ -17,12 +17,14 @@ func NewEntryTypeService(db *DB) *EntryTypeService {
 	return &EntryTypeService{db: db}
 }
 
-func (s *EntryTypeService) CreateEntryType(ctx context.Context, et *dots.EntryType) error {
+func (s *EntryTypeService) CreateEntryType(ctx context.Context, et *dots.EntryType) (err error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() {
+		tx.RollbackOrCommit(err)
+	}()
 
 	if canerr := dots.CanDoAnything(ctx); canerr == nil {
 		return createEntryType(ctx, tx, et)
@@ -36,8 +38,6 @@ func (s *EntryTypeService) CreateEntryType(ctx context.Context, et *dots.EntryTy
 	if err := createEntryType(ctx, tx, et); err != nil {
 		return err
 	}
-
-	tx.Commit()
 
 	return nil
 }

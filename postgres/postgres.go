@@ -57,6 +57,15 @@ type Tx struct {
 	now time.Time
 }
 
+func (tx *Tx) RollbackOrCommit(err error) {
+	switch err {
+	case nil:
+		tx.Commit()
+	default:
+		tx.Rollback()
+	}
+}
+
 func (db *DB) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) {
 	tx, err := db.db.BeginTx(ctx, opts)
 	if err != nil {
