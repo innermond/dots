@@ -60,22 +60,17 @@ func (s *EntryService) FindEntry(ctx context.Context, filter dots.EntryFilter) (
 	if canerr := dots.CanReadOwn(ctx); canerr != nil {
 		return nil, 0, canerr
 	}
-	// lock search to own
+
 	// need company ID that belong to user
 	if filter.CompanyID == nil {
 		return nil, 0, dots.Errorf(dots.EINVALID, "missing company")
 	}
 
 	uid := dots.UserFromContext(ctx).ID
-	cc, n, err := findCompany(ctx, tx, dots.CompanyFilter{ID: filter.CompanyID, TID: &uid})
+	err = companyBelongsToUser(ctx, tx, uid, *filter.CompanyID)
 	if err != nil {
 		return nil, 0, err
 	}
-	if n == 0 {
-		return nil, 0, dots.Errorf(dots.ENOTFOUND, "company not found")
-	}
-	// lock to proper company
-	filter.CompanyID = &cc[0].ID
 
 	return findEntry(ctx, tx, filter)
 }

@@ -56,8 +56,15 @@ func (s *EntryTypeService) FindEntryType(ctx context.Context, filter dots.EntryT
 	if canerr := dots.CanReadOwn(ctx); canerr != nil {
 		return nil, 0, canerr
 	}
+
+	uid := dots.UserFromContext(ctx).ID
+	// trying to get entry types for a different TID
+	if filter.TID != nil && *filter.TID != uid {
+		// will get empty results and not error
+		return make([]*dots.EntryType, 0), 0, nil
+	}
 	// lock search to own
-	filter.TID = &dots.UserFromContext(ctx).ID
+	filter.TID = &uid
 
 	return findEntryType(ctx, tx, filter)
 }
