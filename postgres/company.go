@@ -56,8 +56,13 @@ func (s *CompanyService) FindCompany(ctx context.Context, filter dots.CompanyFil
 		return nil, 0, canerr
 	}
 
-	// lock search to own
 	uid := dots.UserFromContext(ctx).ID
+	// trying to get companies for a different TID
+	if filter.TID != nil && *filter.TID != uid {
+		// will get empty results and not error
+		return make([]*dots.Company, 0), 0, nil
+	}
+	// lock search to own
 	filter.TID = &uid
 
 	return findCompany(ctx, tx, filter)
@@ -96,6 +101,41 @@ func (s *CompanyService) UpdateCompany(ctx context.Context, id int, upd dots.Com
 	tx.Commit()
 
 	return c, nil
+}
+
+func (s *CompanyService) DeleteCompany(ctx context.Context, filter dots.CompanyDelete) (int, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback()
+
+	if canerr := dots.CanDoAnything(ctx); canerr == nil {
+		return deleteCompany(ctx, tx, filter)
+	}
+
+	if canerr := dots.CanDeleteOwn(ctx); canerr != nil {
+		return 0, canerr
+	}
+
+	var n int
+	// lock delete to own
+	uid := dots.UserFromContext(ctx).ID
+	filter.TID = &uid
+
+	if filter.ID != nil {
+		err = companyBelongsToUser(ctx, tx, uid, *filter.ID)
+		if err != nil {
+			return 0, err
+		}
+		n, err = deleteCompany(ctx, tx, filter)
+	} else {
+		n, err = deleteCompany(ctx, tx, filter)
+	}
+
+	tx.Commit()
+
+	return n, err
 }
 
 func findCompany(ctx context.Context, tx *Tx, filter dots.CompanyFilter) (_ []*dots.Company, n int, err error) {
@@ -222,6 +262,71 @@ func updateCompany(ctx context.Context, tx *Tx, id int, updata dots.CompanyUpdat
 	return ct, nil
 }
 
+func deleteCompany(ctx context.Context, tx *Tx, filter dots.CompanyDelete) (n int, err error) {
+	where, args := []string{"1 = 1"}, []interface{}{}
+	if v := filter.ID; v != nil {
+		where, args = append(where, "c.id = ?"), append(args, *v)
+	}
+	if v := filter.Longname; v != nil {
+		where, args = append(where, "longname = ?"), append(args, *v)
+	}
+	if v := filter.TIN; v != nil {
+		where, args = append(where, "tin = ?"), append(args, *v)
+	}
+	if v := filter.RN; v != nil {
+		where, args = append(where, "rn = ?"), append(args, *v)
+	}
+	if v := filter.TID; v != nil {
+		where, args = append(where, "tid = ?"), append(args, *v)
+	}
+	for inx, v := range where {
+		if !strings.Contains(v, "?") {
+			continue
+		}
+		v = strings.Replace(v, "?", fmt.Sprintf("$%d", inx), 1)
+		where[inx] = v
+	}
+
+	kind := "date_trunc('minute', now())::timestamptz"
+	if filter.Resurect {
+		kind = "null"
+		where = append(where, "c.deleted_at is not null")
+	} else {
+		where = append(where, "c.deleted_at is null")
+	}
+
+	whereEntries, whereDeeds := make([]string, len(where)), make([]string, len(where))
+	copy(whereEntries, where)
+	copy(whereDeeds, where)
+	whereEntries = append(whereEntries, "e.company_id is null")
+	whereDeeds = append(whereDeeds, "d.company_id is null")
+
+	sqlstr := `
+		update company set deleted_at = %s where id = any(
+		select c.id from company c left join entry e on(c.id = e.company_id)
+		where %s) or id = any(
+		select c.id from company c left join deed d on(c.id = d.company_id)
+		where %s)`
+	conditionEntries := strings.Join(whereEntries, " and ") + ` ` + formatLimitOffset(filter.Limit, filter.Offset)
+	conditionDeeds := strings.Join(whereDeeds, " and ") + ` ` + formatLimitOffset(filter.Limit, filter.Offset)
+	sqlstr = fmt.Sprintf(sqlstr, kind, conditionEntries, conditionDeeds)
+	result, err := tx.ExecContext(
+		ctx,
+		sqlstr,
+		args...,
+	)
+	if err != nil {
+		return 0, fmt.Errorf("postgres.company: cannot soft delete %w", err)
+	}
+
+	n64, err := result.RowsAffected()
+	if err != nil {
+		return 0, err
+	}
+
+	return int(n64), nil
+}
+
 func companyBelongsToUser(ctx context.Context, tx *Tx, u int, companyID int) error {
 	sqlstr := `select exists(
 select id
@@ -230,7 +335,7 @@ where c.id = $1 and c.tid = $2
 );
 `
 	var exists bool
-	err := tx.QueryRowContext(ctx, sqlstr, u, companyID).Scan(&exists)
+	err := tx.QueryRowContext(ctx, sqlstr, companyID, u).Scan(&exists)
 	if err != nil {
 		return err
 	}
