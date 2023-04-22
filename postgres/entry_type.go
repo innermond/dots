@@ -114,12 +114,12 @@ func (s *EntryTypeService) DeleteEntryType(ctx context.Context, filter dots.Entr
 	var n int
 	// check search to own
 	uid := dots.UserFromContext(ctx).ID
-	if filter.CompanyID != nil {
-		err = companyBelongsToUser(ctx, tx, uid, *filter.CompanyID)
+	if filter.ID != nil {
+		err = entryTypeBelongsToUser(ctx, tx, uid, *filter.ID)
 		if err != nil {
 			return 0, err
 		}
-		n, err = deleteEntryType(ctx, tx, filter, nil)
+		n, err = deleteEntryType(ctx, tx, filter, &uid)
 	} else {
 		// lock delete to own
 		n, err = deleteEntryType(ctx, tx, filter, &uid)
@@ -252,7 +252,7 @@ func findEntryType(ctx context.Context, tx *Tx, filter dots.EntryTypeFilter) (_ 
 	return entryTypes, n, nil
 }
 
-func deleteEntryType(ctx context.Context, tx *Tx, filter dots.EntryTypeFilter) (n int, err error) {
+func deleteEntryType(ctx context.Context, tx *Tx, filter dots.EntryTypeDelete, lockOwnID *int) (n int, err error) {
 	where, args := []string{"1 = 1"}, []interface{}{}
 	if v := filter.ID; v != nil {
 		where, args = append(where, "id = ?"), append(args, *v)
@@ -266,6 +266,18 @@ func deleteEntryType(ctx context.Context, tx *Tx, filter dots.EntryTypeFilter) (
 	if v := filter.TID; v != nil {
 		where, args = append(where, "tid = ?"), append(args, *v)
 	}
+	if v := filter.DeletedAtFrom; v != nil {
+		// >= ? is intentional
+		where, args = append(where, "deleted_at >= ?"), append(args, *v)
+	}
+	if v := filter.DeletedAtTo; v != nil {
+		// < ? is intentional
+		// avoid double counting exact midnight values
+		where, args = append(where, "deleted_at < ?"), append(args, *v)
+	}
+	if lockOwnID != nil {
+		where, args = append(where, "tid = ?"), append(args, *lockOwnID)
+	}
 	for inx, v := range where {
 		if !strings.Contains(v, "?") {
 			continue
@@ -274,33 +286,34 @@ func deleteEntryType(ctx context.Context, tx *Tx, filter dots.EntryTypeFilter) (
 		where[inx] = v
 	}
 
-	rows, err := tx.QueryContext(ctx, `
-		select id, code, description, unit, tid, count(*) over() from entry_type
-		where `+strings.Join(where, " and ")+` `+formatLimitOffset(filter.Limit, filter.Offset),
+	kind := "date_trunc('second', now())::timestamptz"
+	if filter.Resurect {
+		kind = "null"
+		where = append(where, "et.deleted_at is not null")
+	} else {
+		where = append(where, "et.deleted_at is null")
+	}
+
+	sqlstr := `
+		update entry_type set deleted_at = %s where id = any(
+		select id from entry_type et left join entry e on(et.id = e.entry_type_id)
+		where %s)`
+	sqlstr = fmt.Sprintf(sqlstr, kind, strings.Join(where, " and ")+` `+formatLimitOffset(filter.Limit, filter.Offset))
+	result, err := tx.ExecContext(
+		ctx,
+		sqlstr,
 		args...,
 	)
-	if err == sql.ErrNoRows {
-		return nil, 0, dots.Errorf(dots.ENOTFOUND, "entry type not found")
-	}
 	if err != nil {
-		return nil, 0, err
-	}
-	defer rows.Close()
-
-	entryTypes := []*dots.EntryType{}
-	for rows.Next() {
-		var et dots.EntryType
-		err := rows.Scan(&et.ID, &et.Code, &et.Description, &et.Unit, &et.TID, &n)
-		if err != nil {
-			return nil, 0, err
-		}
-		entryTypes = append(entryTypes, &et)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, 0, err
+		return 0, fmt.Errorf("postgres.entry: cannot soft delete %w", err)
 	}
 
-	return entryTypes, n, nil
+	n64, err := result.RowsAffected()
+	if err != nil {
+		return 0, err
+	}
+
+	return int(n64), nil
 }
 
 func entryTypeBelongsToUser(ctx context.Context, tx *Tx, u int, e int) error {
