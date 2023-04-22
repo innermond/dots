@@ -23,6 +23,15 @@ type CompanyFilter struct {
 
 	Offset int `json:"offset"`
 	Limit  int `json:"limit"`
+
+	DeletedAtFrom *PartialTime `json:"deleted_at_from,omitempty"`
+	DeletedAtTo   *PartialTime `json:"deleted_at_to,omitempty"`
+}
+
+type CompanyDelete struct {
+	CompanyFilter
+
+	Resurect bool
 }
 
 type CompanyService interface {
@@ -32,6 +41,7 @@ type CompanyService interface {
 	CreateCompany(context.Context, *Company) error
 	UpdateCompany(context.Context, int, CompanyUpdate) (*Company, error)
 	FindCompany(context.Context, CompanyFilter) ([]*Company, int, error)
+	DeleteCompany(context.Context, CompanyDelete) (int, error)
 }
 
 type CompanyUpdate struct {

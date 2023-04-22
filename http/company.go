@@ -12,6 +12,7 @@ func (s *Server) registerCompanyRoutes(router *mux.Router) {
 	router.HandleFunc("", s.handlecompanyCreate).Methods("POST")
 	router.HandleFunc("/{id}/edit", s.handleCompanyUpdate).Methods("PATCH")
 	router.HandleFunc("", s.handleCompanyFind).Methods("GET")
+	router.HandleFunc("", s.handleCompanyDelete).Methods("PATCH")
 }
 
 func (s *Server) handlecompanyCreate(w http.ResponseWriter, r *http.Request) {
@@ -75,7 +76,30 @@ func (s *Server) handleCompanyFind(w http.ResponseWriter, r *http.Request) {
 	outputJSON[findCompanyResponse](w, r, http.StatusFound, &findCompanyResponse{Companys: ee, N: n})
 }
 
+func (s *Server) handleCompanyDelete(w http.ResponseWriter, r *http.Request) {
+	var filter dots.CompanyDelete
+	ok := inputJSON[dots.CompanyDelete](w, r, &filter, "delete company")
+	if !ok {
+		return
+	}
+
+	if r.URL.Query().Get("resurect") != "" {
+		filter.Resurect = true
+	}
+	n, err := s.CompanyService.DeleteCompany(r.Context(), filter)
+	if err != nil {
+		Error(w, r, err)
+		return
+	}
+
+	outputJSON[deleteCompanyResponse](w, r, http.StatusFound, &deleteCompanyResponse{N: n})
+}
+
 type findCompanyResponse struct {
 	Companys []*dots.Company `json:"companies"`
 	N        int             `json:"n"`
+}
+
+type deleteCompanyResponse struct {
+	N int `json:"n"`
 }
