@@ -31,14 +31,20 @@ func (s *Server) setSession(w http.ResponseWriter, session Session) error {
 		return err
 	}
 
-	http.SetCookie(w, &http.Cookie{
+  cookie := http.Cookie{
 		Name:     SessionCookieName,
 		Value:    ss,
 		Path:     "/",
 		Expires:  time.Now().Add(30 * 24 * time.Hour),
 		Secure:   false, // TODO change it when server will use ssl
 		HttpOnly: true,
-	})
+    SameSite: http.SameSiteStrictMode,
+	}
+	http.SetCookie(w, &cookie)
+  // zero means deletion
+  if session.IsZero() {
+    cookie.MaxAge = 0
+  }
 	return nil
 }
 
