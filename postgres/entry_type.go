@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/innermond/dots"
+	"github.com/segmentio/ksuid"
 )
 
 type EntryTypeService struct {
@@ -139,7 +140,7 @@ func (s *EntryTypeService) DeleteEntryType(ctx context.Context, filter dots.Entr
 
 func createEntryType(ctx context.Context, tx *Tx, et *dots.EntryType) error {
 	user := dots.UserFromContext(ctx)
-	if user.ID == 0 {
+	if user.ID == ksuid.Nil {
 		return dots.Errorf(dots.EUNAUTHORIZED, "unauthorized user")
 	}
 
@@ -321,7 +322,7 @@ func deleteEntryType(ctx context.Context, tx *Tx, filter dots.EntryTypeDelete) (
 	return int(n64), nil
 }
 
-func entryTypeBelongsToUser(ctx context.Context, tx *Tx, u int, e int) error {
+func entryTypeBelongsToUser(ctx context.Context, tx *Tx, u ksuid.KSUID, e int) error {
 	sqlstr := `select exists(select e.id
 from entry_type e
 where e.tid = $1 and e.id = $2);

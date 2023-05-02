@@ -3,18 +3,20 @@ package http
 import (
 	"net/http"
 	"time"
+
+	"github.com/segmentio/ksuid"
 )
 
 const SessionCookieName = "session"
 
 type Session struct {
-	UserID      int    `json:"user_id"`
-	RedirectURL string `json:"redirect_url"`
-	State       string `json:"state"`
+	UserID      ksuid.KSUID `json:"user_id"`
+	RedirectURL string      `json:"redirect_url"`
+	State       string      `json:"state"`
 }
 
 func (ses *Session) IsZero() bool {
-	return ses.UserID == 0
+	return ses.UserID == ksuid.Nil
 }
 
 func (s *Server) MarshalSession(session Session) (string, error) {
@@ -31,20 +33,20 @@ func (s *Server) setSession(w http.ResponseWriter, session Session) error {
 		return err
 	}
 
-  cookie := http.Cookie{
+	cookie := http.Cookie{
 		Name:     SessionCookieName,
 		Value:    ss,
 		Path:     "/",
 		Expires:  time.Now().Add(30 * 24 * time.Hour),
 		Secure:   false, // TODO change it when server will use ssl
 		HttpOnly: true,
-    SameSite: http.SameSiteStrictMode,
+		SameSite: http.SameSiteStrictMode,
 	}
 	http.SetCookie(w, &cookie)
-  // zero means deletion
-  if session.IsZero() {
-    cookie.MaxAge = 0
-  }
+	// zero means deletion
+	if session.IsZero() {
+		cookie.MaxAge = 0
+	}
 	return nil
 }
 

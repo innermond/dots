@@ -13,6 +13,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/securecookie"
 	"github.com/innermond/dots"
+	"github.com/segmentio/ksuid"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 )
@@ -187,12 +188,12 @@ func reportPanic(next http.Handler) http.Handler {
 func (s *Server) authenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ses, _ := s.getSession(r)
-		if ses.UserID != 0 {
+		if ses.UserID != ksuid.Nil {
 			u, err := s.UserService.FindUserByID(r.Context(), ses.UserID)
 			if err == nil {
 				r = r.WithContext(dots.NewContextWithUser(r.Context(), u))
 			} else {
-				log.Printf("cannot find session user %d: %s", ses.UserID, err)
+				log.Printf("cannot find session user %s: %s", ses.UserID, err)
 			}
 		}
 		next.ServeHTTP(w, r)
@@ -202,7 +203,7 @@ func (s *Server) authenticate(next http.Handler) http.Handler {
 func (s *Server) yesAuthenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		u := dots.UserFromContext(r.Context())
-		if u.ID != 0 {
+		if u.ID != ksuid.Nil {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -226,7 +227,7 @@ func (s *Server) noAuthenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		u := dots.UserFromContext(r.Context())
 		isLogout := r.URL.Path == "/logout"
-		if u.ID != 0 && !isLogout {
+		if u.ID != ksuid.Nil && !isLogout {
 			http.Redirect(w, r, "/", http.StatusFound)
 			return
 		}

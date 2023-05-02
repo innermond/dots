@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/innermond/dots"
+	"github.com/segmentio/ksuid"
 )
 
 type EntryService struct {
@@ -151,7 +152,7 @@ func (s *EntryService) DeleteEntry(ctx context.Context, filter dots.EntryDelete)
 
 func createEntry(ctx context.Context, tx *Tx, e *dots.Entry) error {
 	user := dots.UserFromContext(ctx)
-	if user.ID == 0 {
+	if user.ID == ksuid.Nil {
 		return dots.Errorf(dots.EUNAUTHORIZED, "unauthorized user")
 	}
 
@@ -292,7 +293,7 @@ func findEntry(ctx context.Context, tx *Tx, filter dots.EntryFilter) (_ []*dots.
 	return entries, n, nil
 }
 
-func deleteEntry(ctx context.Context, tx *Tx, filter dots.EntryDelete, lockOwnID *int) (n int, err error) {
+func deleteEntry(ctx context.Context, tx *Tx, filter dots.EntryDelete, lockOwnID *ksuid.KSUID) (n int, err error) {
 	where, args := []string{"1 = 1"}, []interface{}{}
 	if v := filter.ID; v != nil {
 		where, args = append(where, "id = ?"), append(args, *v)
@@ -360,7 +361,7 @@ func deleteEntry(ctx context.Context, tx *Tx, filter dots.EntryDelete, lockOwnID
 	return int(n64), nil
 }
 
-func entryBelongsToUser(ctx context.Context, tx *Tx, u int, e int) error {
+func entryBelongsToUser(ctx context.Context, tx *Tx, u ksuid.KSUID, e int) error {
 	sqlstr := `select exists(select e.id
 from entry e
 where e.company_id = any(select id

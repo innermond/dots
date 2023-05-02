@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/innermond/dots"
+	"github.com/segmentio/ksuid"
 )
 
 type CompanyService struct {
@@ -194,7 +195,7 @@ func findCompany(ctx context.Context, tx *Tx, filter dots.CompanyFilter) (_ []*d
 
 func createCompany(ctx context.Context, tx *Tx, c *dots.Company) error {
 	user := dots.UserFromContext(ctx)
-	if user.ID == 0 {
+	if user.ID == ksuid.Nil {
 		return dots.Errorf(dots.EUNAUTHORIZED, "unauthorized user")
 	}
 
@@ -327,7 +328,7 @@ func deleteCompany(ctx context.Context, tx *Tx, filter dots.CompanyDelete) (n in
 	return int(n64), nil
 }
 
-func companyBelongsToUser(ctx context.Context, tx *Tx, u int, companyID int) error {
+func companyBelongsToUser(ctx context.Context, tx *Tx, u ksuid.KSUID, companyID int) error {
 	sqlstr := `select exists(
 select id
 from company c

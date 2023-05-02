@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/innermond/dots"
+	"github.com/segmentio/ksuid"
 )
 
 type UserService struct {
@@ -21,7 +22,7 @@ func NewUserService(db *DB) *UserService {
 	return &UserService{db: db}
 }
 
-func (s *UserService) FindUserByID(ctx context.Context, id int) (*dots.User, error) {
+func (s *UserService) FindUserByID(ctx context.Context, id ksuid.KSUID) (*dots.User, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
@@ -110,7 +111,7 @@ func createUser(ctx context.Context, tx *Tx, u *dots.User) error {
 	return nil
 }
 
-func updateUser(ctx context.Context, tx *Tx, id int, updata *dots.UserUpdate) (*dots.User, error) {
+func updateUser(ctx context.Context, tx *Tx, id ksuid.KSUID, updata *dots.UserUpdate) (*dots.User, error) {
 	uu, _, err := findUser(ctx, tx, dots.UserFilter{ID: &id, Limit: 1})
 	if err != nil {
 		return nil, fmt.Errorf("postgres.user: cannot retrieve user %w", err)
@@ -215,7 +216,7 @@ func findUser(ctx context.Context, tx *Tx, filter dots.UserFilter) (_ []*dots.Us
 	return users, n, nil
 }
 
-func findUserByID(ctx context.Context, tx *Tx, id int) (*dots.User, error) {
+func findUserByID(ctx context.Context, tx *Tx, id ksuid.KSUID) (*dots.User, error) {
 	uu, _, err := findUser(ctx, tx, dots.UserFilter{ID: &id, Limit: 1})
 	if err != nil {
 		return nil, err
@@ -225,7 +226,7 @@ func findUserByID(ctx context.Context, tx *Tx, id int) (*dots.User, error) {
 	return uu[0], nil
 }
 
-func deleteUser(ctx context.Context, tx *Tx, id int) error {
+func deleteUser(ctx context.Context, tx *Tx, id ksuid.KSUID) error {
 	uu, _, err := findUser(ctx, tx, dots.UserFilter{ID: &id})
 	if err != nil {
 		return fmt.Errorf("postgres.user: cannot find user: %w", err)

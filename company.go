@@ -1,13 +1,17 @@
 package dots
 
-import "context"
+import (
+	"context"
+
+	"github.com/segmentio/ksuid"
+)
 
 type Company struct {
-	ID       int    `json:"id"`
-	TID      int    `json:"tid"`
-	Longname string `json:"longname"`
-	TIN      string `json:"tin"`
-	RN       string `json:"rn"`
+	ID       int         `json:"id"`
+	TID      ksuid.KSUID `json:"tid"`
+	Longname string      `json:"longname"`
+	TIN      string      `json:"tin"`
+	RN       string      `json:"rn"`
 }
 
 func (c *Company) Validate() error {
@@ -15,11 +19,11 @@ func (c *Company) Validate() error {
 }
 
 type CompanyFilter struct {
-	ID       *int    `json:"id"`
-	TID      *int    `json:"tid"`
-	Longname *string `json:"longname"`
-	TIN      *string `json:"tin"`
-	RN       *string `json:"rn"`
+	ID       *int         `json:"id"`
+	TID      *ksuid.KSUID `json:"tid"`
+	Longname *string      `json:"longname"`
+	TIN      *string      `json:"tin"`
+	RN       *string      `json:"rn"`
 
 	Offset int `json:"offset"`
 	Limit  int `json:"limit"`
@@ -45,10 +49,10 @@ type CompanyService interface {
 }
 
 type CompanyUpdate struct {
-	TID      *int    `json:"tid"`
-	Longname *string `json:"longname"`
-	TIN      *string `json:"tin"`
-	RN       *string `json:"rn"`
+	TID      *ksuid.KSUID `json:"tid"`
+	Longname *string      `json:"longname"`
+	TIN      *string      `json:"tin"`
+	RN       *string      `json:"rn"`
 }
 
 func (cu *CompanyUpdate) Valid() error {

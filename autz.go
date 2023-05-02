@@ -2,11 +2,13 @@ package dots
 
 import (
 	"context"
+
+	"github.com/segmentio/ksuid"
 )
 
 func CanDoAnything(ctx context.Context) error {
 	user := UserFromContext(ctx)
-	if user.ID == 0 {
+	if user.ID == ksuid.Nil {
 		return Errorf(EUNAUTHORIZED, "unauthorized user")
 	}
 
@@ -20,7 +22,7 @@ func CanDoAnything(ctx context.Context) error {
 
 func CanDeleteOwn(ctx context.Context) error {
 	user := UserFromContext(ctx)
-	if user.ID == 0 {
+	if user.ID == ksuid.Nil {
 		return Errorf(EUNAUTHORIZED, "unauthorized user")
 	}
 
@@ -32,9 +34,9 @@ func CanDeleteOwn(ctx context.Context) error {
 	return nil
 }
 
-func CanWriteOwn(ctx context.Context, tid int) error {
+func CanWriteOwn(ctx context.Context, tid ksuid.KSUID) error {
 	user := UserFromContext(ctx)
-	if user.ID == 0 {
+	if user.ID == ksuid.Nil {
 		return Errorf(EUNAUTHORIZED, "unauthorized user")
 	}
 
@@ -48,7 +50,7 @@ func CanWriteOwn(ctx context.Context, tid int) error {
 
 func CanReadOwn(ctx context.Context) error {
 	user := UserFromContext(ctx)
-	if user.ID == 0 {
+	if user.ID == ksuid.Nil {
 		return Errorf(EUNAUTHORIZED, "unauthorized user")
 	}
 
@@ -62,7 +64,7 @@ func CanReadOwn(ctx context.Context) error {
 
 func CanCreateOwn(ctx context.Context) error {
 	user := UserFromContext(ctx)
-	if user.ID == 0 {
+	if user.ID == ksuid.Nil {
 		return Errorf(EUNAUTHORIZED, "unauthorized user")
 	}
 

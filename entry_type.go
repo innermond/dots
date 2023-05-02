@@ -2,14 +2,16 @@ package dots
 
 import (
 	"context"
+
+	"github.com/segmentio/ksuid"
 )
 
 type EntryType struct {
-	ID          int     `json:"id"`
-	Code        string  `json:"code"`
-	Description *string `json:"description"`
-	Unit        string  `json:"unit"`
-	TID         int     `json:"tid"`
+	ID          int         `json:"id"`
+	Code        string      `json:"code"`
+	Description *string     `json:"description"`
+	Unit        string      `json:"unit"`
+	TID         ksuid.KSUID `json:"tid"`
 }
 
 func (et *EntryType) Validate() error {
@@ -32,11 +34,11 @@ type EntryTypeService interface {
 }
 
 type EntryTypeFilter struct {
-	ID          *int    `json:"id"`
-	Code        *string `json:"code"`
-	Description *string `json:"description"`
-	Unit        *string `json:"unit"`
-	TID         *int    `json:"tid"`
+	ID          *int         `json:"id"`
+	Code        *string      `json:"code"`
+	Description *string      `json:"description"`
+	Unit        *string      `json:"unit"`
+	TID         *ksuid.KSUID `json:"tid"`
 
 	Offset int `json:"offset"`
 	Limit  int `json:"limit"`
@@ -52,10 +54,10 @@ type EntryTypeDelete struct {
 }
 
 type EntryTypeUpdate struct {
-	Code        *string `json:"code"`
-	Description *string `json:"description"`
-	Unit        *string `json:"unit"`
-	TID         *int    `json:"tid"`
+	Code        *string      `json:"code"`
+	Description *string      `json:"description"`
+	Unit        *string      `json:"unit"`
+	TID         *ksuid.KSUID `json:"tid"`
 }
 
 func (etu *EntryTypeUpdate) Valid() error {

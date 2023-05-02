@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/innermond/dots"
+	"github.com/segmentio/ksuid"
 )
 
 type DeedService struct {
@@ -163,7 +164,7 @@ func (s *DeedService) DeleteDeed(ctx context.Context, filter dots.DeedDelete) (i
 
 func createDeed(ctx context.Context, tx *Tx, d *dots.Deed) error {
 	user := dots.UserFromContext(ctx)
-	if user.ID == 0 {
+	if user.ID == ksuid.Nil {
 		return dots.Errorf(dots.EUNAUTHORIZED, "unauthorized user")
 	}
 
@@ -267,7 +268,7 @@ func updateDeed(ctx context.Context, tx *Tx, id int, updata dots.DeedUpdate) (*d
 	return e, nil
 }
 
-func findDeed(ctx context.Context, tx *Tx, filter dots.DeedFilter, lockOwnID *int) (_ []*dots.Deed, n int, err error) {
+func findDeed(ctx context.Context, tx *Tx, filter dots.DeedFilter, lockOwnID *ksuid.KSUID) (_ []*dots.Deed, n int, err error) {
 	where, args := []string{"1 = 1"}, []interface{}{}
 	if v := filter.ID; v != nil {
 		where, args = append(where, "id = ?"), append(args, *v)
@@ -350,7 +351,7 @@ func findDeed(ctx context.Context, tx *Tx, filter dots.DeedFilter, lockOwnID *in
 	return deeds, n, nil
 }
 
-func deleteDeed(ctx context.Context, tx *Tx, filter dots.DeedDelete, lockOwnID *int) (n int, err error) {
+func deleteDeed(ctx context.Context, tx *Tx, filter dots.DeedDelete, lockOwnID *ksuid.KSUID) (n int, err error) {
 	where, args := []string{"1 = 1"}, []interface{}{}
 	if v := filter.ID; v != nil {
 		where, args = append(where, "id = ?"), append(args, *v)
@@ -417,7 +418,7 @@ func deleteDeed(ctx context.Context, tx *Tx, filter dots.DeedDelete, lockOwnID *
 	return int(n64), nil
 }
 
-func deedBelongsToUser(ctx context.Context, tx *Tx, u int, d int) error {
+func deedBelongsToUser(ctx context.Context, tx *Tx, u ksuid.KSUID, d int) error {
 	sqlstr := `select exists(select d.id
 from deed d
 where d.company_id = any(select id
@@ -437,14 +438,14 @@ and d.id = $2);
 	return nil
 }
 
-func deedGetUser(ctx context.Context, tx *Tx, d int) *int {
+func deedGetUser(ctx context.Context, tx *Tx, d int) *ksuid.KSUID {
 	sqlstr := `select c.tid
 from company c
 where c.id = (select d.company_id 
 from deed d
 where d.id = $1)
 `
-	var uid int
+	var uid ksuid.KSUID
 	err := tx.QueryRowContext(ctx, sqlstr, d).Scan(&uid)
 	if err != nil {
 		return nil

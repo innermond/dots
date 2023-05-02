@@ -6,14 +6,16 @@ import (
 	"encoding/json"
 	"errors"
 	"time"
+
+	"github.com/segmentio/ksuid"
 )
 
 type User struct {
-	ID     int     `json:"id"`
-	Name   string  `json:"name"`
-	Email  string  `json:"email"`
-	ApiKey string  `json:"api_key"`
-	Powers []Power `json:"powers"`
+	ID     ksuid.KSUID `json:"id"`
+	Name   string      `json:"name"`
+	Email  string      `json:"email"`
+	ApiKey string      `json:"api_key"`
+	Powers []Power     `json:"powers"`
 
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
@@ -22,9 +24,9 @@ type User struct {
 }
 
 type UserFilter struct {
-	ID     *int    `json:"id"`
-	Email  *string `json:"email"`
-	ApiKey *string `json:"api_key"`
+	ID     *ksuid.KSUID `json:"id"`
+	Email  *string      `json:"email"`
+	ApiKey *string      `json:"api_key"`
 
 	Offset int `json:"offset"`
 	Limit  int `json:"limit"`
@@ -46,7 +48,7 @@ func (u *User) Validate() error {
 var UserZero = &User{}
 
 func UserIsZero(u *User) bool {
-	return u.ID == 0 &&
+	return u.ID == ksuid.Nil &&
 		u.Name == "" &&
 		u.Email == "" &&
 		u.ApiKey == "" &&
@@ -58,7 +60,7 @@ func UserIsZero(u *User) bool {
 type UserService interface {
 	CreateUser(context.Context, *User) error
 	FindUser(context.Context, UserFilter) ([]*User, int, error)
-	FindUserByID(context.Context, int) (*User, error)
+	FindUserByID(context.Context, ksuid.KSUID) (*User, error)
 }
 
 func (u User) Value() (driver.Value, error) {

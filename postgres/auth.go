@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/innermond/dots"
+	"github.com/segmentio/ksuid"
 )
 
 type AuthService struct {
@@ -31,7 +32,7 @@ func (s *AuthService) CreateAuth(ctx context.Context, auth *dots.Auth) error {
 		return err
 	}
 	if len(others) == 0 {
-		if auth.UserID == 0 && auth.User != nil {
+		if auth.UserID == ksuid.Nil && auth.User != nil {
 			uu, _, err := findUser(ctx, tx, dots.UserFilter{Email: &auth.User.Email, Limit: 1})
 			if err != nil {
 				return fmt.Errorf("postgres.auth: cannot find user by email %w", err)
