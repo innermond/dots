@@ -90,6 +90,7 @@ func createUser(ctx context.Context, tx *Tx, u *dots.User) error {
 	err := tx.QueryRowContext(
 		ctx, `
 		INSERT INTO "user" (
+			id,
 			name,
 			email,
 			api_key,
@@ -97,9 +98,9 @@ func createUser(ctx context.Context, tx *Tx, u *dots.User) error {
 			created_at,
 			updated_at
 		)
-		values ($1, $2, $3, $4, $5, $6) returning id
+		values ($1, $2, $3, $4, $5, $6, $7) returning id
 	`,
-		u.Name, email, u.ApiKey, u.Powers, now, now,
+		ksuid.New(), u.Name, email, u.ApiKey, u.Powers, now, now,
 	).Scan(&u.ID)
 	if err != nil {
 		return err
