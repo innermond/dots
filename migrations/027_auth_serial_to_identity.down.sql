@@ -1,4 +1,12 @@
-alter table auth drop constraint if exists auth_id_seq;
-create sequence if not exists auth_id_seq as int4 start 1;
-alter table auth drop id;
-alter table auth add column id int4 default nextval('auth_id_seq') primary key;
+alter table auth alter column id drop identity if exists;
+alter table auth alter column id drop default;
+drop sequence if exists auth_id_seq;
+
+do $$
+declare max_id int4;
+begin
+select max(id)+1 into max_id from auth;
+execute 'create sequence if not exists auth_id_seq as int4 start ' || max_id || ' owned by auth.id';
+alter table auth alter column id drop identity if exists;
+alter table auth alter column id set default nextval('auth_id_seq');
+end$$;

@@ -1,3 +1,3 @@
-alter table auth drop constraint if exists auth_id_pkey;
-alter table auth drop id;
-alter table auth add column id int4 generated always as identity primary key;
+alter table auth alter column id drop identity if exists;
+alter table auth alter column id drop default;
+alter table auth alter column id add generated always as identity;
