@@ -86,7 +86,6 @@ func createUser(ctx context.Context, tx *Tx, u *dots.User) error {
 	}
 	u.ApiKey = hex.EncodeToString(apiKey)
 
-	now := tx.now
 	err := tx.QueryRowContext(
 		ctx, `
 		INSERT INTO "user" (
@@ -98,16 +97,16 @@ func createUser(ctx context.Context, tx *Tx, u *dots.User) error {
 			created_at,
 			updated_at
 		)
-		values ($1, $2, $3, $4, $5, $6, $7) returning id
+		values ($1, $2, $3, $4, $5, $6) returning id
 	`,
-		ksuid.New(), u.Name, email, u.ApiKey, u.Powers, now, now,
+		u.Name, email, u.ApiKey, u.Powers, tx.now, tx.now,
 	).Scan(&u.ID)
 	if err != nil {
 		return err
 	}
 
-	u.CreatedAt = now
-	u.UpdatedAt = now
+	u.CreatedAt = tx.now
+	u.UpdatedAt = tx.now
 
 	return nil
 }
