@@ -19,6 +19,8 @@ func TestEntryService_CreateEntry(t *testing.T) {
 		defer MustCloseDB(t, db)
 
 		//s := postgres.NewEntryService(db)
+		//ctx := context.Background()
+		//entry := dots.Entry{}
 		// posgres.CreateEntry
 	}
 	t.Run("OK", createEntry)

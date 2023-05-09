@@ -1,6 +1,7 @@
 package postgres_test
 
 import (
+	"fmt"
 	"os"
 	"testing"
 
@@ -14,8 +15,7 @@ func TestDB(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	dsn := os.Getenv("DOTS_DSN")
-	db := MustOpenDB(t, dsn)
+	db := MustOpenDB(t, DSN)
 	defer MustCloseDB(t, db)
 }
 
@@ -37,4 +37,16 @@ func MustCloseDB(t *testing.T, db *postgres.DB) {
 	if err != nil {
 		t.Fatal(err)
 	}
+}
+
+var DSN string
+
+func init() {
+	err := godotenv.Load("../.env")
+	if err != nil {
+		fmt.Println(err)
+    os.Exit(1)
+	}
+
+	DSN = os.Getenv("DOTS_DSN")
 }

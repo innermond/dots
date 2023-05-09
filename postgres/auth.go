@@ -124,9 +124,6 @@ func findAuth(ctx context.Context, tx *Tx, filter dots.AuthFilter) (_ []*dots.Au
 	if v := filter.UserID; v != nil {
 		where, args = append(where, "user_id = ?"), append(args, *v)
 	}
-	if v := filter.UserID; v != nil {
-		where, args = append(where, "user_id = ?"), append(args, *v)
-	}
 	if v := filter.Source; v != nil {
 		where, args = append(where, "source = ?"), append(args, *v)
 	}
