@@ -26,7 +26,14 @@ func (s *AuthService) CreateAuth(ctx context.Context, auth *dots.Auth) error {
 	}
 	defer tx.Rollback()
 
-	others, _, err := findAuth(ctx, tx, dots.AuthFilter{Source: &auth.Source, SourceID: &auth.SourceID})
+	others, _, err := findAuth(
+		ctx,
+		tx,
+		dots.AuthFilter{
+			Source:   &auth.Source,
+			SourceID: &auth.SourceID,
+		},
+	)
 
 	if err != nil {
 		return err

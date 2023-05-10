@@ -205,6 +205,7 @@ func updateEntry(ctx context.Context, tx *Tx, id int, updata dots.EntryUpdate) (
 		set, args = append(set, "company_id = ?"), append(args, *v)
 	}
 
+	// use inx+1 to avoid invalid $0 placeholder
 	for inx, v := range set {
 		v = strings.Replace(v, "?", fmt.Sprintf("$%d", inx+1), 1)
 		set[inx] = v
@@ -329,6 +330,7 @@ func deleteEntry(ctx context.Context, tx *Tx, filter dots.EntryDelete, lockOwnID
 		v = strings.Replace(v, "?", fmt.Sprintf("$%d", inx), 1)
 		where[inx] = v
 	}
+	// "delete" only entries that are not used on drain table
 	where = append(where, "d.entry_id is null")
 
 	kind := "date_trunc('minute', now())::timestamptz"
@@ -338,6 +340,7 @@ func deleteEntry(ctx context.Context, tx *Tx, filter dots.EntryDelete, lockOwnID
 	} else {
 		where = append(where, "e.deleted_at is null")
 	}
+
 	sqlstr := `update entry set deleted_at = %s where id = any(
 		select id
 		from entry e left join drain d on(e.id = d.entry_id)

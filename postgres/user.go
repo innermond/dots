@@ -70,8 +70,48 @@ func (s *UserService) FindUser(ctx context.Context, filter dots.UserFilter) ([]*
 	return findUser(ctx, tx, filter)
 }
 
+func (s *UserService) UpdateUser(ctx context.Context, id ksuid.KSUID, upd dots.UserUpdate) (*dots.User, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	user, err := updateUser(ctx, tx, id, &upd)
+	if err != nil {
+		return user, err
+	}
+
+	err = attachUserAuths(ctx, tx, user)
+	if err != nil {
+		return user, err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return user, err
+	}
+
+	return user, nil
+}
+
+func (s *UserService) DeleteUser(ctx context.Context, id ksuid.KSUID) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	err = deleteUser(ctx, tx, id)
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
 func createUser(ctx context.Context, tx *Tx, u *dots.User) error {
-	if err := u.Validate(); err != nil {
+	if err := u.ValidateCreate(); err != nil {
 		return err
 	}
 
@@ -89,7 +129,6 @@ func createUser(ctx context.Context, tx *Tx, u *dots.User) error {
 	err := tx.QueryRowContext(
 		ctx, `
 		INSERT INTO "user" (
-			id,
 			name,
 			email,
 			api_key,
@@ -133,8 +172,9 @@ func updateUser(ctx context.Context, tx *Tx, id ksuid.KSUID, updata *dots.UserUp
 	u.UpdatedAt = time.Now().UTC().Truncate(time.Second)
 	set, args = append(set, "updated_at = ?"), append(args, u.UpdatedAt)
 
+	// At inx 0 we may have a "?" that results in $0 that is not a valid placeholder
 	for inx, v := range set {
-		v = strings.Replace(v, "?", fmt.Sprintf("$%d", inx), 1)
+		v = strings.Replace(v, "?", fmt.Sprintf("$%d", inx+1), 1)
 		set[inx] = v
 	}
 	args = append(args, id)

@@ -2,24 +2,97 @@ package postgres_test
 
 import (
 	"context"
+	"reflect"
 	"testing"
+	"time"
 
 	"github.com/innermond/dots"
 	"github.com/innermond/dots/postgres"
+	"github.com/segmentio/ksuid"
 )
 
 func TestUserService_CreateUser(t *testing.T) {
-  t.Run("New User", func(t *testing.T) {
-    db := MustOpenDB(t, DSN)
-    defer MustCloseDB(t, db)
+	t.Run("OK", func(t *testing.T) {
+		db := MustOpenDB(t, DSN)
+		defer MustCloseDB(t, db)
 
-    s := postgres.NewUserService(db)
-    u := &dots.User{}
+		s := postgres.NewUserService(db)
+		u0 := &dots.User{
+			Name:      "U0",
+			CreatedAt: db.Now().Add(-24 * time.Hour),
+		}
 
-    ctx := context.Background()
-    if err := s.CreateUser(ctx, u); err != nil {
-      t.Fatal(err)
-    }
+		ctx := context.Background()
+		if err := s.CreateUser(ctx, u0); err != nil {
+			t.Fatal(err)
+		}
 
-  })
+		if u0.ID == ksuid.Nil {
+			t.Fail()
+			t.Logf("user ID expected to be different than %v", ksuid.Nil)
+		}
+
+		if u0.CreatedAt.IsZero() {
+			t.Fatal("expected created at")
+		} else if u0.UpdatedAt.IsZero() {
+			t.Fatal("expected updated at")
+		}
+
+		t.Logf("user created: %+v", u0)
+
+		if other, err := s.FindUserByID(ctx, u0.ID); err != nil {
+			t.Fatal(err)
+		} else if !reflect.DeepEqual(u0, other) {
+			t.Fatalf("mismatch: %#v != %#v", u0, other)
+		}
+
+		// delete testing user
+		if err := s.DeleteUser(ctx, u0.ID); err != nil {
+			t.Fatal(err)
+		}
+		t.Logf("user deleted: %+v", u0)
+	})
+}
+
+func TestUserService_UpdateUser(t *testing.T) {
+	t.Run("OK", func(t *testing.T) {
+		db := MustOpenDB(t, DSN)
+		defer MustCloseDB(t, db)
+
+		s := postgres.NewUserService(db)
+		u0, ctx0 := MustCreateUser(t, context.Background(), db, &dots.User{Name: "ORIGINAL NAME"})
+
+		newName := "UPDATED NAME"
+		updated, err := s.UpdateUser(ctx0, u0.ID, dots.UserUpdate{Name: &newName})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		got, want := updated.Name, newName
+		if got != want {
+			t.Fatalf("Name=%v, want %v", got, want)
+		}
+
+		other, err := s.FindUserByID(context.Background(), u0.ID)
+		if err != nil {
+			t.Fatal(err)
+		} else if !reflect.DeepEqual(updated, other) {
+			t.Fatalf("mismatch: %#v != %#v", updated, other)
+		}
+
+		// delete testing user
+		if err := s.DeleteUser(ctx0, u0.ID); err != nil {
+			t.Fatal(err)
+		}
+	})
+}
+
+func MustCreateUser(t *testing.T, ctx context.Context, db *postgres.DB, user *dots.User) (*dots.User, context.Context) {
+	t.Helper()
+	s := postgres.NewUserService(db)
+	err := s.CreateUser(ctx, user)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return user, dots.NewContextWithUser(ctx, user)
 }

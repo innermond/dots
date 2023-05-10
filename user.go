@@ -37,7 +37,7 @@ type UserUpdate struct {
 	Email *string `json:"email"`
 }
 
-func (u *User) Validate() error {
+func (u *User) ValidateCreate() error {
 	// TODO regex for detecting white spaces
 	if u.Name == "" {
 		return Errorf(ECONFLICT, "User name required.")
