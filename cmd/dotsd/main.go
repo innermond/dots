@@ -15,6 +15,9 @@ import (
 const addr = ":8080"
 
 func main() {
+	pid := os.Getpid()
+	fmt.Printf("PID: %d\n", pid)
+
 	fmt.Println("initiating...")
 
 	err := godotenv.Load(".env")
