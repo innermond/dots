@@ -81,10 +81,10 @@ func main() {
 	log.Println("closing server...")
 
 	if err := server.Close(); err != nil {
-		log.Printf("shutdown: %w\n", err)
+		log.Printf("shutdown: %v\n", err)
 	}
 
 	if err := db.Close(); err != nil {
-		log.Printf("shutdown: %w\n", err)
+		log.Printf("shutdown: %v\n", err)
 	}
 }

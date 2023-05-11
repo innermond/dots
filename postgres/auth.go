@@ -79,6 +79,45 @@ func (s *AuthService) CreateAuth(ctx context.Context, auth *dots.Auth) error {
 	return nil
 }
 
+func (s *AuthService) FindAuths(ctx context.Context, filter dots.AuthFilter) ([]*dots.Auth, int, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer tx.Rollback()
+
+	aa, n, err := findAuth(ctx, tx, filter)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	if n == 0 {
+		return nil, 0, dots.Errorf(dots.ENOTFOUND, "auth not found")
+	}
+
+	for _, a := range aa {
+		if err := attachAuthUser(ctx, tx, a); err != nil {
+			return aa, n, err
+		}
+	}
+
+	return aa, n, nil
+}
+
+func (s *AuthService) DeleteAuth(ctx context.Context, id int) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	if err := deleteAuth(ctx, tx, id); err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
 func createAuth(ctx context.Context, tx *Tx, auth *dots.Auth) (err error) {
 	if err = auth.Validate(); err != nil {
 		return err
