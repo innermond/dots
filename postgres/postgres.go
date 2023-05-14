@@ -90,9 +90,24 @@ func formatLimitOffset(limit, offset int) string {
 	return ""
 }
 
-func timeRFC3339(val sql.NullTime) time.Time {
+/*func timeRFC3339(val sql.NullTime) time.Time {
 	if val.Valid {
 		vs := val.Time.Format(time.RFC3339)
+		v, err := time.Parse(time.RFC3339, vs)
+		if err != nil {
+			return (*sql.NullTime)(nil).Time
+		}
+		return v
+	}
+	return (*sql.NullTime)(nil).Time
+}*/
+func timeRFC3339(val sql.NullTime) time.Time {
+	if val.Valid {
+		loc, err := time.LoadLocation("UTC")
+		if err != nil {
+			return (*sql.NullTime)(nil).Time
+		}
+		vs := val.Time.In(loc).Format(time.RFC3339)
 		v, err := time.Parse(time.RFC3339, vs)
 		if err != nil {
 			return (*sql.NullTime)(nil).Time

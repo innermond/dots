@@ -92,7 +92,7 @@ func (s *AuthService) FindAuths(ctx context.Context, filter dots.AuthFilter) ([]
 	}
 
 	if n == 0 {
-		return nil, 0, dots.Errorf(dots.ENOTFOUND, "auth not found")
+		return []*dots.Auth{}, 0, dots.Errorf(dots.ENOTFOUND, "auth not found")
 	}
 
 	for _, a := range aa {

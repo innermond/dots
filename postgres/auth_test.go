@@ -31,16 +31,20 @@ func TestAuthService_CreateAuth(t *testing.T) {
 		t.Logf("auth created %#v", a)
 
 		aa, _, err := s.FindAuths(context.Background(), dots.AuthFilter{ID: &a.ID})
-		t.Log("found auths:", aa)
+		t.Logf("found auth: %+v\n", aa)
+		defer func() {
+			if err := s.DeleteAuth(context.Background(), a.ID); err != nil {
+				t.Fatal(err)
+			}
+		}()
 		if err != nil {
 			t.Fatal(err)
 			// TODO: aa[0] != a has time Local
-		} else if !reflect.DeepEqual(aa[0], a) {
-			t.Fatalf("mismatch: %#v != %#v", aa[0], a)
 		}
 
-		if err := s.DeleteAuth(context.Background(), a.ID); err != nil {
-			t.Fatal(err)
+		if !reflect.DeepEqual(aa[0], a) {
+			t.Fatalf("mismatch: %#v != %#v", aa[0].CreatedAt, a.CreatedAt)
 		}
+
 	})
 }
