@@ -69,7 +69,7 @@ func (s *AuthService) CreateAuth(ctx context.Context, auth *dots.Auth) error {
 
 	err = createAuth(ctx, tx, auth)
 	if err != nil {
-		return fmt.Errorf("postgres.auth: create auth: %s", err)
+		return fmt.Errorf("postgres.auth: create auth: %w", err)
 	}
 	//u, _, err := findUser(ctx, tx, dots.UserFilter{ID: &auth
 

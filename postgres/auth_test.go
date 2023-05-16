@@ -47,4 +47,19 @@ func TestAuthService_CreateAuth(t *testing.T) {
 		}
 
 	})
+
+	t.Run("ErrValidation", func(t *testing.T) {
+		db := MustOpenDB(t, DSN)
+		defer MustCloseDB(t, db)
+
+		s := postgres.NewAuthService(db)
+
+		err := s.CreateAuth(context.Background(), &dots.Auth{User: &dots.User{Name: "User Source"}})
+		if err == nil {
+			t.Fatal("expected error")
+		} else if dots.ErrorCode(err) != dots.EINVALID {
+			t.Fatalf("expected EINVALID got: %v", err)
+		}
+
+	})
 }
