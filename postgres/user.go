@@ -230,12 +230,14 @@ func findUser(ctx context.Context, tx *Tx, filter dots.UserFilter) (_ []*dots.Us
 	users := []*dots.User{}
 	for rows.Next() {
 		var u dots.User
-		var createdAt time.Time
-		var updatedAt time.Time
+		var email sql.NullString
+		var createdAt sql.NullTime
+		var updatedAt sql.NullTime
+
 		err := rows.Scan(
 			&u.ID,
 			&u.Name,
-			&u.Email,
+			&email,
 			&u.ApiKey,
 			&createdAt,
 			&updatedAt,
@@ -244,6 +246,13 @@ func findUser(ctx context.Context, tx *Tx, filter dots.UserFilter) (_ []*dots.Us
 		if err != nil {
 			return nil, 0, err
 		}
+
+		if email.Valid {
+			u.Email = email.String
+		}
+		u.CreatedAt = timeRFC3339(createdAt)
+		u.UpdatedAt = timeRFC3339(updatedAt)
+
 		users = append(users, &u)
 	}
 	if err := rows.Err(); err != nil {

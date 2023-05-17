@@ -22,8 +22,8 @@ func TestUserService_CreateUser(t *testing.T) {
 			CreatedAt: db.Now().Add(-24 * time.Hour),
 		}
 
-		ctx0, deleteU0 := MustCreateUser(t, context.Background(), db, u0)
-		defer deleteU0()
+		ctx0, deleteUser0 := MustCreateUser(t, context.Background(), db, u0)
+		defer deleteUser0()
 
 		if u0.ID == ksuid.Nil {
 			t.Fail()
