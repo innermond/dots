@@ -208,17 +208,17 @@ func findUser(ctx context.Context, tx *Tx, filter dots.UserFilter) (_ []*dots.Us
 		where[inx] = v
 	}
 
-	// TODO this query always returns a result
-	rows, err := tx.QueryContext(ctx, `
+	sqlstr := fmt.Sprintf(`
 	select
 		id, name, email, api_key,
 		created_at, updated_at,
 		count(*) over()
 	from "user" u
-	where	`+strings.Join(where, " and ")+
+	where	%s %s`,
+		strings.Join(where, " and "),
 		formatLimitOffset(filter.Limit, filter.Offset),
-		args...,
 	)
+	rows, err := tx.QueryContext(ctx, sqlstr, args...)
 	if err == sql.ErrNoRows {
 		return nil, 0, dots.Errorf(dots.ENOTFOUND, "user not found")
 	}

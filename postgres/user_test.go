@@ -16,16 +16,14 @@ func TestUserService_CreateUser(t *testing.T) {
 		db := MustOpenDB(t, DSN)
 		defer MustCloseDB(t, db)
 
-		s := postgres.NewUserService(db)
 		u0 := &dots.User{
 			Name:      "U0",
+			Email:     "USER_EMAIL@FOO.COM",
 			CreatedAt: db.Now().Add(-24 * time.Hour),
 		}
 
-		ctx := context.Background()
-		if err := s.CreateUser(ctx, u0); err != nil {
-			t.Fatal(err)
-		}
+		ctx0, deleteU0 := MustCreateUser(t, context.Background(), db, u0)
+		defer deleteU0()
 
 		if u0.ID == ksuid.Nil {
 			t.Fail()
@@ -40,17 +38,12 @@ func TestUserService_CreateUser(t *testing.T) {
 
 		t.Logf("user created: %+v", u0)
 
-		if other, err := s.FindUserByID(ctx, u0.ID); err != nil {
+		s := postgres.NewUserService(db)
+		if other, err := s.FindUserByID(ctx0, u0.ID); err != nil {
 			t.Fatal(err)
 		} else if !reflect.DeepEqual(u0, other) {
 			t.Fatalf("mismatch: %#v != %#v", u0, other)
 		}
-
-		// delete testing user
-		if err := s.DeleteUser(ctx, u0.ID); err != nil {
-			t.Fatal(err)
-		}
-		t.Logf("user deleted: %+v", u0)
 	})
 }
 
@@ -60,7 +53,9 @@ func TestUserService_UpdateUser(t *testing.T) {
 		defer MustCloseDB(t, db)
 
 		s := postgres.NewUserService(db)
-		u0, ctx0 := MustCreateUser(t, context.Background(), db, &dots.User{Name: "ORIGINAL NAME"})
+		u0 := &dots.User{Name: "ORIGINAL NAME"}
+		ctx0, deleteU0 := MustCreateUser(t, context.Background(), db, u0)
+		defer deleteU0()
 
 		newName := "UPDATED NAME"
 		updated, err := s.UpdateUser(ctx0, u0.ID, dots.UserUpdate{Name: &newName})
@@ -79,20 +74,24 @@ func TestUserService_UpdateUser(t *testing.T) {
 		} else if !reflect.DeepEqual(updated, other) {
 			t.Fatalf("mismatch: %#v != %#v", updated, other)
 		}
-
-		// delete testing user
-		if err := s.DeleteUser(ctx0, u0.ID); err != nil {
-			t.Fatal(err)
-		}
 	})
 }
 
-func MustCreateUser(t *testing.T, ctx context.Context, db *postgres.DB, user *dots.User) (*dots.User, context.Context) {
+func MustCreateUser(t *testing.T, ctx context.Context, db *postgres.DB, user *dots.User) (context.Context, func()) {
 	t.Helper()
 	s := postgres.NewUserService(db)
 	err := s.CreateUser(ctx, user)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return user, dots.NewContextWithUser(ctx, user)
+
+	deleteTestUserFunc := func() {
+		// delete testing user
+		if err := s.DeleteUser(ctx, user.ID); err != nil {
+			t.Fatal(err)
+		}
+		t.Logf("user deleted: %+v", user)
+	}
+
+	return dots.NewContextWithUser(ctx, user), deleteTestUserFunc
 }

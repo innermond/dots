@@ -14,17 +14,19 @@ func TestAuthService_CreateAuth(t *testing.T) {
 		db := MustOpenDB(t, DSN)
 		defer MustCloseDB(t, db)
 
+		u0 := &dots.User{Name: "ORIGINAL NAME", Email: "USER_EMAIL@FOO.COM"}
+		ctx0, deleteU0 := MustCreateUser(t, context.Background(), db, u0)
+		defer deleteU0()
+
 		s := postgres.NewAuthService(db)
 		a := &dots.Auth{
 			Source:      "SOURCE",
 			SourceID:    "SOURCE_ID",
 			AccessToken: "ACCESS_TOKEN",
-			User: &dots.User{
-				Name: "User Auth",
-			},
+			User:        u0,
 		}
 
-		if err := s.CreateAuth(context.Background(), a); err != nil {
+		if err := s.CreateAuth(ctx0, a); err != nil {
 			t.Fatal(err)
 		}
 
@@ -39,7 +41,6 @@ func TestAuthService_CreateAuth(t *testing.T) {
 		}()
 		if err != nil {
 			t.Fatal(err)
-			// TODO: aa[0] != a has time Local
 		}
 
 		if !reflect.DeepEqual(aa[0], a) {
