@@ -18,8 +18,16 @@ type UserService struct {
 	db *DB
 }
 
+var userService *UserService
+
 func NewUserService(db *DB) *UserService {
-	return &UserService{db: db}
+	if userService == nil {
+		userService = &UserService{db: nil}
+	}
+	// old db may be closed
+	userService.db = db
+
+	return userService
 }
 
 func (s *UserService) FindUserByID(ctx context.Context, id ksuid.KSUID) (*dots.User, error) {
