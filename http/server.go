@@ -39,7 +39,7 @@ type Server struct {
 func NewServer() *Server {
 	s := &Server{
 		server: &http.Server{},
-		router: mux.NewRouter(),
+		router: mux.NewRouter().PathPrefix("/v1").Subrouter(),
 	}
 
 	// because it uses defer it must be called first
@@ -177,7 +177,7 @@ func reportPanic(next http.Handler) http.Handler {
 			if err := recover(); err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
 				// do something with err
-				w.Write([]byte(fmt.Errorf("panic: %w", err).Error()))
+				w.Write([]byte(fmt.Errorf("panic: %v", err).Error()))
 			}
 		}()
 
