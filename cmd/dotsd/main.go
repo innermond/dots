@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -13,8 +14,18 @@ import (
 )
 
 const addr = ":8080"
+var ServerGitHash = "not set"
 
 func main() {
+  var printVersion bool
+  flag.BoolVar(&printVersion, "version", false, "print server version")
+  flag.Parse()
+
+  if printVersion {
+    fmt.Printf("server bersion: %s\n", ServerGitHash)
+    os.Exit(0)
+  }
+
 	pid := os.Getpid()
 	fmt.Printf("PID: %d\n", pid)
 
@@ -27,7 +38,8 @@ func main() {
 
 	clientId := os.Getenv("DOTS_GOOGLE_CLIENT_ID")
 	clientSecret := os.Getenv("DOTS_GOOGLE_CLIENT_SECRET")
-	if clientId == "" || clientSecret == "" {
+	tokenSecret := os.Getenv("DOTS_TOKEN_SECRET")
+	if clientId == "" || clientSecret == "" || tokenSecret == ""{
 		log.Fatal("app credentials are missing")
 	}
 
@@ -49,6 +61,8 @@ func main() {
 
 	authService := postgres.NewAuthService(db)
 	userService := postgres.NewUserService(db)
+  tokenService := postgres.NewTokenService(db, tokenSecret)
+
 	entryTypeService := postgres.NewEntryTypeService(db)
 	entryService := postgres.NewEntryService(db)
 	drainService := postgres.NewDrainService(db)
@@ -57,6 +71,7 @@ func main() {
 
 	server.UserService = userService
 	server.AuthService = authService
+  server.TokenService = tokenService
 	server.EntryTypeService = entryTypeService
 	server.EntryService = entryService
 	server.DrainService = drainService

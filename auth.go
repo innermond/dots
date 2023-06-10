@@ -58,3 +58,7 @@ type AuthFilter struct {
 type AuthService interface {
 	CreateAuth(context.Context, *Auth) error
 }
+
+type TokenService interface {
+  Create() (string, error)
+}

@@ -1,0 +1,5 @@
+#!/bin/bash
+cd $(dirname "$0")
+
+GIT_HASH=$(git describe)
+echo GIT_HASH

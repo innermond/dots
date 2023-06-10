@@ -28,6 +28,7 @@ type Server struct {
 
 	UserService dots.UserService
 	AuthService dots.AuthService
+  TokenService dots.TokenService
 
 	EntryTypeService dots.EntryTypeService
 	EntryService     dots.EntryService

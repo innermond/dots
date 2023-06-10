@@ -15,6 +15,7 @@ import (
 
 func (s *Server) registerAuthRoutes(router *mux.Router) {
 	router.HandleFunc("/login", s.handleLogin).Methods("GET")
+	router.HandleFunc("/login", s.handleTokening).Methods("POST")
 	router.HandleFunc("/logout", s.handleLogout).Methods("GET")
 	router.HandleFunc("/oauth/google", s.handleOAuthGoogle).Methods("GET")
 	router.HandleFunc("/oauth/google/callback", s.handleOAuthGoogleCallback).Methods("GET")
@@ -37,6 +38,32 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	} else {
 		http.Redirect(w, r, "/oauth/google", http.StatusFound)
 	}
+}
+
+func (s *Server) handleTokening(w http.ResponseWriter, r *http.Request) {
+  type login struct {
+    Email string `json:"usr"`
+    Pass string `json:"pwd"`
+  };
+  cc := login{}
+  ok := inputJSON(w, r, &cc, "parse login")
+  if !ok {return}
+
+  if cc.Email == "" || cc.Pass == "" {
+		Error(w, r, dots.Errorf(dots.EINVALID, "incompleted credentials"))
+    return
+  }
+  
+  str, err := s.TokenService.Create()
+  if err != nil {
+    Error(w, r, dots.Errorf(dots.EINVALID, "[create token]: %v", err))
+    return
+  }
+  
+  type token struct {
+    Access string `json:"token_access"`
+  }
+  outputJSON(w, r, http.StatusTeapot, &token{str})
 }
 
 func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
