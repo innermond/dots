@@ -22,7 +22,7 @@ func main() {
   flag.Parse()
 
   if printVersion {
-    fmt.Printf("server bersion: %s\n", ServerGitHash)
+    fmt.Printf("server version: %s\n", ServerGitHash)
     os.Exit(0)
   }
 
