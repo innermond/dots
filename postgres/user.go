@@ -208,6 +208,9 @@ func findUser(ctx context.Context, tx *Tx, filter dots.UserFilter) (_ []*dots.Us
 	if v := filter.Email; v != nil {
 		where, args = append(where, "email = ?"), append(args, *v)
 	}
+	if v := filter.ApiKey; v != nil {
+		where, args = append(where, "api_key = ?"), append(args, *v)
+	}
 	for inx, v := range where {
 		if !strings.Contains(v, "?") {
 			continue
@@ -226,6 +229,7 @@ func findUser(ctx context.Context, tx *Tx, filter dots.UserFilter) (_ []*dots.Us
 		strings.Join(where, " and "),
 		formatLimitOffset(filter.Limit, filter.Offset),
 	)
+
 	rows, err := tx.QueryContext(ctx, sqlstr, args...)
 	if err == sql.ErrNoRows {
 		return nil, 0, dots.Errorf(dots.ENOTFOUND, "user not found")

@@ -1,12 +1,13 @@
 package postgres
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"time"
 
+	"github.com/innermond/dots"
 	"github.com/innermond/dots/http/token"
-	"github.com/segmentio/ksuid"
 )
 
 type TokenService struct {
@@ -15,6 +16,8 @@ type TokenService struct {
 
   ttl uint
   prefix string
+
+  userService *UserService
 }
 
 var (
@@ -22,7 +25,7 @@ var (
   errPrefix error = errors.New("token prefix not found")
 )
 
-func NewTokenService(db *DB, secret string, prefix string, ttl uint) *TokenService {
+func NewTokenService(db *DB, secret string, prefix string, ttl uint, userService *UserService) *TokenService {
   if tokener == nil {
     tokener = token.Maker([]byte(secret))
   }
@@ -33,13 +36,34 @@ func NewTokenService(db *DB, secret string, prefix string, ttl uint) *TokenServi
 
     ttl: ttl,
     prefix: prefix,
+
+    userService: userService,
   }
 }
 
-func (s *TokenService) Create() (string, error) {
+type loginData = dots.TokenCredentials
+
+func (s *TokenService) Create(ctx context.Context, login loginData) (string, error) {
+  if err := validateCreateFrom(login ); err != nil {
+    return "", err
+  }
+
   d := time.Duration(s.ttl)*time.Second
-  uid := ksuid.New() // TODO get it from db
-  
+
+  findByEmailApiKey := dots.UserFilter{
+    Email: &login .Email,
+    ApiKey: &login .Pass,
+    Limit: 1,
+  }
+  uu, n, err := s.userService.FindUser(ctx, findByEmailApiKey)
+  if err != nil {
+    return "", err
+  }
+  if n == 0 {
+    return "", errors.New("data not found")
+  }
+  uid := uu[0].ID
+
   tokenstr, err := s.tk.CreateToken(uid, d)
   if err != nil {
     return "", err
@@ -51,4 +75,11 @@ func (s *TokenService) Create() (string, error) {
   }
   
   return after, nil
+}
+
+func validateCreateFrom(data loginData) error {
+  if data.Email == "" || data.Pass == "" {
+    return errors.New("missing or invalid credentials")
+  }
+  return nil
 }

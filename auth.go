@@ -59,6 +59,10 @@ type AuthService interface {
 	CreateAuth(context.Context, *Auth) error
 }
 
+type TokenCredentials struct {
+  Email string `json:"usr"`
+  Pass  string `json:"pwd"`
+}
 type TokenService interface {
-  Create() (string, error)
+  Create(context.Context, TokenCredentials) (string, error)
 }

@@ -72,7 +72,7 @@ func main() {
 
 	authService := postgres.NewAuthService(db)
 	userService := postgres.NewUserService(db)
-  tokenService := postgres.NewTokenService(db, tokenSecret, tokenPrefix, tokenTTL)
+  tokenService := postgres.NewTokenService(db, tokenSecret, tokenPrefix, tokenTTL, userService)
 
 	entryTypeService := postgres.NewEntryTypeService(db)
 	entryService := postgres.NewEntryService(db)

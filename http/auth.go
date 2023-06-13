@@ -41,20 +41,11 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleTokening(w http.ResponseWriter, r *http.Request) {
-  type login struct {
-    Email string `json:"usr"`
-    Pass string `json:"pwd"`
-  };
-  cc := login{}
+  cc := dots.TokenCredentials{}
   ok := inputJSON(w, r, &cc, "parse login")
   if !ok {return}
 
-  if cc.Email == "" || cc.Pass == "" {
-		Error(w, r, dots.Errorf(dots.EINVALID, "incompleted credentials"))
-    return
-  }
-  
-  str, err := s.TokenService.Create()
+  str, err := s.TokenService.Create(r.Context(), cc)
   if err != nil {
     Error(w, r, dots.Errorf(dots.EINVALID, "[create token]: %v", err))
     return
@@ -63,7 +54,7 @@ func (s *Server) handleTokening(w http.ResponseWriter, r *http.Request) {
   type token struct {
     Access string `json:"token_access"`
   }
-  outputJSON(w, r, http.StatusTeapot, &token{str})
+  outputJSON(w, r, http.StatusOK, &token{str})
 }
 
 func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
