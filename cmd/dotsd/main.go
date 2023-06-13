@@ -28,9 +28,11 @@ func main() {
   }
 
 	pid := os.Getpid()
-	fmt.Printf("PID: %d\n", pid)
-  fmt.Printf("version: %s\n", ServerGitHash)
-	fmt.Println("initiating...")
+	fmt.Printf(
+    "PID: %d\nversion: %s\ninitiating...\n",
+    pid,
+    ServerGitHash,
+  )
 
 	err := godotenv.Load(".env")
 	if err != nil {

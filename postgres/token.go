@@ -37,7 +37,7 @@ func NewTokenService(db *DB, secret string, prefix string, ttl uint) *TokenServi
 }
 
 func (s *TokenService) Create() (string, error) {
-  d := time.Duration(s.ttl)*time.Second 
+  d := time.Duration(s.ttl)*time.Second
   uid := ksuid.New() // TODO get it from db
   
   tokenstr, err := s.tk.CreateToken(uid, d)
