@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strconv"
 
 	"github.com/innermond/dots/http"
 	"github.com/innermond/dots/postgres"
@@ -28,7 +29,7 @@ func main() {
 
 	pid := os.Getpid()
 	fmt.Printf("PID: %d\n", pid)
-
+  fmt.Printf("version: %s\n", ServerGitHash)
 	fmt.Println("initiating...")
 
 	err := godotenv.Load(".env")
@@ -38,8 +39,16 @@ func main() {
 
 	clientId := os.Getenv("DOTS_GOOGLE_CLIENT_ID")
 	clientSecret := os.Getenv("DOTS_GOOGLE_CLIENT_SECRET")
-	tokenSecret := os.Getenv("DOTS_TOKEN_SECRET")
-	if clientId == "" || clientSecret == "" || tokenSecret == ""{
+
+  tokenSecret := os.Getenv("DOTS_TOKEN_SECRET")
+  tokenTTL64, err := strconv.ParseUint(os.Getenv("DOTS_TOKEN_TTL"), 10, 64)
+  if err != nil {
+    log.Fatal(err)
+  }
+  tokenTTL := uint(tokenTTL64)
+  tokenPrefix := os.Getenv("DOTS_TOKEN_PREFIX")
+
+	if clientId == "" || clientSecret == "" || tokenSecret == "" || tokenPrefix == "" {
 		log.Fatal("app credentials are missing")
 	}
 
@@ -61,7 +70,7 @@ func main() {
 
 	authService := postgres.NewAuthService(db)
 	userService := postgres.NewUserService(db)
-  tokenService := postgres.NewTokenService(db, tokenSecret)
+  tokenService := postgres.NewTokenService(db, tokenSecret, tokenPrefix, tokenTTL)
 
 	entryTypeService := postgres.NewEntryTypeService(db)
 	entryService := postgres.NewEntryService(db)

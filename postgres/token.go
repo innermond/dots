@@ -12,6 +12,8 @@ import (
 type TokenService struct {
   db *DB
   tk token.Tokener
+
+  ttl uint
   prefix string
 }
 
@@ -20,7 +22,7 @@ var (
   errPrefix error = errors.New("token prefix not found")
 )
 
-func NewTokenService(db *DB, secret string) *TokenService {
+func NewTokenService(db *DB, secret string, prefix string, ttl uint) *TokenService {
   if tokener == nil {
     tokener = token.Maker([]byte(secret))
   }
@@ -28,12 +30,14 @@ func NewTokenService(db *DB, secret string) *TokenService {
   return &TokenService{
     db: db, 
     tk: tokener,
-    prefix: "v4.local.",
+
+    ttl: ttl,
+    prefix: prefix,
   }
 }
 
 func (s *TokenService) Create() (string, error) {
-  d := 1*time.Minute // TODO got it from a config or something
+  d := time.Duration(s.ttl)*time.Second 
   uid := ksuid.New() // TODO get it from db
   
   tokenstr, err := s.tk.CreateToken(uid, d)
