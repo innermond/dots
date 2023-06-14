@@ -58,7 +58,7 @@ func (k pasetoMaker) ReadToken(token string) (*Payload, error) {
   }
 
   p := paseto.NewParser()
-  tok, err := p.ParseV4Local(sk, "", nil)
+  tok, err := p.ParseV4Local(sk, token, nil)
   if err != nil {
     return nil, err
   }
