@@ -18,7 +18,7 @@ func (s *Server) registerCompanyRoutes(router *mux.Router) {
 func (s *Server) handlecompanyCreate(w http.ResponseWriter, r *http.Request) {
 	var c dots.Company
 
-	if ok := inputJSON[dots.Company](w, r, &c, "create company"); !ok {
+	if ok := inputJSON(w, r, &c, "create company"); !ok {
 		return
 	}
 
@@ -28,7 +28,7 @@ func (s *Server) handlecompanyCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	outputJSON[dots.Company](w, r, http.StatusCreated, &c)
+	outputJSON(w, r, http.StatusCreated, &c)
 }
 
 func (s *Server) handleCompanyUpdate(w http.ResponseWriter, r *http.Request) {
@@ -39,7 +39,7 @@ func (s *Server) handleCompanyUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var updata dots.CompanyUpdate
-	if ok := inputJSON[dots.CompanyUpdate](w, r, &updata, "update company"); !ok {
+	if ok := inputJSON(w, r, &updata, "update company"); !ok {
 		return
 	}
 
@@ -57,12 +57,12 @@ func (s *Server) handleCompanyUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	outputJSON[dots.Company](w, r, http.StatusOK, c)
+	outputJSON(w, r, http.StatusOK, c)
 }
 
 func (s *Server) handleCompanyFind(w http.ResponseWriter, r *http.Request) {
 	var filter dots.CompanyFilter
-	ok := inputJSON[dots.CompanyFilter](w, r, &filter, "find company")
+	ok := inputJSON(w, r, &filter, "find company")
 	if !ok {
 		return
 	}
@@ -73,12 +73,12 @@ func (s *Server) handleCompanyFind(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	outputJSON[findCompanyResponse](w, r, http.StatusFound, &findCompanyResponse{Companys: ee, N: n})
+	outputJSON(w, r, http.StatusFound, &findCompanyResponse{Companys: ee, N: n})
 }
 
 func (s *Server) handleCompanyDelete(w http.ResponseWriter, r *http.Request) {
 	var filter dots.CompanyDelete
-	ok := inputJSON[dots.CompanyDelete](w, r, &filter, "delete company")
+	ok := inputJSON(w, r, &filter, "delete company")
 	if !ok {
 		return
 	}
@@ -92,7 +92,7 @@ func (s *Server) handleCompanyDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	outputJSON[deleteCompanyResponse](w, r, http.StatusFound, &deleteCompanyResponse{N: n})
+	outputJSON(w, r, http.StatusFound, &deleteCompanyResponse{N: n})
 }
 
 type findCompanyResponse struct {

@@ -5,7 +5,7 @@ tok
 postgres-data
 redis-data
 tmp
-dist/
+dist
 .refresh
 .air.toml
 
