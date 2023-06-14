@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/securecookie"
@@ -186,8 +187,37 @@ func reportPanic(next http.Handler) http.Handler {
 	})
 }
 
+func extractBearer(h string) string {
+  hh := strings.SplitN(h, " ", 2)
+  if len(hh) != 2 || strings.ToLower(hh[0]) != "bearer" {
+    return ""
+  }
+
+  return hh[1]
+}
+
 func (s *Server) authenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+    // try bearer
+    // TODO check using return in middleware if breaks the chain
+    tokenMaybe := extractBearer(r.Header.Get("Authorization"))
+    if tokenMaybe != "" {
+      payload, err := s.TokenService.Read(r.Context(), tokenMaybe)
+      if err != nil {
+        Error(w, r, err)
+        return 
+      }
+      if payload.UID != ksuid.Nil {
+        u, err := s.UserService.FindUserByID(r.Context(), payload.UID)
+        if err == nil {
+          r = r.WithContext(dots.NewContextWithUser(r.Context(), u))
+        } else {
+          log.Printf("cannot find payload user %s: %s", payload.UID, err)
+        }
+      }
+      next.ServeHTTP(w, r)
+      return
+    }
 		ses, _ := s.getSession(r)
 		if ses.UserID != ksuid.Nil {
 			u, err := s.UserService.FindUserByID(r.Context(), ses.UserID)

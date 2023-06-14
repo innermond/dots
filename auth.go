@@ -63,6 +63,13 @@ type TokenCredentials struct {
   Email string `json:"usr"`
   Pass  string `json:"pwd"`
 }
+
+type TokenPayload struct {
+  ID ksuid.KSUID
+  UID ksuid.KSUID
+}
+
 type TokenService interface {
   Create(context.Context, TokenCredentials) (string, error)
+  Read(context.Context, string) (*TokenPayload, error)
 }

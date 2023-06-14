@@ -3,9 +3,9 @@ package token
 import (
 	"time"
 
+	paseto "aidanwoods.dev/go-paseto"
+	"github.com/innermond/dots"
 	"github.com/segmentio/ksuid"
-  paseto "aidanwoods.dev/go-paseto"
-
 )
 
 type Tokener interface{
@@ -13,10 +13,7 @@ type Tokener interface{
   ReadToken(string) (*Payload, error)
 }
 
-type Payload struct {
-  ID ksuid.KSUID
-  UID ksuid.KSUID
-}
+type Payload = dots.TokenPayload
 
 func newPayload(uid ksuid.KSUID) *Payload {
   payload := Payload {

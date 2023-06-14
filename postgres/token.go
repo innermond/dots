@@ -51,8 +51,8 @@ func (s *TokenService) Create(ctx context.Context, login loginData) (string, err
   d := time.Duration(s.ttl)*time.Second
 
   findByEmailApiKey := dots.UserFilter{
-    Email: &login .Email,
-    ApiKey: &login .Pass,
+    Email: &login.Email,
+    ApiKey: &login.Pass,
     Limit: 1,
   }
   uu, n, err := s.userService.FindUser(ctx, findByEmailApiKey)
@@ -82,4 +82,9 @@ func validateCreateFrom(data loginData) error {
     return errors.New("missing or invalid credentials")
   }
   return nil
+}
+
+func (s *TokenService) Read(ctx context.Context, str string) (*token.Payload, error) {
+  str = s.prefix + str
+  return s.tk.ReadToken(str)
 }
