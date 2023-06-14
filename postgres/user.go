@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io"
 	"strings"
@@ -222,6 +223,7 @@ func findUser(ctx context.Context, tx *Tx, filter dots.UserFilter) (_ []*dots.Us
 	sqlstr := fmt.Sprintf(`
 	select
 		id, name, email, api_key,
+    array_to_json(powers),
 		created_at, updated_at,
 		count(*) over()
 	from "user" u
@@ -242,6 +244,7 @@ func findUser(ctx context.Context, tx *Tx, filter dots.UserFilter) (_ []*dots.Us
 	users := []*dots.User{}
 	for rows.Next() {
 		var u dots.User
+    var pp string
 		var email sql.NullString
 		var createdAt sql.NullTime
 		var updatedAt sql.NullTime
@@ -251,6 +254,7 @@ func findUser(ctx context.Context, tx *Tx, filter dots.UserFilter) (_ []*dots.Us
 			&u.Name,
 			&email,
 			&u.ApiKey,
+      &pp,
 			&createdAt,
 			&updatedAt,
 			&n,
@@ -259,6 +263,12 @@ func findUser(ctx context.Context, tx *Tx, filter dots.UserFilter) (_ []*dots.Us
 			return nil, 0, err
 		}
 
+    var powers []dots.Power
+    err = json.Unmarshal([]byte(pp), &powers)
+    if err != nil {
+      return nil, n, err
+    }
+    u.Powers = powers
 		if email.Valid {
 			u.Email = email.String
 		}
