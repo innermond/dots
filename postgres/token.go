@@ -14,7 +14,7 @@ type TokenService struct {
   db *DB
   tk token.Tokener
 
-  ttl uint
+  ttl time.Duration
   prefix string
 
   userService *UserService
@@ -25,7 +25,7 @@ var (
   errPrefix error = errors.New("token prefix not found")
 )
 
-func NewTokenService(db *DB, secret string, prefix string, ttl uint, userService *UserService) *TokenService {
+func NewTokenService(db *DB, secret string, prefix string, ttl time.Duration, userService *UserService) *TokenService {
   if tokener == nil {
     tokener = token.Maker([]byte(secret))
   }
@@ -48,8 +48,6 @@ func (s *TokenService) Create(ctx context.Context, login loginData) (string, err
     return "", err
   }
 
-  d := time.Duration(s.ttl)*time.Second
-
   findByEmailApiKey := dots.UserFilter{
     Email: &login.Email,
     ApiKey: &login.Pass,
@@ -64,7 +62,7 @@ func (s *TokenService) Create(ctx context.Context, login loginData) (string, err
   }
   uid := uu[0].ID
 
-  tokenstr, err := s.tk.CreateToken(uid, d)
+  tokenstr, err := s.tk.CreateToken(uid, s.ttl)
   if err != nil {
     return "", err
   }

@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"time"
 
 	"github.com/innermond/dots/http"
 	"github.com/innermond/dots/postgres"
@@ -47,7 +48,8 @@ func main() {
   if err != nil {
     log.Fatal(err)
   }
-  tokenTTL := uint(tokenTTL64)
+  tokenTTL := time.Duration(tokenTTL64) * time.Second
+  log.Println("token ttl: ", tokenTTL)
   tokenPrefix := os.Getenv("DOTS_TOKEN_PREFIX")
 
 	if clientId == "" || clientSecret == "" || tokenSecret == "" || tokenPrefix == "" {

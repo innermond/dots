@@ -19,6 +19,11 @@ func NewCompanyService(db *DB) *CompanyService {
 }
 
 func (s *CompanyService) CreateCompany(ctx context.Context, c *dots.Company) error {
+	user := dots.UserFromContext(ctx)
+	if user.ID == ksuid.Nil {
+		return dots.Errorf(dots.EUNAUTHORIZED, "unauthorized user")
+	}
+
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -26,6 +31,11 @@ func (s *CompanyService) CreateCompany(ctx context.Context, c *dots.Company) err
 	defer tx.Rollback()
 
 	if canerr := dots.CanDoAnything(ctx); canerr == nil {
+    // owner company can be different than current user (assumed to be a super-user)
+    // but not missing
+    if c.TID.IsNil() {
+      return dots.Errorf(dots.EINVALID, "missing owner identificator")
+    }
 		return createCompany(ctx, tx, c)
 	}
 
@@ -33,6 +43,8 @@ func (s *CompanyService) CreateCompany(ctx context.Context, c *dots.Company) err
 		return canerr
 	}
 
+  // lock owner company to user
+  c.TID = user.ID
 	if err := createCompany(ctx, tx, c); err != nil {
 		return err
 	}
@@ -194,11 +206,6 @@ func findCompany(ctx context.Context, tx *Tx, filter dots.CompanyFilter) (_ []*d
 }
 
 func createCompany(ctx context.Context, tx *Tx, c *dots.Company) error {
-	user := dots.UserFromContext(ctx)
-	if user.ID == ksuid.Nil {
-		return dots.Errorf(dots.EUNAUTHORIZED, "unauthorized user")
-	}
-
 	if err := c.Validate(); err != nil {
 		return err
 	}
@@ -211,7 +218,8 @@ insert into company
 values
 ($1, $2, $3, $4) returning id
 		`,
-		c.Longname, c.TIN, c.RN, user.ID,
+		c.Longname, c.TIN, c.RN,
+    c.TID,
 	).Scan(&c.ID)
 	if err != nil {
 		return err

@@ -15,6 +15,10 @@ type Company struct {
 }
 
 func (c *Company) Validate() error {
+	if c.Longname == "" || c.TIN == "" || c.RN == "" {
+		return Errorf(EINVALID, "all name, tax identification number and  registration number are required")
+	}
+
 	return nil
 }
 
