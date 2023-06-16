@@ -32,6 +32,8 @@ type CompanyFilter struct {
 	Offset int `json:"offset"`
 	Limit  int `json:"limit"`
 
+  IsDeleted *bool
+
 	DeletedAtFrom *PartialTime `json:"deleted_at_from,omitempty"`
 	DeletedAtTo   *PartialTime `json:"deleted_at_to,omitempty"`
 }
@@ -39,6 +41,9 @@ type CompanyFilter struct {
 type CompanyDelete struct {
 	CompanyFilter
 
+  // delete will be hard using "delete" sql kwyword
+  Hard bool
+  // update deletion field
 	Resurect bool
 }
 
