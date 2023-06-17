@@ -13,6 +13,7 @@ func (s *Server) registerCompanyRoutes(router *mux.Router) {
 	router.HandleFunc("/{id}/edit", s.handleCompanyUpdate).Methods("PATCH")
 	router.HandleFunc("", s.handleCompanyFind).Methods("GET")
 	router.HandleFunc("", s.handleCompanyDelete).Methods("PATCH")
+	router.HandleFunc("", s.handleCompanyHardDelete).Methods("DELETE")
 }
 
 func (s *Server) handlecompanyCreate(w http.ResponseWriter, r *http.Request) {
@@ -86,6 +87,23 @@ func (s *Server) handleCompanyDelete(w http.ResponseWriter, r *http.Request) {
   if _, found := r.URL.Query()["resurect"]; found {
 		filter.Resurect = true
 	}
+	n, err := s.CompanyService.DeleteCompany(r.Context(), filter)
+	if err != nil {
+		Error(w, r, err)
+		return
+	}
+
+	outputJSON(w, r, http.StatusFound, &deleteCompanyResponse{N: n})
+}
+
+func (s *Server) handleCompanyHardDelete(w http.ResponseWriter, r *http.Request) {
+	var filter dots.CompanyDelete
+	ok := inputJSON(w, r, &filter, "hard-delete company")
+	if !ok {
+		return
+	}
+  filter.Hard = true
+
 	n, err := s.CompanyService.DeleteCompany(r.Context(), filter)
 	if err != nil {
 		Error(w, r, err)
