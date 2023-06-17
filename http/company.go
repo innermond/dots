@@ -83,7 +83,7 @@ func (s *Server) handleCompanyDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if r.URL.Query().Get("resurect") != "" {
+  if _, found := r.URL.Query()["resurect"]; found {
 		filter.Resurect = true
 	}
 	n, err := s.CompanyService.DeleteCompany(r.Context(), filter)
