@@ -37,10 +37,11 @@ type pasetoMaker struct {
 func (k pasetoMaker) CreateToken(uid ksuid.KSUID, d time.Duration) (string, error) {
   token := paseto.NewToken()
   payload := newPayload(uid)
-  now := time.Now()
+  now := time.Now().UTC()
   token.SetIssuedAt(now)
   token.SetNotBefore(now)
-  token.SetExpiration(time.Now().Add(d))
+  exp := time.Now().Add(d)
+  token.SetExpiration(exp)
   token.Set("payload", payload)
 
   sk, err := paseto.V4SymmetricKeyFromBytes(k.key)
