@@ -102,6 +102,16 @@ func (s *CompanyService) UpdateCompany(ctx context.Context, id int, upd dots.Com
 	}
 	defer tx.Rollback()
 
+  if upd.TID.IsNil() {
+    return nil, dots.Errorf(dots.EINVALID, "missing owner identificator")
+  }
+
+  company := dots.Company{ID: id}
+  err = companyCheckDeleted(ctx, tx, company)
+  if err != nil {
+    return nil, err
+  }
+
 	if canerr := dots.CanDoAnything(ctx); canerr == nil {
 		return updateCompany(ctx, tx, id, upd)
 	}
@@ -138,7 +148,21 @@ func (s *CompanyService) DeleteCompany(ctx context.Context, filter dots.CompanyD
 	defer tx.Rollback()
 
 	if canerr := dots.CanDoAnything(ctx); canerr == nil {
-		return deleteCompany(ctx, tx, filter)
+    var n int
+    var err error
+
+    if filter.Hard {
+      n, err = deleteCompanyPermanently(ctx, tx, filter)
+    } else {
+      n, err = deleteCompany(ctx, tx, filter)
+    }
+    if err != nil {
+      return n, err
+    }
+
+    tx.Commit()
+
+    return n, err
 	}
 
 	if canerr := dots.CanDeleteOwn(ctx); canerr != nil {
@@ -445,13 +469,22 @@ where c.id = $1 and c.tid = $2
 func companyCheckDeleted(ctx context.Context, tx *Tx, c dots.Company) error {
 	// new company should not be a soft deleted old one
 	IsDeleted := true
-	filterFind := dots.CompanyFilter{
-		TID:       &c.TID,
-		Longname:  &c.Longname,
-		TIN:       &c.TIN,
-		RN:        &c.RN,
-		IsDeleted: &IsDeleted,
-	}
+	filterFind := dots.CompanyFilter{IsDeleted: &IsDeleted,}
+  if c.ID != 0 {
+    filterFind.ID = &c.ID
+  }
+  if !c.TID.IsNil() {
+    filterFind.TID = &c.TID
+  }
+  if c.Longname != "" {
+    filterFind.Longname = &c.Longname
+  }
+  if c.TIN != "" {
+    filterFind.TIN = &c.TIN
+  }
+  if c.RN != ""{
+    filterFind.RN = &c.RN
+  }
 	_, n, err := findCompany(ctx, tx, filterFind)
 	if err != nil {
 		return err
