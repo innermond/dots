@@ -17,10 +17,21 @@ const (
 type Error struct {
 	Code    string
 	Message string
+
+  err error
 }
 
 func (e *Error) Error() string {
 	return fmt.Sprintf("dots error: Code: %s Message: %s", e.Code, e.Message)
+}
+
+func (e *Error) Wrap(err error) error {
+  e.err = err
+  return e
+}
+
+func (e *Error) Unwrap() error {
+  return e.err
 }
 
 func ErrorCode(err error) string {

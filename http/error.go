@@ -2,6 +2,7 @@ package http
 
 import (
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 
@@ -10,17 +11,24 @@ import (
 
 func Error(w http.ResponseWriter, r *http.Request, err error) {
 	code, message := dots.ErrorCode(err), dots.ErrorMessage(err)
-	if code == dots.EINTERNAL {
-		log.Printf("[http] error: %s %s %s", r.Method, r.URL.Path, err)
+  deverr := err
+  logit := false
+  if werr := errors.Unwrap(err); werr != nil {
+    deverr = werr
+    logit = true
+  }
+	if code == dots.EINTERNAL || logit  {
+		log.Printf("[http] error: %s %s %s", r.Method, r.URL.Path, deverr)
 	}
+
 	errorStatus := errorStatusFromCode(code)
-	switch r.Header.Get("Accept") {
+  w.WriteHeader(errorStatus)
+
+  switch r.Header.Get("Accept") {
 	case "application/json":
 		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(errorStatus)
 		json.NewEncoder(w).Encode(&errorResponse{Error: message})
 	default:
-		w.WriteHeader(errorStatus)
 		w.Write([]byte(message))
 	}
 }
