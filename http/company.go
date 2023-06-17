@@ -10,7 +10,7 @@ import (
 
 func (s *Server) registerCompanyRoutes(router *mux.Router) {
 	router.HandleFunc("", s.handlecompanyCreate).Methods("POST")
-	router.HandleFunc("/{id}/edit", s.handleCompanyUpdate).Methods("PATCH")
+	router.HandleFunc("/{id}", s.handleCompanyUpdate).Methods("PATCH")
 	router.HandleFunc("", s.handleCompanyFind).Methods("GET")
 	router.HandleFunc("", s.handleCompanyDelete).Methods("PATCH")
 	router.HandleFunc("", s.handleCompanyHardDelete).Methods("DELETE")
