@@ -1,6 +1,7 @@
 package token
 
 import (
+	"errors"
 	"time"
 
 	paseto "aidanwoods.dev/go-paseto"
@@ -52,6 +53,8 @@ func (k pasetoMaker) CreateToken(uid ksuid.KSUID, d time.Duration) (string, erro
   return token.V4Encrypt(sk, nil), nil
 }
 
+type ErrTokenClient = paseto.RuleError
+
 func (k pasetoMaker) ReadToken(token string) (*Payload, error) {
   sk, err := paseto.V4SymmetricKeyFromBytes(k.key)
   if err != nil {
@@ -61,6 +64,10 @@ func (k pasetoMaker) ReadToken(token string) (*Payload, error) {
   p := paseto.NewParser()
   tok, err := p.ParseV4Local(sk, token, nil)
   if err != nil {
+    if errors.Is(err, &ErrTokenClient{}) {
+      perr := &dots.Error{Code: dots.EUNAUTHORIZED, Message: "unauthorized token",}
+      return nil, perr.Wrap(err)
+    }
     return nil, err
   }
 
