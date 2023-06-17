@@ -30,29 +30,17 @@ func (s *CompanyService) CreateCompany(ctx context.Context, c *dots.Company) err
 	}
 	defer tx.Rollback()
 
-  // new company should not be a soft deleted old one
-  IsDeleted := true
-  filterFind := dots.CompanyFilter {
-    TID: &c.TID,
-    Longname: &c.Longname,
-    TIN: &c.TIN,
-    RN: &c.RN,
-    IsDeleted: &IsDeleted,
-  }
-  _, n, err := findCompany(ctx, tx, filterFind)
-  if err != nil {
-    return err
-  }
-  if n == 1 {
-      return dots.Errorf(dots.EINVALID, "this company has been deleted")
-  }
-
 	if canerr := dots.CanDoAnything(ctx); canerr == nil {
-    // owner company can be different than current user (assumed to be a super-user)
-    // but not missing
-    if c.TID.IsNil() {
-      return dots.Errorf(dots.EINVALID, "missing owner identificator")
-    }
+		// owner company can be different than current user (assumed to be a super-user)
+		// but not missing
+		if c.TID.IsNil() {
+			return dots.Errorf(dots.EINVALID, "missing owner identificator")
+		}
+		err := companyCheckDeleted(ctx, tx, *c)
+		if err != nil {
+			return err
+		}
+
 		return createCompany(ctx, tx, c)
 	}
 
@@ -60,8 +48,17 @@ func (s *CompanyService) CreateCompany(ctx context.Context, c *dots.Company) err
 		return canerr
 	}
 
-  // lock owner company to user
-  c.TID = user.ID
+	// a user trying to set a TID other than his own
+	if !c.TID.IsNil() && c.TID != user.ID {
+		return dots.Errorf(dots.EUNAUTHORIZED, "unauthorized user")
+	}
+	// lock owner company to user
+	c.TID = user.ID
+	err = companyCheckDeleted(ctx, tx, *c)
+	if err != nil {
+		return err
+	}
+
 	if err := createCompany(ctx, tx, c); err != nil {
 		return err
 	}
@@ -158,16 +155,16 @@ func (s *CompanyService) DeleteCompany(ctx context.Context, filter dots.CompanyD
 		if err != nil {
 			return 0, err
 		}
-  }
+	}
 
-  if filter.Hard {
-    n, err = deleteCompanyPermanently(ctx, tx, filter)
-  } else {
-    n, err = deleteCompany(ctx, tx, filter)
-  }
-  if err != nil {
-    return n, err
-  }
+	if filter.Hard {
+		n, err = deleteCompanyPermanently(ctx, tx, filter)
+	} else {
+		n, err = deleteCompany(ctx, tx, filter)
+	}
+	if err != nil {
+		return n, err
+	}
 
 	tx.Commit()
 
@@ -199,21 +196,21 @@ func findCompany(ctx context.Context, tx *Tx, filter dots.CompanyFilter) (_ []*d
 		where[inx] = v
 	}
 
-  v := filter.IsDeleted
-  if v != nil && *v == true {
+	v := filter.IsDeleted
+	if v != nil && *v == true {
 		where = append(where, "deleted_at is not null")
 	} else if v != nil && *v == false {
 		where = append(where, "deleted_at is null")
-  }
+	}
 
-  sqlstr := `
+	sqlstr := `
 		select id, longname, tin, rn, tid, count(*) over() from company
-		where `+strings.Join(where, " and ")+` `+formatLimitOffset(filter.Limit, filter.Offset)
+		where ` + strings.Join(where, " and ") + ` ` + formatLimitOffset(filter.Limit, filter.Offset)
 	rows, err := tx.QueryContext(
-    ctx,
-    sqlstr,
-    args...,
-  )
+		ctx,
+		sqlstr,
+		args...,
+	)
 	if err == sql.ErrNoRows {
 		return nil, 0, dots.Errorf(dots.ENOTFOUND, "company not found")
 	}
@@ -252,7 +249,7 @@ values
 ($1, $2, $3, $4) returning id
 		`,
 		c.Longname, c.TIN, c.RN,
-    c.TID,
+		c.TID,
 	).Scan(&c.ID)
 	if err != nil {
 		return err
@@ -440,6 +437,27 @@ where c.id = $1 and c.tid = $2
 	}
 	if !exists {
 		return dots.Errorf(dots.EUNAUTHORIZED, "foreign entry")
+	}
+
+	return nil
+}
+
+func companyCheckDeleted(ctx context.Context, tx *Tx, c dots.Company) error {
+	// new company should not be a soft deleted old one
+	IsDeleted := true
+	filterFind := dots.CompanyFilter{
+		TID:       &c.TID,
+		Longname:  &c.Longname,
+		TIN:       &c.TIN,
+		RN:        &c.RN,
+		IsDeleted: &IsDeleted,
+	}
+	_, n, err := findCompany(ctx, tx, filterFind)
+	if err != nil {
+		return err
+	}
+	if n == 1 {
+		return dots.Errorf(dots.EINVALID, "this company has been deleted")
 	}
 
 	return nil

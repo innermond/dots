@@ -2,6 +2,7 @@ package dots
 
 import (
 	"context"
+	"regexp"
 
 	"github.com/segmentio/ksuid"
 )
@@ -18,6 +19,26 @@ func (c *Company) Validate() error {
 	if c.Longname == "" || c.TIN == "" || c.RN == "" {
 		return Errorf(EINVALID, "all name, tax identification number and  registration number are required")
 	}
+
+  suspects := []string{c.Longname, c.TIN, c.RN}
+  // all utf-8 except control charatcters
+  pattern := "^[[:^cntrl:]]+$"
+  re := regexp.MustCompile(pattern)
+  for _, suspect := range suspects {
+    match := re.MatchString(suspect)
+    if !match {
+      return Errorf(EINVALID, "input is not a text line")
+    }
+  }
+  // only white spaces
+  pattern = "^\\s+$"
+  re = regexp.MustCompile(pattern)
+  for _, suspect := range suspects {
+    match := re.MatchString(suspect)
+    if match {
+      return Errorf(EINVALID, "emptyness as input")
+    }
+  }
 
 	return nil
 }
