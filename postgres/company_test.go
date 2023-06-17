@@ -2,6 +2,7 @@ package postgres_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/innermond/dots"
@@ -64,7 +65,7 @@ func TestCompanyService_CreateCompany(t *testing.T) {
 
 	})
 
-	t.Run("Error characters that are empty or contains controls", func(t *testing.T) {
+	t.Run("Error input characters", func(t *testing.T) {
 		db := MustOpenDB(t, DSN)
 		defer MustCloseDB(t, db)
 
@@ -85,16 +86,14 @@ func TestCompanyService_CreateCompany(t *testing.T) {
 		}
 
 		for i, tc := range tt {
-			c, err, deleteDummy := createDummyCompany(ctx, t, tc, s)
+      t.Run(fmt.Sprintf("%d:", i), func(t *testing.T) {
+        c, err, deleteDummy := createDummyCompany(ctx, t, tc, s)
 
-			if err == nil {
-				defer deleteDummy(c.ID)
-				t.Fail()
-				t.Logf("[%d] fail\n", i)
-				continue
-			}
-
-			t.Logf("[%d] ok %v\n", i, err)
+        if err == nil {
+          deleteDummy(c.ID)
+          t.Errorf("[%d] fail\n", i)
+        }
+      })
 		}
 
 	})
@@ -128,19 +127,24 @@ func TestCompanyService_CreateCompany(t *testing.T) {
 		c, err, deleteDummy := createDummyCompany(ctx, t, tc, s)
 		if err == nil {
 			t.Logf("unexpected company creation: c.TID %v otid %v\n", c.TID, otid)
+      t.Fail()
 			deleteDummy(c.ID)
-			t.Fatal("error unexpected")
-		}
-		t.Logf("error expected: %v\n", err)
+		} else if dots.ErrorCode(err) == dots.EUNAUTHORIZED {
+      t.Logf("error expected: %v\n", err)
+    } else {
+			t.Logf("unexpected error type: %v\n", err)
+      t.Fail()
+    }
 
 		u = dots.User{ID: tid, Powers: []dots.Power{dots.DoAnything}}
 		ctx = dots.NewContextWithUser(context.Background(), &u)
 		c, err, deleteDummy = createDummyCompany(ctx, t, tc, s)
 		if err != nil {
-			t.Fatalf("unexpected error %v\n", err)
-		}
-		t.Logf("company created: c.TID %v\n", c.TID)
-		deleteDummy(c.ID)
+			t.Errorf("unexpected error %v\n", err)
+		} else {
+      t.Logf("company created: c.TID %v\n", c.TID)
+      deleteDummy(c.ID)
+    }
 
 	})
 }
