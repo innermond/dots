@@ -2,7 +2,7 @@
 .securecookie
 __debug_bin
 tmp
-dist
+dist/server
 .air.toml
 
 # IDE - vim
