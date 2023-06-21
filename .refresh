@@ -1,8 +1,0 @@
-#!/bin/bash
-
-docker container stop dots-api-1
-docker container rm dots-api-1
-docker image rm dots-api
-docker compose build api
-docker compose create api
-docker container start -a dots-api-1

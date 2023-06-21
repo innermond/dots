@@ -1,4 +1,9 @@
-postgres-data
+.env
+.securecookie
+__debug_bin
+tmp
+dist
+.air.toml
 
 # IDE - vim
 .vim/
