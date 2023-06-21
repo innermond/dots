@@ -1,5 +1,5 @@
 FROm alpine:latest
 RUN mkdir -p /app/tmp
 WORKDIR /app
-COPY . .
+COPY ./api .
 EXPOSE 5432
