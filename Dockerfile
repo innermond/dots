@@ -1,5 +1,2 @@
-FROm alpine:latest
+FROM --platform=linux/amd64 golang:1.20
 RUN mkdir -p /app/tmp
-WORKDIR /app
-COPY ./api .
-EXPOSE 5432
