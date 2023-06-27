@@ -10,10 +10,9 @@ import (
 
 func (s *Server) registerCompanyRoutes(router *mux.Router) {
 	router.HandleFunc("", s.handlecompanyCreate).Methods("POST")
-	router.HandleFunc("/{id}", s.handleCompanyUpdate).Methods("PATCH")
+	router.HandleFunc("/{id}", s.handleCompanyPatch).Methods("PATCH")
 	router.HandleFunc("", s.handleCompanyFind).Methods("GET")
-	router.HandleFunc("", s.handleCompanyDelete).Methods("PATCH")
-	router.HandleFunc("", s.handleCompanyHardDelete).Methods("DELETE")
+	router.HandleFunc("/{id}", s.handleCompanyHardDelete).Methods("DELETE")
 }
 
 func (s *Server) handlecompanyCreate(w http.ResponseWriter, r *http.Request) {
@@ -30,6 +29,15 @@ func (s *Server) handlecompanyCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	outputJSON(w, r, http.StatusCreated, &c)
+}
+
+func (s *Server) handleCompanyPatch(w http.ResponseWriter, r *http.Request) {
+  if _, found := r.URL.Query()["del"]; found {
+    s.handleCompanyDelete(w, r)
+    return
+  }
+
+  s.handleCompanyUpdate(w, r)
 }
 
 func (s *Server) handleCompanyUpdate(w http.ResponseWriter, r *http.Request) {
@@ -78,16 +86,25 @@ func (s *Server) handleCompanyFind(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleCompanyDelete(w http.ResponseWriter, r *http.Request) {
-	var filter dots.CompanyDelete
-	ok := inputJSON(w, r, &filter, "delete company")
-	if !ok {
+	id, err := strconv.Atoi(mux.Vars(r)["id"])
+	if err != nil {
+		Error(w, r, dots.Errorf(dots.EINVALID, "invalid ID format"))
 		return
 	}
+
+  filter := dots.CompanyDelete{}
+  // is body empty?
+  if r.Body != http.NoBody {
+    ok := inputJSON(w, r, &filter, "delete company")
+    if !ok {
+      return
+    }
+  }
 
   if _, found := r.URL.Query()["resurect"]; found {
 		filter.Resurect = true
 	}
-	n, err := s.CompanyService.DeleteCompany(r.Context(), filter)
+  n, err := s.CompanyService.DeleteCompany(r.Context(), id, filter)
 	if err != nil {
 		Error(w, r, err)
 		return
@@ -97,6 +114,12 @@ func (s *Server) handleCompanyDelete(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleCompanyHardDelete(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(mux.Vars(r)["id"])
+	if err != nil {
+		Error(w, r, dots.Errorf(dots.EINVALID, "invalid ID format"))
+		return
+	}
+
 	var filter dots.CompanyDelete
 	ok := inputJSON(w, r, &filter, "hard-delete company")
 	if !ok {
@@ -104,7 +127,7 @@ func (s *Server) handleCompanyHardDelete(w http.ResponseWriter, r *http.Request)
 	}
   filter.Hard = true
 
-	n, err := s.CompanyService.DeleteCompany(r.Context(), filter)
+	n, err := s.CompanyService.DeleteCompany(r.Context(), id, filter)
 	if err != nil {
 		Error(w, r, err)
 		return

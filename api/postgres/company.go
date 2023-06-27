@@ -140,7 +140,7 @@ func (s *CompanyService) UpdateCompany(ctx context.Context, id int, upd dots.Com
 	return c, nil
 }
 
-func (s *CompanyService) DeleteCompany(ctx context.Context, filter dots.CompanyDelete) (int, error) {
+func (s *CompanyService) DeleteCompany(ctx context.Context, id int, filter dots.CompanyDelete) (int, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, err
@@ -152,9 +152,9 @@ func (s *CompanyService) DeleteCompany(ctx context.Context, filter dots.CompanyD
     var err error
 
     if filter.Hard {
-      n, err = deleteCompanyPermanently(ctx, tx, filter)
+      n, err = deleteCompanyPermanently(ctx, tx, id)
     } else {
-      n, err = deleteCompany(ctx, tx, filter)
+      n, err = deleteCompany(ctx, tx, id, filter.Resurect)
     }
     if err != nil {
       return n, err
@@ -170,21 +170,17 @@ func (s *CompanyService) DeleteCompany(ctx context.Context, filter dots.CompanyD
 	}
 
 	var n int
-	// lock delete to own
 	uid := dots.UserFromContext(ctx).ID
-	filter.TID = &uid
 
-	if filter.ID != nil {
-		err = companyBelongsToUser(ctx, tx, uid, *filter.ID)
-		if err != nil {
-			return 0, err
-		}
-	}
+  err = companyBelongsToUser(ctx, tx, uid, id)
+  if err != nil {
+    return 0, err
+  }
 
 	if filter.Hard {
-		n, err = deleteCompanyPermanently(ctx, tx, filter)
+		n, err = deleteCompanyPermanently(ctx, tx, id)
 	} else {
-		n, err = deleteCompany(ctx, tx, filter)
+		n, err = deleteCompany(ctx, tx, id, filter.Resurect)
 	}
 	if err != nil {
 		return n, err
@@ -325,23 +321,9 @@ func updateCompany(ctx context.Context, tx *Tx, id int, updata dots.CompanyUpdat
 	return ct, nil
 }
 
-func deleteCompany(ctx context.Context, tx *Tx, filter dots.CompanyDelete) (n int, err error) {
+func deleteCompany(ctx context.Context, tx *Tx, id int, resurect bool) (n int, err error) {
 	where, args := []string{"1 = 1"}, []interface{}{}
-	if v := filter.ID; v != nil {
-		where, args = append(where, "c.id = ?"), append(args, *v)
-	}
-	if v := filter.Longname; v != nil {
-		where, args = append(where, "longname = ?"), append(args, *v)
-	}
-	if v := filter.TIN; v != nil {
-		where, args = append(where, "tin = ?"), append(args, *v)
-	}
-	if v := filter.RN; v != nil {
-		where, args = append(where, "rn = ?"), append(args, *v)
-	}
-	if v := filter.TID; v != nil {
-		where, args = append(where, "tid = ?"), append(args, *v)
-	}
+  where, args = append(where, "c.id = ?"), append(args, id)
 	for inx, v := range where {
 		if !strings.Contains(v, "?") {
 			continue
@@ -351,7 +333,7 @@ func deleteCompany(ctx context.Context, tx *Tx, filter dots.CompanyDelete) (n in
 	}
 
 	kind := "date_trunc('minute', now())::timestamptz"
-	if filter.Resurect {
+	if resurect {
 		kind = "null"
 		where = append(where, "c.deleted_at is not null")
 	} else {
@@ -365,14 +347,14 @@ func deleteCompany(ctx context.Context, tx *Tx, filter dots.CompanyDelete) (n in
 	whereDeeds = append(whereDeeds, "d.company_id is null")
 
 	sqlstr := `
-		update company set deleted_at = %s where id = any(
+		update company set deleted_at = %s where id = %d and id = any(
 		select c.id from company c left join entry e on(c.id = e.company_id)
 		where %s) or id = any(
 		select c.id from company c left join deed d on(c.id = d.company_id)
 		where %s)`
-	conditionEntries := strings.Join(whereEntries, " and ") + ` ` + formatLimitOffset(filter.Limit, filter.Offset)
-	conditionDeeds := strings.Join(whereDeeds, " and ") + ` ` + formatLimitOffset(filter.Limit, filter.Offset)
-	sqlstr = fmt.Sprintf(sqlstr, kind, conditionEntries, conditionDeeds)
+	conditionEntries := strings.Join(whereEntries, " and ")
+	conditionDeeds := strings.Join(whereDeeds, " and ")
+	sqlstr = fmt.Sprintf(sqlstr, kind, id, conditionEntries, conditionDeeds)
 	result, err := tx.ExecContext(
 		ctx,
 		sqlstr,
@@ -390,23 +372,9 @@ func deleteCompany(ctx context.Context, tx *Tx, filter dots.CompanyDelete) (n in
 	return int(n64), nil
 }
 
-func deleteCompanyPermanently(ctx context.Context, tx *Tx, filter dots.CompanyDelete) (n int, err error) {
+func deleteCompanyPermanently(ctx context.Context, tx *Tx, id int) (n int, err error) {
 	where, args := []string{"1 = 1"}, []interface{}{}
-	if v := filter.ID; v != nil {
-		where, args = append(where, "c.id = ?"), append(args, *v)
-	}
-	if v := filter.Longname; v != nil {
-		where, args = append(where, "longname = ?"), append(args, *v)
-	}
-	if v := filter.TIN; v != nil {
-		where, args = append(where, "tin = ?"), append(args, *v)
-	}
-	if v := filter.RN; v != nil {
-		where, args = append(where, "rn = ?"), append(args, *v)
-	}
-	if v := filter.TID; v != nil {
-		where, args = append(where, "tid = ?"), append(args, *v)
-	}
+  where, args = append(where, "c.id = ?"), append(args, id)
 	for inx, v := range where {
 		if !strings.Contains(v, "?") {
 			continue
@@ -422,14 +390,14 @@ func deleteCompanyPermanently(ctx context.Context, tx *Tx, filter dots.CompanyDe
 	whereDeeds = append(whereDeeds, "d.company_id is null")
 
 	sqlstr := `
-		delete from company where id = any(
+		delete from company where id = %d and id = any(
 		select c.id from company c left join entry e on(c.id = e.company_id)
 		where %s) or id = any(
 		select c.id from company c left join deed d on(c.id = d.company_id)
 		where %s)`
-	conditionEntries := strings.Join(whereEntries, " and ") + ` ` + formatLimitOffset(filter.Limit, filter.Offset)
-	conditionDeeds := strings.Join(whereDeeds, " and ") + ` ` + formatLimitOffset(filter.Limit, filter.Offset)
-	sqlstr = fmt.Sprintf(sqlstr, conditionEntries, conditionDeeds)
+	conditionEntries := strings.Join(whereEntries, " and ")
+	conditionDeeds := strings.Join(whereDeeds, " and ")
+	sqlstr = fmt.Sprintf(sqlstr, id, conditionEntries, conditionDeeds)
 	result, err := tx.ExecContext(
 		ctx,
 		sqlstr,

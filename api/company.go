@@ -53,15 +53,13 @@ type CompanyFilter struct {
 	Offset int `json:"offset"`
 	Limit  int `json:"limit"`
 
-  IsDeleted *bool
+  IsDeleted *bool `json:"is_deleted"`
 
 	DeletedAtFrom *PartialTime `json:"deleted_at_from,omitempty"`
 	DeletedAtTo   *PartialTime `json:"deleted_at_to,omitempty"`
 }
 
 type CompanyDelete struct {
-	CompanyFilter
-
   // delete will be hard using "delete" sql kwyword
   Hard bool
   // update deletion field
@@ -75,7 +73,7 @@ type CompanyService interface {
 	CreateCompany(context.Context, *Company) error
 	UpdateCompany(context.Context, int, CompanyUpdate) (*Company, error)
 	FindCompany(context.Context, CompanyFilter) ([]*Company, int, error)
-	DeleteCompany(context.Context, CompanyDelete) (int, error)
+	DeleteCompany(context.Context, int, CompanyDelete) (int, error)
 }
 
 type CompanyUpdate struct {
