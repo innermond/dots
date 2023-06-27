@@ -14,7 +14,7 @@ import (
 
 func (s *Server) registerEntryTypeRoutes(router *mux.Router) {
 	router.HandleFunc("", s.handleEntryTypeCreate).Methods("POST")
-	router.HandleFunc("/{id}/edit", s.handleEntryTypeUpdate).Methods("PATCH")
+	router.HandleFunc("/{id}", s.handleEntryTypeUpdate).Methods("PATCH")
 	router.HandleFunc("", s.handleEntryTypeFind).Methods("GET")
 	router.HandleFunc("", s.handleEntryTypeDelete).Methods("PATCH")
 }
@@ -22,7 +22,7 @@ func (s *Server) registerEntryTypeRoutes(router *mux.Router) {
 func (s *Server) handleEntryTypeCreate(w http.ResponseWriter, r *http.Request) {
 	var et dots.EntryType
 
-	if ok := inputJSON[dots.EntryType](w, r, &et, "create entry type"); !ok {
+	if ok := inputJSON(w, r, &et, "create entry type"); !ok {
 		return
 	}
 
@@ -32,7 +32,7 @@ func (s *Server) handleEntryTypeCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	outputJSON[dots.EntryType](w, r, http.StatusCreated, &et)
+	outputJSON(w, r, http.StatusCreated, &et)
 }
 
 func (s *Server) handleEntryTypeUpdate(w http.ResponseWriter, r *http.Request) {
@@ -43,7 +43,7 @@ func (s *Server) handleEntryTypeUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var updata dots.EntryTypeUpdate
-	if ok := inputJSON[dots.EntryTypeUpdate](w, r, &updata, "edit entry type"); !ok {
+	if ok := inputJSON(w, r, &updata, "edit entry type"); !ok {
 		return
 	}
 
@@ -61,7 +61,7 @@ func (s *Server) handleEntryTypeUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	outputJSON[dots.EntryType](w, r, http.StatusOK, et)
+	outputJSON(w, r, http.StatusOK, et)
 }
 
 func (s *Server) handleEntryTypeFind(w http.ResponseWriter, r *http.Request) {
@@ -69,7 +69,7 @@ func (s *Server) handleEntryTypeFind(w http.ResponseWriter, r *http.Request) {
 	r.Body = io.NopCloser(io.TeeReader(r.Body, &buf))
 
 	var filter dots.EntryTypeFilter
-	ok := inputJSON[dots.EntryTypeFilter](w, r, &filter, "find entry type")
+	ok := inputJSON(w, r, &filter, "find entry type")
 	if !ok {
 		return
 	}
@@ -90,12 +90,12 @@ func (s *Server) handleEntryTypeFind(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	outputJSON[findEntryTypeResponse](w, r, http.StatusFound, &findEntryTypeResponse{EntryTypes: ee, N: n})
+	outputJSON(w, r, http.StatusFound, &findEntryTypeResponse{EntryTypes: ee, N: n})
 }
 
 func (s *Server) handleEntryTypeDelete(w http.ResponseWriter, r *http.Request) {
 	var filter dots.EntryTypeDelete
-	ok := inputJSON[dots.EntryTypeDelete](w, r, &filter, "delete entry type")
+	ok := inputJSON(w, r, &filter, "delete entry type")
 	if !ok {
 		return
 	}
@@ -109,7 +109,7 @@ func (s *Server) handleEntryTypeDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	outputJSON[deleteEntryTypeResponse](w, r, http.StatusFound, &deleteEntryTypeResponse{N: n})
+	outputJSON(w, r, http.StatusFound, &deleteEntryTypeResponse{N: n})
 }
 
 type findEntryTypeResponse struct {
