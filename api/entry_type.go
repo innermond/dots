@@ -30,7 +30,7 @@ type EntryTypeService interface {
 	CreateEntryType(context.Context, *EntryType) error
 	UpdateEntryType(context.Context, int, EntryTypeUpdate) (*EntryType, error)
 	FindEntryType(context.Context, EntryTypeFilter) ([]*EntryType, int, error)
-	DeleteEntryType(context.Context, EntryTypeDelete) (int, error)
+	DeleteEntryType(context.Context, int, EntryTypeDelete) (int, error)
 }
 
 type EntryTypeFilter struct {
@@ -48,8 +48,6 @@ type EntryTypeFilter struct {
 }
 
 type EntryTypeDelete struct {
-	EntryTypeFilter
-
 	Resurect bool
 }
 

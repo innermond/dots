@@ -14,7 +14,7 @@ import (
 
 func (s *Server) registerEntryTypeRoutes(router *mux.Router) {
 	router.HandleFunc("", s.handleEntryTypeCreate).Methods("POST")
-	router.HandleFunc("/{id}", s.handleEntryTypeUpdate).Methods("PATCH")
+	router.HandleFunc("/{id}", s.handleEntryTypePatch).Methods("PATCH")
 	router.HandleFunc("", s.handleEntryTypeFind).Methods("GET")
 	router.HandleFunc("", s.handleEntryTypeDelete).Methods("PATCH")
 }
@@ -33,6 +33,15 @@ func (s *Server) handleEntryTypeCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	outputJSON(w, r, http.StatusCreated, &et)
+}
+
+func (s *Server) handleEntryTypePatch(w http.ResponseWriter, r *http.Request) {
+  if _, found := r.URL.Query()["del"]; found {
+    s.handleEntryTypeDelete(w, r)
+    return
+  }
+
+  s.handleEntryTypeUpdate(w, r)
 }
 
 func (s *Server) handleEntryTypeUpdate(w http.ResponseWriter, r *http.Request) {
@@ -94,16 +103,24 @@ func (s *Server) handleEntryTypeFind(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleEntryTypeDelete(w http.ResponseWriter, r *http.Request) {
-	var filter dots.EntryTypeDelete
-	ok := inputJSON(w, r, &filter, "delete entry type")
-	if !ok {
+	id, err := strconv.Atoi(mux.Vars(r)["id"])
+	if err != nil {
+		Error(w, r, dots.Errorf(dots.EINVALID, "invalid ID format"))
 		return
 	}
 
-	if r.URL.Query().Get("resurect") != "" {
+  filter := dots.EntryTypeDelete{}
+  if r.Body != http.NoBody {
+    ok := inputJSON(w, r, &filter, "delete entry type")
+    if !ok {
+      return
+    }
+  }
+
+  if _, found := r.URL.Query()["resurect"]; found {
 		filter.Resurect = true
 	}
-	n, err := s.EntryTypeService.DeleteEntryType(r.Context(), filter)
+	n, err := s.EntryTypeService.DeleteEntryType(r.Context(), id, filter)
 	if err != nil {
 		Error(w, r, err)
 		return

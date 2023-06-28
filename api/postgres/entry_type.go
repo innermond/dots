@@ -103,7 +103,7 @@ func (s *EntryTypeService) UpdateEntryType(ctx context.Context, id int, upd dots
 	return et, nil
 }
 
-func (s *EntryTypeService) DeleteEntryType(ctx context.Context, filter dots.EntryTypeDelete) (int, error) {
+func (s *EntryTypeService) DeleteEntryType(ctx context.Context, id int, filter dots.EntryTypeDelete) (int, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, err
@@ -111,7 +111,7 @@ func (s *EntryTypeService) DeleteEntryType(ctx context.Context, filter dots.Entr
 	defer tx.Rollback()
 
 	if canerr := dots.CanDoAnything(ctx); canerr == nil {
-		return deleteEntryType(ctx, tx, filter)
+		return deleteEntryType(ctx, tx, id, filter.Resurect)
 	}
 
 	if canerr := dots.CanDeleteOwn(ctx); canerr != nil {
@@ -121,17 +121,12 @@ func (s *EntryTypeService) DeleteEntryType(ctx context.Context, filter dots.Entr
 	var n int
 	// lock delete to own
 	uid := dots.UserFromContext(ctx).ID
-	filter.TID = &uid
 
-	if filter.ID != nil {
-		err = entryTypeBelongsToUser(ctx, tx, uid, *filter.ID)
-		if err != nil {
-			return 0, err
-		}
-		n, err = deleteEntryType(ctx, tx, filter)
-	} else {
-		n, err = deleteEntryType(ctx, tx, filter)
-	}
+  err = entryTypeBelongsToUser(ctx, tx, uid, id)
+  if err != nil {
+    return 0, err
+  }
+  n, err = deleteEntryType(ctx, tx, id, filter.Resurect)
 
 	tx.Commit()
 
@@ -260,29 +255,9 @@ func findEntryType(ctx context.Context, tx *Tx, filter dots.EntryTypeFilter) (_ 
 	return entryTypes, n, nil
 }
 
-func deleteEntryType(ctx context.Context, tx *Tx, filter dots.EntryTypeDelete) (n int, err error) {
+func deleteEntryType(ctx context.Context, tx *Tx, id int, resurect bool) (n int, err error) {
 	where, args := []string{"1 = 1"}, []interface{}{}
-	if v := filter.ID; v != nil {
-		where, args = append(where, "et.id = ?"), append(args, *v)
-	}
-	if v := filter.Code; v != nil {
-		where, args = append(where, "code = ?"), append(args, *v)
-	}
-	if v := filter.Unit; v != nil {
-		where, args = append(where, "unit = ?"), append(args, *v)
-	}
-	if v := filter.TID; v != nil {
-		where, args = append(where, "et.tid = ?"), append(args, *v)
-	}
-	if v := filter.DeletedAtFrom; v != nil {
-		// >= ? is intentional
-		where, args = append(where, "et.deleted_at >= ?"), append(args, *v)
-	}
-	if v := filter.DeletedAtTo; v != nil {
-		// < ? is intentional
-		// avoid double counting exact midnight values
-		where, args = append(where, "et.deleted_at < ?"), append(args, *v)
-	}
+  where, args = append(where, "et.id = ?"), append(args, id)
 	for inx, v := range where {
 		if !strings.Contains(v, "?") {
 			continue
@@ -290,10 +265,11 @@ func deleteEntryType(ctx context.Context, tx *Tx, filter dots.EntryTypeDelete) (
 		v = strings.Replace(v, "?", fmt.Sprintf("$%d", inx), 1)
 		where[inx] = v
 	}
+  // entry_type must not have entries
 	where = append(where, "e.id is null")
 
 	kind := "date_trunc('minute', now())::timestamptz"
-	if filter.Resurect {
+	if resurect {
 		kind = "null"
 		where = append(where, "et.deleted_at is not null")
 	} else {
@@ -301,10 +277,10 @@ func deleteEntryType(ctx context.Context, tx *Tx, filter dots.EntryTypeDelete) (
 	}
 
 	sqlstr := `
-		update entry_type set deleted_at = %s where id = any(
+		update entry_type set deleted_at = %s where id = %d and id = any(
 		select et.id from entry_type et left join entry e on(et.id = e.entry_type_id)
 		where %s)`
-	sqlstr = fmt.Sprintf(sqlstr, kind, strings.Join(where, " and ")+` `+formatLimitOffset(filter.Limit, filter.Offset))
+	sqlstr = fmt.Sprintf(sqlstr, kind, id, strings.Join(where, " and "))
 	result, err := tx.ExecContext(
 		ctx,
 		sqlstr,
