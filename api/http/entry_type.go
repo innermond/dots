@@ -73,24 +73,28 @@ func (s *Server) handleEntryTypeUpdate(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleEntryTypeFind(w http.ResponseWriter, r *http.Request) {
-	buf := bytes.Buffer{}
-	r.Body = io.NopCloser(io.TeeReader(r.Body, &buf))
-
+  // can accept missing r.Body
 	var filter dots.EntryTypeFilter
-	ok := inputJSON(w, r, &filter, "find entry type")
-	if !ok {
-		return
-	}
 
-	xx, err := unknownFieldsJSON(&filter, &buf)
-	if err != nil {
-		Error(w, r, err)
-		return
-	}
-	if len(xx) > 0 {
-		Error(w, r, dots.Errorf(dots.ENOTFOUND, fmt.Sprintf("unknown input: %s", strings.Join(xx, ", "))))
-		return
-	}
+  // ensure we have a input body to be sent to json
+	if r.Body != http.NoBody {
+    buf := bytes.Buffer{}
+    r.Body = io.NopCloser(io.TeeReader(r.Body, &buf))
+
+    if ok := inputJSON(w, r, &filter, "find entry type"); !ok {
+      return
+    }
+
+    xx, err := unknownFieldsJSON(&filter, &buf)
+    if err != nil {
+      Error(w, r, err)
+      return
+    }
+    if len(xx) > 0 {
+      Error(w, r, dots.Errorf(dots.ENOTFOUND, fmt.Sprintf("unknown input: %s", strings.Join(xx, ", "))))
+      return
+    }
+  }
 
 	ee, n, err := s.EntryTypeService.FindEntryType(r.Context(), filter)
 	if err != nil {
