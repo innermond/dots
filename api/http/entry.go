@@ -11,8 +11,9 @@ import (
 
 func (s *Server) registerEntryRoutes(router *mux.Router) {
 	router.HandleFunc("", s.handleEntryCreate).Methods("POST")
-	router.HandleFunc("/{id}", s.handleEntryPatch).Methods("PATCH")
+	router.HandleFunc("/{id}/edit", s.handleEntryUpdate).Methods("PATCH")
 	router.HandleFunc("", s.handleEntryFind).Methods("GET")
+	router.HandleFunc("", s.handleEntryDelete).Methods("PATCH")
 }
 
 func (s *Server) handleEntryCreate(w http.ResponseWriter, r *http.Request) {
@@ -29,15 +30,6 @@ func (s *Server) handleEntryCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	outputJSON(w, r, http.StatusCreated, &e)
-}
-
-func (s *Server) handleEntryPatch(w http.ResponseWriter, r *http.Request) {
-  if _, found := r.URL.Query()["del"]; found {
-    s.handleEntryDelete(w, r)
-    return
-  }
-
-  s.handleEntryUpdate(w, r)
 }
 
 func (s *Server) handleEntryUpdate(w http.ResponseWriter, r *http.Request) {
