@@ -1,5 +1,4 @@
-postgres-data
-
+files/.env
 # IDE - vim
 .vim/
 # Swap

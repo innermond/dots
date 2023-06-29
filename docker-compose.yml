@@ -19,6 +19,7 @@ services:
     user: "$UID:0"
     working_dir: /go
     volumes:
+     - ./files/.env:/.env
      - ./api:/go:cached
      - ~/.ssh:/tmp/.ssh
     networks:
