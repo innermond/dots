@@ -16,7 +16,6 @@ func (s *Server) registerEntryTypeRoutes(router *mux.Router) {
 	router.HandleFunc("", s.handleEntryTypeCreate).Methods("POST")
 	router.HandleFunc("/{id}", s.handleEntryTypePatch).Methods("PATCH")
 	router.HandleFunc("", s.handleEntryTypeFind).Methods("GET")
-	router.HandleFunc("", s.handleEntryTypeDelete).Methods("PATCH")
 }
 
 func (s *Server) handleEntryTypeCreate(w http.ResponseWriter, r *http.Request) {
