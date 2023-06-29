@@ -2,6 +2,7 @@ package http
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -12,14 +13,24 @@ import (
 	"github.com/innermond/dots"
 )
 
+var ErrInputMissing = errors.New("missing input")
+
 func LogError(r *http.Request, err error) {
 	log.Printf("[http] %s %s %s", r.Method, r.URL.Path, err)
 }
 
 // inputjSON decodes JSON stream into a struct pointed by e param
 func inputJSON[T any](w http.ResponseWriter, r *http.Request, e *T, prefix string) bool {
+  if r.Body == http.NoBody {
+    LogError(r, ErrInputMissing)
+		msg := fmt.Sprintf("%s: empty input", prefix)
+		Error(w, r, dots.Errorf(dots.EINVALID, msg))
+    return false
+  }
+
 	if err := json.NewDecoder(r.Body).Decode(e); err != nil {
-		msg := fmt.Sprintf("%s: the supplied input cannot be decoded", prefix)
+    LogError(r, err)
+		msg := fmt.Sprintf("%s: undecodable input", prefix)
 		Error(w, r, dots.Errorf(dots.EINVALID, msg))
 		return false
 	}
