@@ -41,20 +41,22 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleTokening(w http.ResponseWriter, r *http.Request) {
-  cc := dots.TokenCredentials{}
-  ok := inputJSON(w, r, &cc, "parse login")
-  if !ok {return}
+	cc := dots.TokenCredentials{}
+	ok := inputJSON(w, r, &cc, "parse login")
+	if !ok {
+		return
+	}
 
-  str, err := s.TokenService.Create(r.Context(), cc)
-  if err != nil {
-    Error(w, r, dots.Errorf(dots.EINVALID, "[create token]: %v", err))
-    return
-  }
-  
-  type token struct {
-    Access string `json:"token_access"`
-  }
-  outputJSON(w, r, http.StatusOK, &token{str})
+	str, err := s.TokenService.Create(r.Context(), cc)
+	if err != nil {
+		Error(w, r, dots.Errorf(dots.EINVALID, "[create token]: %v", err))
+		return
+	}
+
+	type token struct {
+		Access string `json:"token_access"`
+	}
+	outputJSON(w, r, http.StatusOK, &token{str})
 }
 
 func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {

@@ -31,12 +31,12 @@ func (s *Server) handleEntryTypeCreate(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleEntryTypePatch(w http.ResponseWriter, r *http.Request) {
-  if _, found := r.URL.Query()["del"]; found {
-    s.handleEntryTypeDelete(w, r)
-    return
-  }
+	if _, found := r.URL.Query()["del"]; found {
+		s.handleEntryTypeDelete(w, r)
+		return
+	}
 
-  s.handleEntryTypeUpdate(w, r)
+	s.handleEntryTypeUpdate(w, r)
 }
 
 func (s *Server) handleEntryTypeUpdate(w http.ResponseWriter, r *http.Request) {
@@ -69,15 +69,15 @@ func (s *Server) handleEntryTypeUpdate(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleEntryTypeFind(w http.ResponseWriter, r *http.Request) {
-  // can accept missing r.Body
+	// can accept missing r.Body
 	var filter dots.EntryTypeFilter
 
-  // ensure we have a input body to be sent to json
+	// ensure we have a input body to be sent to json
 	if r.Body != http.NoBody {
-    if ok := inputJSON(w, r, &filter, "find entry type"); !ok {
-      return
-    }
-  }
+		if ok := inputJSON(w, r, &filter, "find entry type"); !ok {
+			return
+		}
+	}
 
 	ee, n, err := s.EntryTypeService.FindEntryType(r.Context(), filter)
 	if err != nil {
@@ -95,15 +95,15 @@ func (s *Server) handleEntryTypeDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-  filter := dots.EntryTypeDelete{}
-  if r.Body != http.NoBody {
-    ok := inputJSON(w, r, &filter, "delete entry type")
-    if !ok {
-      return
-    }
-  }
+	filter := dots.EntryTypeDelete{}
+	if r.Body != http.NoBody {
+		ok := inputJSON(w, r, &filter, "delete entry type")
+		if !ok {
+			return
+		}
+	}
 
-  if _, found := r.URL.Query()["resurect"]; found {
+	if _, found := r.URL.Query()["resurect"]; found {
 		filter.Resurect = true
 	}
 	n, err := s.EntryTypeService.DeleteEntryType(r.Context(), id, filter)

@@ -18,7 +18,7 @@ type Error struct {
 	Code    string
 	Message string
 
-  err error
+	err error
 }
 
 func (e *Error) Error() string {
@@ -26,12 +26,12 @@ func (e *Error) Error() string {
 }
 
 func (e *Error) Wrap(err error) error {
-  e.err = err
-  return e
+	e.err = err
+	return e
 }
 
 func (e *Error) Unwrap() error {
-  return e.err
+	return e.err
 }
 
 func ErrorCode(err error) string {

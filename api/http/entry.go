@@ -63,7 +63,7 @@ func (s *Server) handleEntryUpdate(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleEntryFind(w http.ResponseWriter, r *http.Request) {
 	var filter dots.EntryFilter
-  if ok := inputJSON(w, r, &filter, "find entry"); !ok {
+	if ok := inputJSON(w, r, &filter, "find entry"); !ok {
 		return
 	}
 

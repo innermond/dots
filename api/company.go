@@ -20,25 +20,25 @@ func (c *Company) Validate() error {
 		return Errorf(EINVALID, "all name, tax identification number and  registration number are required")
 	}
 
-  suspects := []string{c.Longname, c.TIN, c.RN}
-  // all utf-8 except control charatcters
-  pattern := "^[[:^cntrl:]]+$"
-  re := regexp.MustCompile(pattern)
-  for _, suspect := range suspects {
-    match := re.MatchString(suspect)
-    if !match {
-      return Errorf(EINVALID, "input is not a text line")
-    }
-  }
-  // only white spaces
-  pattern = "^\\s+$"
-  re = regexp.MustCompile(pattern)
-  for _, suspect := range suspects {
-    match := re.MatchString(suspect)
-    if match {
-      return Errorf(EINVALID, "emptyness as input")
-    }
-  }
+	suspects := []string{c.Longname, c.TIN, c.RN}
+	// all utf-8 except control charatcters
+	pattern := "^[[:^cntrl:]]+$"
+	re := regexp.MustCompile(pattern)
+	for _, suspect := range suspects {
+		match := re.MatchString(suspect)
+		if !match {
+			return Errorf(EINVALID, "input is not a text line")
+		}
+	}
+	// only white spaces
+	pattern = "^\\s+$"
+	re = regexp.MustCompile(pattern)
+	for _, suspect := range suspects {
+		match := re.MatchString(suspect)
+		if match {
+			return Errorf(EINVALID, "emptyness as input")
+		}
+	}
 
 	return nil
 }
@@ -53,16 +53,16 @@ type CompanyFilter struct {
 	Offset int `json:"offset"`
 	Limit  int `json:"limit"`
 
-  IsDeleted *bool `json:"is_deleted"`
+	IsDeleted *bool `json:"is_deleted"`
 
 	DeletedAtFrom *PartialTime `json:"deleted_at_from,omitempty"`
 	DeletedAtTo   *PartialTime `json:"deleted_at_to,omitempty"`
 }
 
 type CompanyDelete struct {
-  // delete will be hard using "delete" sql kwyword
-  Hard bool
-  // update deletion field
+	// delete will be hard using "delete" sql kwyword
+	Hard bool
+	// update deletion field
 	Resurect bool
 }
 

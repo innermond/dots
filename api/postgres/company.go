@@ -102,15 +102,15 @@ func (s *CompanyService) UpdateCompany(ctx context.Context, id int, upd dots.Com
 	}
 	defer tx.Rollback()
 
-  if upd.TID.IsNil() {
-    return nil, dots.Errorf(dots.EINVALID, "missing owner identificator")
-  }
+	if upd.TID.IsNil() {
+		return nil, dots.Errorf(dots.EINVALID, "missing owner identificator")
+	}
 
-  company := dots.Company{ID: id}
-  err = companyCheckDeleted(ctx, tx, company)
-  if err != nil {
-    return nil, err
-  }
+	company := dots.Company{ID: id}
+	err = companyCheckDeleted(ctx, tx, company)
+	if err != nil {
+		return nil, err
+	}
 
 	if canerr := dots.CanDoAnything(ctx); canerr == nil {
 		return updateCompany(ctx, tx, id, upd)
@@ -148,21 +148,21 @@ func (s *CompanyService) DeleteCompany(ctx context.Context, id int, filter dots.
 	defer tx.Rollback()
 
 	if canerr := dots.CanDoAnything(ctx); canerr == nil {
-    var n int
-    var err error
+		var n int
+		var err error
 
-    if filter.Hard {
-      n, err = deleteCompanyPermanently(ctx, tx, id)
-    } else {
-      n, err = deleteCompany(ctx, tx, id, filter.Resurect)
-    }
-    if err != nil {
-      return n, err
-    }
+		if filter.Hard {
+			n, err = deleteCompanyPermanently(ctx, tx, id)
+		} else {
+			n, err = deleteCompany(ctx, tx, id, filter.Resurect)
+		}
+		if err != nil {
+			return n, err
+		}
 
-    tx.Commit()
+		tx.Commit()
 
-    return n, err
+		return n, err
 	}
 
 	if canerr := dots.CanDeleteOwn(ctx); canerr != nil {
@@ -172,10 +172,10 @@ func (s *CompanyService) DeleteCompany(ctx context.Context, id int, filter dots.
 	var n int
 	uid := dots.UserFromContext(ctx).ID
 
-  err = companyBelongsToUser(ctx, tx, uid, id)
-  if err != nil {
-    return 0, err
-  }
+	err = companyBelongsToUser(ctx, tx, uid, id)
+	if err != nil {
+		return 0, err
+	}
 
 	if filter.Hard {
 		n, err = deleteCompanyPermanently(ctx, tx, id)
@@ -208,7 +208,7 @@ func findCompany(ctx context.Context, tx *Tx, filter dots.CompanyFilter) (_ []*d
 	if v := filter.TID; v != nil {
 		where, args = append(where, "tid = ?"), append(args, *v)
 	}
-  replaceQuestionMark(where, args)
+	replaceQuestionMark(where, args)
 
 	v := filter.IsDeleted
 	if v != nil && *v == true {
@@ -295,7 +295,7 @@ func updateCompany(ctx context.Context, tx *Tx, id int, updata dots.CompanyUpdat
 		ct.RN = *v
 		set, args = append(set, "rn = ?"), append(args, *v)
 	}
-  replaceQuestionMark(set, args)
+	replaceQuestionMark(set, args)
 	args = append(args, id)
 
 	sqlstr := `
@@ -313,8 +313,8 @@ func updateCompany(ctx context.Context, tx *Tx, id int, updata dots.CompanyUpdat
 
 func deleteCompany(ctx context.Context, tx *Tx, id int, resurect bool) (n int, err error) {
 	where, args := []string{}, []interface{}{}
-  where, args = append(where, "c.id = ?"), append(args, id)
-  replaceQuestionMark(where, args)
+	where, args = append(where, "c.id = ?"), append(args, id)
+	replaceQuestionMark(where, args)
 
 	kind := "date_trunc('minute', now())::timestamptz"
 	if resurect {
@@ -358,8 +358,8 @@ func deleteCompany(ctx context.Context, tx *Tx, id int, resurect bool) (n int, e
 
 func deleteCompanyPermanently(ctx context.Context, tx *Tx, id int) (n int, err error) {
 	where, args := []string{}, []interface{}{}
-  where, args = append(where, "c.id = ?"), append(args, id)
-  replaceQuestionMark(where, args)
+	where, args = append(where, "c.id = ?"), append(args, id)
+	replaceQuestionMark(where, args)
 
 	whereEntries, whereDeeds := make([]string, len(where)), make([]string, len(where))
 	copy(whereEntries, where)
@@ -415,22 +415,22 @@ where c.id = $1 and c.tid = $2
 func companyCheckDeleted(ctx context.Context, tx *Tx, c dots.Company) error {
 	// new company should not be a soft deleted old one
 	IsDeleted := true
-	filterFind := dots.CompanyFilter{IsDeleted: &IsDeleted,}
-  if c.ID != 0 {
-    filterFind.ID = &c.ID
-  }
-  if !c.TID.IsNil() {
-    filterFind.TID = &c.TID
-  }
-  if c.Longname != "" {
-    filterFind.Longname = &c.Longname
-  }
-  if c.TIN != "" {
-    filterFind.TIN = &c.TIN
-  }
-  if c.RN != ""{
-    filterFind.RN = &c.RN
-  }
+	filterFind := dots.CompanyFilter{IsDeleted: &IsDeleted}
+	if c.ID != 0 {
+		filterFind.ID = &c.ID
+	}
+	if !c.TID.IsNil() {
+		filterFind.TID = &c.TID
+	}
+	if c.Longname != "" {
+		filterFind.Longname = &c.Longname
+	}
+	if c.TIN != "" {
+		filterFind.TIN = &c.TIN
+	}
+	if c.RN != "" {
+		filterFind.RN = &c.RN
+	}
 	_, n, err := findCompany(ctx, tx, filterFind)
 	if err != nil {
 		return err

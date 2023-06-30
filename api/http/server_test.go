@@ -7,13 +7,13 @@ import (
 )
 
 type Server struct {
-  *dotshttp.Server
+	*dotshttp.Server
 }
 
 func MustOpenServer(t *testing.T) *Server {
-  t.Helper()
+	t.Helper()
 
-  s := &Server{Server: dotshttp.NewServer()}
+	s := &Server{Server: dotshttp.NewServer()}
 
-  return s
+	return s
 }

@@ -122,11 +122,11 @@ func (s *EntryTypeService) DeleteEntryType(ctx context.Context, id int, filter d
 	// lock delete to own
 	uid := dots.UserFromContext(ctx).ID
 
-  err = entryTypeBelongsToUser(ctx, tx, uid, id)
-  if err != nil {
-    return 0, err
-  }
-  n, err = deleteEntryType(ctx, tx, id, filter.Resurect)
+	err = entryTypeBelongsToUser(ctx, tx, uid, id)
+	if err != nil {
+		return 0, err
+	}
+	n, err = deleteEntryType(ctx, tx, id, filter.Resurect)
 
 	tx.Commit()
 
@@ -257,7 +257,7 @@ func findEntryType(ctx context.Context, tx *Tx, filter dots.EntryTypeFilter) (_ 
 
 func deleteEntryType(ctx context.Context, tx *Tx, id int, resurect bool) (n int, err error) {
 	where, args := []string{"1 = 1"}, []interface{}{}
-  where, args = append(where, "et.id = ?"), append(args, id)
+	where, args = append(where, "et.id = ?"), append(args, id)
 	for inx, v := range where {
 		if !strings.Contains(v, "?") {
 			continue
@@ -265,7 +265,7 @@ func deleteEntryType(ctx context.Context, tx *Tx, id int, resurect bool) (n int,
 		v = strings.Replace(v, "?", fmt.Sprintf("$%d", inx), 1)
 		where[inx] = v
 	}
-  // entry_type must not have entries
+	// entry_type must not have entries
 	where = append(where, "e.id is null")
 
 	kind := "date_trunc('minute', now())::timestamptz"

@@ -16,24 +16,25 @@ import (
 )
 
 const addr = ":8080"
+
 var ServerGitHash = "not set"
 
 func main() {
-  var printVersion bool
-  flag.BoolVar(&printVersion, "version", false, "print server version")
-  flag.Parse()
+	var printVersion bool
+	flag.BoolVar(&printVersion, "version", false, "print server version")
+	flag.Parse()
 
-  if printVersion {
-    fmt.Printf("server version: %s\n", ServerGitHash)
-    os.Exit(0)
-  }
+	if printVersion {
+		fmt.Printf("server version: %s\n", ServerGitHash)
+		os.Exit(0)
+	}
 
 	pid := os.Getpid()
 	fmt.Printf(
-    "PID: %d\nversion: %s\ninitiating...\n",
-    pid,
-    ServerGitHash,
-  )
+		"PID: %d\nversion: %s\ninitiating...\n",
+		pid,
+		ServerGitHash,
+	)
 
 	err := godotenv.Load(".env")
 	if err != nil {
@@ -43,14 +44,14 @@ func main() {
 	clientId := os.Getenv("DOTS_GOOGLE_CLIENT_ID")
 	clientSecret := os.Getenv("DOTS_GOOGLE_CLIENT_SECRET")
 
-  tokenSecret := os.Getenv("DOTS_TOKEN_SECRET")
-  tokenTTL64, err := strconv.ParseUint(os.Getenv("DOTS_TOKEN_TTL"), 10, 64)
-  if err != nil {
-    log.Fatal(err)
-  }
-  tokenTTL := time.Duration(tokenTTL64) * time.Second
-  log.Println("token ttl: ", tokenTTL)
-  tokenPrefix := os.Getenv("DOTS_TOKEN_PREFIX")
+	tokenSecret := os.Getenv("DOTS_TOKEN_SECRET")
+	tokenTTL64, err := strconv.ParseUint(os.Getenv("DOTS_TOKEN_TTL"), 10, 64)
+	if err != nil {
+		log.Fatal(err)
+	}
+	tokenTTL := time.Duration(tokenTTL64) * time.Second
+	log.Println("token ttl: ", tokenTTL)
+	tokenPrefix := os.Getenv("DOTS_TOKEN_PREFIX")
 
 	if clientId == "" || clientSecret == "" || tokenSecret == "" || tokenPrefix == "" {
 		log.Fatal("app credentials are missing")
@@ -74,7 +75,7 @@ func main() {
 
 	authService := postgres.NewAuthService(db)
 	userService := postgres.NewUserService(db)
-  tokenService := postgres.NewTokenService(db, tokenSecret, tokenPrefix, tokenTTL, userService)
+	tokenService := postgres.NewTokenService(db, tokenSecret, tokenPrefix, tokenTTL, userService)
 
 	entryTypeService := postgres.NewEntryTypeService(db)
 	entryService := postgres.NewEntryService(db)
@@ -84,7 +85,7 @@ func main() {
 
 	server.UserService = userService
 	server.AuthService = authService
-  server.TokenService = tokenService
+	server.TokenService = tokenService
 	server.EntryTypeService = entryTypeService
 	server.EntryService = entryService
 	server.DrainService = drainService

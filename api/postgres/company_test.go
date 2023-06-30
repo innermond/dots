@@ -86,14 +86,14 @@ func TestCompanyService_CreateCompany(t *testing.T) {
 		}
 
 		for i, tc := range tt {
-      t.Run(fmt.Sprintf("%d:", i), func(t *testing.T) {
-        c, err, deleteDummy := createDummyCompany(ctx, t, tc, s)
+			t.Run(fmt.Sprintf("%d:", i), func(t *testing.T) {
+				c, err, deleteDummy := createDummyCompany(ctx, t, tc, s)
 
-        if err == nil {
-          deleteDummy(c.ID)
-          t.Errorf("[%d] fail\n", i)
-        }
-      })
+				if err == nil {
+					deleteDummy(c.ID)
+					t.Errorf("[%d] fail\n", i)
+				}
+			})
 		}
 
 	})
@@ -127,14 +127,14 @@ func TestCompanyService_CreateCompany(t *testing.T) {
 		c, err, deleteDummy := createDummyCompany(ctx, t, tc, s)
 		if err == nil {
 			t.Logf("unexpected company creation: c.TID %v otid %v\n", c.TID, otid)
-      t.Fail()
+			t.Fail()
 			deleteDummy(c.ID)
 		} else if dots.ErrorCode(err) == dots.EUNAUTHORIZED {
-      t.Logf("error expected: %v\n", err)
-    } else {
+			t.Logf("error expected: %v\n", err)
+		} else {
 			t.Logf("unexpected error type: %v\n", err)
-      t.Fail()
-    }
+			t.Fail()
+		}
 
 		u = dots.User{ID: tid, Powers: []dots.Power{dots.DoAnything}}
 		ctx = dots.NewContextWithUser(context.Background(), &u)
@@ -142,9 +142,9 @@ func TestCompanyService_CreateCompany(t *testing.T) {
 		if err != nil {
 			t.Errorf("unexpected error %v\n", err)
 		} else {
-      t.Logf("company created: c.TID %v\n", c.TID)
-      deleteDummy(c.ID)
-    }
+			t.Logf("company created: c.TID %v\n", c.TID)
+			deleteDummy(c.ID)
+		}
 
 	})
 }
