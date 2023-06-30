@@ -27,9 +27,9 @@ type Server struct {
 	ClientID     string
 	ClientSecret string
 
-	UserService dots.UserService
-	AuthService dots.AuthService
-  TokenService dots.TokenService
+	UserService  dots.UserService
+	AuthService  dots.AuthService
+	TokenService dots.TokenService
 
 	EntryTypeService dots.EntryTypeService
 	EntryService     dots.EntryService
@@ -188,36 +188,36 @@ func reportPanic(next http.Handler) http.Handler {
 }
 
 func extractBearer(h string) string {
-  hh := strings.SplitN(h, " ", 2)
-  if len(hh) != 2 || strings.ToLower(hh[0]) != "bearer" {
-    return ""
-  }
+	hh := strings.SplitN(h, " ", 2)
+	if len(hh) != 2 || strings.ToLower(hh[0]) != "bearer" {
+		return ""
+	}
 
-  return hh[1]
+	return hh[1]
 }
 
 func (s *Server) authenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-    // try bearer
-    // TODO check using return in middleware if breaks the chain
-    tokenMaybe := extractBearer(r.Header.Get("Authorization"))
-    if tokenMaybe != "" {
-      payload, err := s.TokenService.Read(r.Context(), tokenMaybe)
-      if err != nil {
-        Error(w, r, err)
-        return 
-      }
-      if payload.UID != ksuid.Nil {
-        u, err := s.UserService.FindUserByID(r.Context(), payload.UID)
-        if err == nil {
-          r = r.WithContext(dots.NewContextWithUser(r.Context(), u))
-        } else {
-          log.Printf("cannot find payload user %s: %s", payload.UID, err)
-        }
-      }
-      next.ServeHTTP(w, r)
-      return
-    }
+		// try bearer
+		// TODO check using return in middleware if breaks the chain
+		tokenMaybe := extractBearer(r.Header.Get("Authorization"))
+		if tokenMaybe != "" {
+			payload, err := s.TokenService.Read(r.Context(), tokenMaybe)
+			if err != nil {
+				Error(w, r, err)
+				return
+			}
+			if payload.UID != ksuid.Nil {
+				u, err := s.UserService.FindUserByID(r.Context(), payload.UID)
+				if err == nil {
+					r = r.WithContext(dots.NewContextWithUser(r.Context(), u))
+				} else {
+					log.Printf("cannot find payload user %s: %s", payload.UID, err)
+				}
+			}
+			next.ServeHTTP(w, r)
+			return
+		}
 		ses, _ := s.getSession(r)
 		if ses.UserID != ksuid.Nil {
 			u, err := s.UserService.FindUserByID(r.Context(), ses.UserID)
@@ -265,22 +265,3 @@ func (s *Server) noAuthenticate(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 	})
 }
-
-// TODO invcestigate error
-/*func handleCreate[T any](fn func(context.Context, *T) error) func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var e T
-
-		if ok := inputJSON[T](w, r, &e, "generic create"); !ok {
-			return
-		}
-
-		err := fn(r.Context(), &e)
-		if err != nil {
-			Error(w, r, err)
-			return
-		}
-
-		outputJSON[T](w, r, http.StatusCreated, &e)
-	}
-}*/
