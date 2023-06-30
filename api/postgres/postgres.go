@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -90,17 +91,6 @@ func formatLimitOffset(limit, offset int) string {
 	return ""
 }
 
-/*func timeRFC3339(val sql.NullTime) time.Time {
-	if val.Valid {
-		vs := val.Time.Format(time.RFC3339)
-		v, err := time.Parse(time.RFC3339, vs)
-		if err != nil {
-			return (*sql.NullTime)(nil).Time
-		}
-		return v
-	}
-	return (*sql.NullTime)(nil).Time
-}*/
 func timeRFC3339(val sql.NullTime) time.Time {
 	if val.Valid {
 		loc, err := time.LoadLocation("UTC")
@@ -115,4 +105,16 @@ func timeRFC3339(val sql.NullTime) time.Time {
 		return v
 	}
 	return (*sql.NullTime)(nil).Time
+}
+
+// where and args must be constructed togheter to be sync'ed
+func replaceQuestionMark(where []string, args []interface{}) {
+  // PostgreSQL uses numbered placeholders starting from $1
+  for i, v := range where {
+    if !strings.Contains(v, "?") {
+      continue
+    }
+    v = strings.Replace(v, "?", fmt.Sprintf("$%d", i+1), 1)
+    where[i] = v
+  }
 }

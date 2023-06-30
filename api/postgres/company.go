@@ -192,7 +192,7 @@ func (s *CompanyService) DeleteCompany(ctx context.Context, id int, filter dots.
 }
 
 func findCompany(ctx context.Context, tx *Tx, filter dots.CompanyFilter) (_ []*dots.Company, n int, err error) {
-	where, args := []string{"1 = 1"}, []interface{}{}
+	where, args := []string{}, []interface{}{}
 	if v := filter.ID; v != nil {
 		where, args = append(where, "id = ?"), append(args, *v)
 	}
@@ -208,13 +208,7 @@ func findCompany(ctx context.Context, tx *Tx, filter dots.CompanyFilter) (_ []*d
 	if v := filter.TID; v != nil {
 		where, args = append(where, "tid = ?"), append(args, *v)
 	}
-	for inx, v := range where {
-		if !strings.Contains(v, "?") {
-			continue
-		}
-		v = strings.Replace(v, "?", fmt.Sprintf("$%d", inx), 1)
-		where[inx] = v
-	}
+  replaceQuestionMark(where, args)
 
 	v := filter.IsDeleted
 	if v != nil && *v == true {
@@ -324,13 +318,7 @@ func updateCompany(ctx context.Context, tx *Tx, id int, updata dots.CompanyUpdat
 func deleteCompany(ctx context.Context, tx *Tx, id int, resurect bool) (n int, err error) {
 	where, args := []string{"1 = 1"}, []interface{}{}
   where, args = append(where, "c.id = ?"), append(args, id)
-	for inx, v := range where {
-		if !strings.Contains(v, "?") {
-			continue
-		}
-		v = strings.Replace(v, "?", fmt.Sprintf("$%d", inx), 1)
-		where[inx] = v
-	}
+  replaceQuestionMark(where, args)
 
 	kind := "date_trunc('minute', now())::timestamptz"
 	if resurect {
@@ -375,13 +363,7 @@ func deleteCompany(ctx context.Context, tx *Tx, id int, resurect bool) (n int, e
 func deleteCompanyPermanently(ctx context.Context, tx *Tx, id int) (n int, err error) {
 	where, args := []string{"1 = 1"}, []interface{}{}
   where, args = append(where, "c.id = ?"), append(args, id)
-	for inx, v := range where {
-		if !strings.Contains(v, "?") {
-			continue
-		}
-		v = strings.Replace(v, "?", fmt.Sprintf("$%d", inx), 1)
-		where[inx] = v
-	}
+  replaceQuestionMark(where, args)
 
 	whereEntries, whereDeeds := make([]string, len(where)), make([]string, len(where))
 	copy(whereEntries, where)
