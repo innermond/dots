@@ -184,11 +184,7 @@ func updateEntryType(ctx context.Context, tx *Tx, id int, updata dots.EntryTypeU
 		et.Description = v
 		set, args = append(set, "description = ?"), append(args, *v)
 	}
-
-	for inx, v := range set {
-		v = strings.Replace(v, "?", fmt.Sprintf("$%d", inx+1), 1)
-		set[inx] = v
-	}
+  replaceQuestionMark(set, args)
 	args = append(args, id)
 
 	sqlstr := `
@@ -205,7 +201,7 @@ func updateEntryType(ctx context.Context, tx *Tx, id int, updata dots.EntryTypeU
 }
 
 func findEntryType(ctx context.Context, tx *Tx, filter dots.EntryTypeFilter) (_ []*dots.EntryType, n int, err error) {
-	where, args := []string{"1 = 1"}, []interface{}{}
+	where, args := []string{}, []interface{}{}
 	if v := filter.ID; v != nil {
 		where, args = append(where, "id = ?"), append(args, *v)
 	}
@@ -218,13 +214,7 @@ func findEntryType(ctx context.Context, tx *Tx, filter dots.EntryTypeFilter) (_ 
 	if v := filter.TID; v != nil {
 		where, args = append(where, "tid = ?"), append(args, *v)
 	}
-	for inx, v := range where {
-		if !strings.Contains(v, "?") {
-			continue
-		}
-		v = strings.Replace(v, "?", fmt.Sprintf("$%d", inx), 1)
-		where[inx] = v
-	}
+  replaceQuestionMark(where, args)
 
 	rows, err := tx.QueryContext(ctx, `
 		select id, code, description, unit, tid, count(*) over() from entry_type
@@ -256,15 +246,9 @@ func findEntryType(ctx context.Context, tx *Tx, filter dots.EntryTypeFilter) (_ 
 }
 
 func deleteEntryType(ctx context.Context, tx *Tx, id int, resurect bool) (n int, err error) {
-	where, args := []string{"1 = 1"}, []interface{}{}
+	where, args := []string{}, []interface{}{}
 	where, args = append(where, "et.id = ?"), append(args, id)
-	for inx, v := range where {
-		if !strings.Contains(v, "?") {
-			continue
-		}
-		v = strings.Replace(v, "?", fmt.Sprintf("$%d", inx), 1)
-		where[inx] = v
-	}
+  replaceQuestionMark(where, args)
 	// entry_type must not have entries
 	where = append(where, "e.id is null")
 
