@@ -1,4 +1,5 @@
 .env
+.config/
 .securecookie
 __debug_bin
 tmp

@@ -121,10 +121,12 @@ func (s *Server) handleCompanyHardDelete(w http.ResponseWriter, r *http.Request)
 	}
 
 	var filter dots.CompanyDelete
-	ok := inputJSON(w, r, &filter, "hard-delete company")
-	if !ok {
-		return
-	}
+  if r.Body != http.NoBody {
+    ok := inputJSON(w, r, &filter, "hard delete company")
+    if !ok {
+      return
+    }
+  }
   filter.Hard = true
 
 	n, err := s.CompanyService.DeleteCompany(r.Context(), id, filter)
