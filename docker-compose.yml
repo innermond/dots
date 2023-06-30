@@ -20,7 +20,7 @@ services:
     user: "$UID:0"
     working_dir: /go
     volumes:
-     - ./app:/go:cached
+     - ./api:/go:cached
      - ~/.ssh:/tmp/.ssh
     networks:
      - dots_proxy_net
