@@ -1,12 +1,8 @@
 package http
 
 import (
-	"bytes"
-	"fmt"
-	"io"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/innermond/dots"
@@ -16,7 +12,6 @@ func (s *Server) registerEntryTypeRoutes(router *mux.Router) {
 	router.HandleFunc("", s.handleEntryTypeCreate).Methods("POST")
 	router.HandleFunc("/{id}", s.handleEntryTypePatch).Methods("PATCH")
 	router.HandleFunc("", s.handleEntryTypeFind).Methods("GET")
-	router.HandleFunc("", s.handleEntryTypeDelete).Methods("PATCH")
 }
 
 func (s *Server) handleEntryTypeCreate(w http.ResponseWriter, r *http.Request) {
@@ -74,24 +69,15 @@ func (s *Server) handleEntryTypeUpdate(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleEntryTypeFind(w http.ResponseWriter, r *http.Request) {
-	buf := bytes.Buffer{}
-	r.Body = io.NopCloser(io.TeeReader(r.Body, &buf))
-
+  // can accept missing r.Body
 	var filter dots.EntryTypeFilter
-	ok := inputJSON(w, r, &filter, "find entry type")
-	if !ok {
-		return
-	}
 
-	xx, err := unknownFieldsJSON(&filter, &buf)
-	if err != nil {
-		Error(w, r, err)
-		return
-	}
-	if len(xx) > 0 {
-		Error(w, r, dots.Errorf(dots.ENOTFOUND, fmt.Sprintf("unknown input: %s", strings.Join(xx, ", "))))
-		return
-	}
+  // ensure we have a input body to be sent to json
+	if r.Body != http.NoBody {
+    if ok := inputJSON(w, r, &filter, "find entry type"); !ok {
+      return
+    }
+  }
 
 	ee, n, err := s.EntryTypeService.FindEntryType(r.Context(), filter)
 	if err != nil {

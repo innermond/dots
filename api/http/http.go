@@ -1,7 +1,9 @@
 package http
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -12,17 +14,49 @@ import (
 	"github.com/innermond/dots"
 )
 
+var ErrInputMissing = errors.New("missing input")
+
 func LogError(r *http.Request, err error) {
 	log.Printf("[http] %s %s %s", r.Method, r.URL.Path, err)
 }
 
 // inputjSON decodes JSON stream into a struct pointed by e param
 func inputJSON[T any](w http.ResponseWriter, r *http.Request, e *T, prefix string) bool {
+  // first check missing input
+  if r.Body == http.NoBody {
+    LogError(r, ErrInputMissing)
+		msg := fmt.Sprintf("%s: empty input", prefix)
+		Error(w, r, dots.Errorf(dots.EINVALID, msg))
+    return false
+  }
+
+  // keep the body here
+  buf := bytes.Buffer{}
+  r.Body = io.NopCloser(io.TeeReader(r.Body, &buf))
+
 	if err := json.NewDecoder(r.Body).Decode(e); err != nil {
-		msg := fmt.Sprintf("%s: the supplied input cannot be decoded", prefix)
+    LogError(r, err)
+		msg := fmt.Sprintf("%s: undecodable input", prefix)
 		Error(w, r, dots.Errorf(dots.EINVALID, msg))
 		return false
 	}
+
+  xx, err := unknownFieldsJSON(e, &buf)
+  if err != nil {
+    Error(w, r, err)
+    return false
+  }
+  if len(xx) > 0 {
+    msg := strings.Join(xx, ", ")
+    // cut too long utf-8 string
+    msgAsRunes := []rune(msg)
+    cutAt := 200
+    if len(msgAsRunes) > cutAt {
+      msg = string(msgAsRunes[:cutAt])
+    }
+    Error(w, r, dots.Errorf(dots.ENOTFOUND, fmt.Sprintf("unknown input: %s", msg)))
+    return false
+  }
 
 	return true
 }
