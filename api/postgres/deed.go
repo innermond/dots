@@ -235,10 +235,7 @@ func updateDeed(ctx context.Context, tx *Tx, id int, updata dots.DeedUpdate) (*d
 		set, args = append(set, "company_id = ?"), append(args, *v)
 	}
 
-	for inx, v := range set {
-		v = strings.Replace(v, "?", fmt.Sprintf("$%d", inx+1), 1)
-		set[inx] = v
-	}
+	replaceQuestionMark(set, args)
 	args = append(args, id)
 
 	sqlstr := `
@@ -269,7 +266,7 @@ func updateDeed(ctx context.Context, tx *Tx, id int, updata dots.DeedUpdate) (*d
 }
 
 func findDeed(ctx context.Context, tx *Tx, filter dots.DeedFilter, lockOwnID *ksuid.KSUID) (_ []*dots.Deed, n int, err error) {
-	where, args := []string{"1 = 1"}, []interface{}{}
+	where, args := []string{}, []interface{}{}
 	if v := filter.ID; v != nil {
 		where, args = append(where, "id = ?"), append(args, *v)
 	}
@@ -300,13 +297,7 @@ func findDeed(ctx context.Context, tx *Tx, filter dots.DeedFilter, lockOwnID *ks
 	if lockOwnID != nil {
 		where, args = append(where, "company_id = any(select id from company where tid = ?)"), append(args, *lockOwnID)
 	}
-	for inx, v := range where {
-		if !strings.Contains(v, "?") {
-			continue
-		}
-		v = strings.Replace(v, "?", fmt.Sprintf("$%d", inx), 1)
-		where[inx] = v
-	}
+	replaceQuestionMark(where, args)
 
 	// WARN: placeholder ? is connected with position in "where"
 	// so any unrelated with position (read replacement $n)
@@ -352,7 +343,7 @@ func findDeed(ctx context.Context, tx *Tx, filter dots.DeedFilter, lockOwnID *ks
 }
 
 func deleteDeed(ctx context.Context, tx *Tx, filter dots.DeedDelete, lockOwnID *ksuid.KSUID) (n int, err error) {
-	where, args := []string{"1 = 1"}, []interface{}{}
+	where, args := []string{}, []interface{}{}
 	if v := filter.ID; v != nil {
 		where, args = append(where, "id = ?"), append(args, *v)
 	}
@@ -383,13 +374,7 @@ func deleteDeed(ctx context.Context, tx *Tx, filter dots.DeedDelete, lockOwnID *
 	if lockOwnID != nil {
 		where, args = append(where, "company_id = any(select id from company where tid = ?)"), append(args, *lockOwnID)
 	}
-	for inx, v := range where {
-		if !strings.Contains(v, "?") {
-			continue
-		}
-		v = strings.Replace(v, "?", fmt.Sprintf("$%d", inx), 1)
-		where[inx] = v
-	}
+	replaceQuestionMark(where, args)
 
 	kind := "date_trunc('minute', now())::timestamptz"
 	if filter.Resurect {
