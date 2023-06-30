@@ -109,12 +109,25 @@ func timeRFC3339(val sql.NullTime) time.Time {
 
 // where and args must be constructed togheter to be sync'ed
 func replaceQuestionMark(where []string, args []interface{}) {
+	args_inx := 0
 	// PostgreSQL uses numbered placeholders starting from $1
 	for i, v := range where {
+		// only question mark are of interest
 		if !strings.Contains(v, "?") {
 			continue
 		}
+		// syncing with args
+		if args_inx >= len(args) {
+			// TODO return error here
+			// number of question marks are not same as coresponding args
+			// so this hopefully will result in an error into caller
+			return
+		}
+
+		// we have value in args
 		v = strings.Replace(v, "?", fmt.Sprintf("$%d", i+1), 1)
 		where[i] = v
+		// move index
+		args_inx++
 	}
 }
