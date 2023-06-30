@@ -204,14 +204,9 @@ func updateEntry(ctx context.Context, tx *Tx, id int, updata dots.EntryUpdate) (
 		e.CompanyID = *v
 		set, args = append(set, "company_id = ?"), append(args, *v)
 	}
+  replaceQuestionMark(set, args)
 
-	// use inx+1 to avoid invalid $0 placeholder
-	for inx, v := range set {
-		v = strings.Replace(v, "?", fmt.Sprintf("$%d", inx+1), 1)
-		set[inx] = v
-	}
 	args = append(args, id)
-
 	sqlstr := `
 		update entry
 		set ` + strings.Join(set, ", ") + `
@@ -226,7 +221,7 @@ func updateEntry(ctx context.Context, tx *Tx, id int, updata dots.EntryUpdate) (
 }
 
 func findEntry(ctx context.Context, tx *Tx, filter dots.EntryFilter) (_ []*dots.Entry, n int, err error) {
-	where, args := []string{"1 = 1"}, []interface{}{}
+	where, args := []string{}, []interface{}{}
 	if v := filter.ID; v != nil {
 		where, args = append(where, "id = ?"), append(args, *v)
 	}
@@ -251,13 +246,7 @@ func findEntry(ctx context.Context, tx *Tx, filter dots.EntryFilter) (_ []*dots.
 		// avoid double counting exact midnight values
 		where, args = append(where, "deleted_at < ?"), append(args, *v)
 	}
-	for inx, v := range where {
-		if !strings.Contains(v, "?") {
-			continue
-		}
-		v = strings.Replace(v, "?", fmt.Sprintf("$%d", inx), 1)
-		where[inx] = v
-	}
+  replaceQuestionMark(where, args)
 	if filter.DeletedAtTo == nil && filter.DeletedAtFrom == nil {
 		where = append(where, "deleted_at is null")
 	}
@@ -295,7 +284,7 @@ func findEntry(ctx context.Context, tx *Tx, filter dots.EntryFilter) (_ []*dots.
 }
 
 func deleteEntry(ctx context.Context, tx *Tx, filter dots.EntryDelete, lockOwnID *ksuid.KSUID) (n int, err error) {
-	where, args := []string{"1 = 1"}, []interface{}{}
+	where, args := []string{}, []interface{}{}
 	if v := filter.ID; v != nil {
 		where, args = append(where, "id = ?"), append(args, *v)
 	}
@@ -323,13 +312,7 @@ func deleteEntry(ctx context.Context, tx *Tx, filter dots.EntryDelete, lockOwnID
 	if lockOwnID != nil {
 		where, args = append(where, "company_id = any(select id from company where tid = ?)"), append(args, *lockOwnID)
 	}
-	for inx, v := range where {
-		if !strings.Contains(v, "?") {
-			continue
-		}
-		v = strings.Replace(v, "?", fmt.Sprintf("$%d", inx), 1)
-		where[inx] = v
-	}
+  replaceQuestionMark(where, args)
 	// "delete" only entries that are not used on drain table
 	where = append(where, "d.entry_id is null")
 
