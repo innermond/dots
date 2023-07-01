@@ -37,6 +37,9 @@ func (s *EntryService) CreateEntry(ctx context.Context, e *dots.Entry) error {
 	if err := companyBelongsToUser(ctx, tx, uid, e.CompanyID); err != nil {
 		return err
 	}
+	if err := entryTypeBelongsToUser(ctx, tx, uid, e.EntryTypeID); err != nil {
+		return err
+	}
 
 	if err := createEntry(ctx, tx, e); err != nil {
 		return err
