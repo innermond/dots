@@ -184,7 +184,7 @@ func updateEntryType(ctx context.Context, tx *Tx, id int, updata dots.EntryTypeU
 		et.Description = v
 		set, args = append(set, "description = ?"), append(args, *v)
 	}
-  replaceQuestionMark(set, args)
+	replaceQuestionMark(set, args)
 	args = append(args, id)
 
 	sqlstr := `
@@ -214,7 +214,7 @@ func findEntryType(ctx context.Context, tx *Tx, filter dots.EntryTypeFilter) (_ 
 	if v := filter.TID; v != nil {
 		where, args = append(where, "tid = ?"), append(args, *v)
 	}
-  replaceQuestionMark(where, args)
+	replaceQuestionMark(where, args)
 
 	rows, err := tx.QueryContext(ctx, `
 		select id, code, description, unit, tid, count(*) over() from entry_type
@@ -248,7 +248,7 @@ func findEntryType(ctx context.Context, tx *Tx, filter dots.EntryTypeFilter) (_ 
 func deleteEntryType(ctx context.Context, tx *Tx, id int, resurect bool) (n int, err error) {
 	where, args := []string{}, []interface{}{}
 	where, args = append(where, "et.id = ?"), append(args, id)
-  replaceQuestionMark(where, args)
+	replaceQuestionMark(where, args)
 	// entry_type must not have entries
 	where = append(where, "e.id is null")
 

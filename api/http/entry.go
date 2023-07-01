@@ -92,7 +92,7 @@ func (s *Server) handleEntryDelete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	filter := dots.EntryDelete{}
-  if _, found := r.URL.Query()["resurect"]; found {
+	if _, found := r.URL.Query()["resurect"]; found {
 		filter.Resurect = true
 	}
 	n, err := s.EntryService.DeleteEntry(r.Context(), id, filter)

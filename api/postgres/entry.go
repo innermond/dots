@@ -137,8 +137,8 @@ func (s *EntryService) DeleteEntry(ctx context.Context, id int, filter dots.Entr
 	var n int
 	// check search to own
 	uid := dots.UserFromContext(ctx).ID
-  // lock delete to own
-  n, err = deleteEntry(ctx, tx, id, filter, &uid)
+	// lock delete to own
+	n, err = deleteEntry(ctx, tx, id, filter, &uid)
 
 	tx.Commit()
 
@@ -199,7 +199,7 @@ func updateEntry(ctx context.Context, tx *Tx, id int, updata dots.EntryUpdate) (
 		e.CompanyID = *v
 		set, args = append(set, "company_id = ?"), append(args, *v)
 	}
-  replaceQuestionMark(set, args)
+	replaceQuestionMark(set, args)
 
 	args = append(args, id)
 	sqlstr := `
@@ -241,7 +241,7 @@ func findEntry(ctx context.Context, tx *Tx, filter dots.EntryFilter) (_ []*dots.
 		// avoid double counting exact midnight values
 		where, args = append(where, "deleted_at < ?"), append(args, *v)
 	}
-  replaceQuestionMark(where, args)
+	replaceQuestionMark(where, args)
 	if filter.DeletedAtTo == nil && filter.DeletedAtFrom == nil {
 		where = append(where, "deleted_at is null")
 	}
@@ -279,11 +279,11 @@ func findEntry(ctx context.Context, tx *Tx, filter dots.EntryFilter) (_ []*dots.
 
 func deleteEntry(ctx context.Context, tx *Tx, id int, filter dots.EntryDelete, lockOwnID *ksuid.KSUID) (n int, err error) {
 	where, args := []string{}, []interface{}{}
-  where, args = append(where, "id = ?"), append(args, id)
+	where, args = append(where, "id = ?"), append(args, id)
 	if lockOwnID != nil {
 		where, args = append(where, "company_id = any(select id from company where tid = ?)"), append(args, *lockOwnID)
 	}
-  replaceQuestionMark(where, args)
+	replaceQuestionMark(where, args)
 	// "delete" only entries that are not used on drain table
 	where = append(where, "d.entry_id is null")
 
