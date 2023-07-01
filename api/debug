@@ -1,0 +1,10 @@
+#!/bin/bash
+cd $(dirname "$0")
+
+if [ "$1" == "rebuild" ]; then
+  ./build debug
+  dlv --listen=:40000 --headless=true --api-version=2 --check-go-version=true exec $2
+else
+  dlv --listen=:40000 --headless=true --api-version=2 --check-go-version=true exec $1
+fi
+
