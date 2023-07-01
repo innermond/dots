@@ -59,11 +59,13 @@ func (s *Server) handleDeedUpdate(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleDeedFind(w http.ResponseWriter, r *http.Request) {
-	var filter dots.DeedFilter
-	ok := inputJSON(w, r, &filter, "find deed")
-	if !ok {
-		return
-	}
+  filter := dots.DeedFilter{}
+	if r.Body != http.NoBody {
+    ok := inputJSON(w, r, &filter, "find deed")
+    if !ok {
+      return
+    }
+  }
 
 	dd, n, err := s.DeedService.FindDeed(r.Context(), filter)
 	if err != nil {

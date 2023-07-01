@@ -17,7 +17,7 @@ const (
 type Error struct {
 	Code    string
 	Message string
-
+  Data interface{}
 	err error
 }
 

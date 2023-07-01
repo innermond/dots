@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -39,13 +40,41 @@ func (s *DeedService) CreateDeed(ctx context.Context, d *dots.Deed) error {
 		return err
 	}
 
-	if d.EntryID != nil && d.DrainedQuantity != nil {
+	if d.Distribute != nil {
+    // check entries are owned and enough
+    check, err := entriesAreOwnedAndEnough(ctx, tx, d.Distribute, d.CompanyID)
+    if err != nil {
+      return err
+    }
+    // need to check check
+    notenough := map[int]float64{}
+    for eid, diff := range check {
+      if diff < 0 {
+        notenough[eid] = diff
+      }
+    }
+    // not enough
+    if len(notenough) > 0 {
+      var err = &dots.Error{
+        Code: dots.ECONFLICT,
+        Message: "not enough entries",
+        Data: map[string]interface{}{"notenough":notenough, "company_id": d.CompanyID,},
+      }
+      return err 
+    }
+
 		// lock create to own
 		// need deed ID and entry ID that belong to companies of user
-		err = entryBelongsToUser(ctx, tx, uid, *d.EntryID)
+		/*err = entryBelongsToUser(ctx, tx, uid, *d.EntryID)
 		if err != nil {
 			return err
-		}
+		}*
+
+    // TODO: drained quantity is covered by existent quantity
+		/*err = drainedQuantityIsCovered(ctx, tx, uid, *d.DrainedQuantity)
+		if err != nil {
+			return err
+		}*/
 	}
 
 	if err := createDeed(ctx, tx, d); err != nil {
@@ -186,7 +215,7 @@ values
 		return err
 	}
 
-	if d.EntryID != nil && d.DrainedQuantity != nil {
+	/*if d.EntryID != nil && d.DrainedQuantity != nil {
 		d := dots.Drain{
 			DeedID:   d.ID,
 			EntryID:  *d.EntryID,
@@ -197,8 +226,8 @@ values
 		if err != nil {
 			return err
 		}
-
 	}
+*/
 
 	return nil
 }
@@ -437,4 +466,42 @@ where d.id = $1)
 	}
 
 	return &uid
+}
+
+// it builds a sql as next:
+/*select json_object_agg(e.id, case when e.id = 54 then e.quantity - ... end) as enough from entry e where e.id = any(array[...]) and e.company_id = ...;*/
+func entriesAreOwnedAndEnough(ctx context.Context, tx *Tx, eq map[int]float64, cid int) (map[int]float64, error) {
+
+  var sqlb strings.Builder
+  sqlb.WriteString("select json_object_agg( e.id, case ")
+  ee := []interface{}{}
+  placeholders := []string{}
+  inx := 1
+
+  for eid, quantity := range eq {
+    sqlb.WriteString(fmt.Sprintf("when e.id = %d then e.quantity - %v ", eid, quantity))
+    ee = append(ee, eid)
+
+    placeholders = append(placeholders, fmt.Sprintf("$%d", inx))
+    inx++
+  }
+
+  arr := strings.Join(placeholders, ", ")
+  where := fmt.Sprintf(" end) as enough from entry e where e.id in (%s) and e.company_id = %d;", arr, cid)
+  sqlb.WriteString(where)
+  sqlstr := sqlb.String()
+
+  // get byte representation of a json {int: flaot}
+  var bb []byte
+	err := tx.QueryRowContext(ctx, sqlstr, ee...).Scan(&bb)
+	if err != nil {
+		return nil, err
+	}
+
+  var check map[int]float64
+  if err := json.Unmarshal(bb, &check); err != nil {
+    return nil, err
+  }
+
+  return check, nil
 }

@@ -14,9 +14,18 @@ type Deed struct {
 	Unit      string          `json:"unit"`
 	UnitPrice decimal.Decimal `json:"unitprice"`
 
-	EntryID         *int     `json:"entry_id,omitempty"`
-	DrainedQuantity *float64 `json:"drained_quantity,omitempty"`
+  Distribute map[int]float64 `json:"distribute"`
+
+  EntryTypeID *int `json:"entry_type_id,omitempty"`
+  DistributeStrategy *DistributeDrain `json:"distribute_strategy"`
 }
+
+type DistributeDrain int
+const (
+  DistributeFromOldest DistributeDrain = iota
+  DistributeFromNewest
+  DistributeAsEqual
+)
 
 func (d *Deed) Validate() error {
 	return nil
