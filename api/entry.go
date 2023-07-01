@@ -21,7 +21,7 @@ type EntryService interface {
 	CreateEntry(context.Context, *Entry) error
 	UpdateEntry(context.Context, int, EntryUpdate) (*Entry, error)
 	FindEntry(context.Context, EntryFilter) ([]*Entry, int, error)
-	DeleteEntry(context.Context, EntryDelete) (int, error)
+	DeleteEntry(context.Context, int, EntryDelete) (int, error)
 }
 
 type EntryFilter struct {
@@ -39,8 +39,6 @@ type EntryFilter struct {
 }
 
 type EntryDelete struct {
-	EntryFilter
-
 	Resurect bool
 }
 

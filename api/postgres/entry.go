@@ -119,7 +119,7 @@ func (s *EntryService) UpdateEntry(ctx context.Context, id int, upd dots.EntryUp
 	return e, nil
 }
 
-func (s *EntryService) DeleteEntry(ctx context.Context, filter dots.EntryDelete) (int, error) {
+func (s *EntryService) DeleteEntry(ctx context.Context, id int, filter dots.EntryDelete) (int, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, err
@@ -127,7 +127,7 @@ func (s *EntryService) DeleteEntry(ctx context.Context, filter dots.EntryDelete)
 	defer tx.Rollback()
 
 	if canerr := dots.CanDoAnything(ctx); canerr == nil {
-		return deleteEntry(ctx, tx, filter, nil)
+		return deleteEntry(ctx, tx, id, filter, nil)
 	}
 
 	if canerr := dots.CanDeleteOwn(ctx); canerr != nil {
@@ -137,16 +137,8 @@ func (s *EntryService) DeleteEntry(ctx context.Context, filter dots.EntryDelete)
 	var n int
 	// check search to own
 	uid := dots.UserFromContext(ctx).ID
-	if filter.CompanyID != nil {
-		err = companyBelongsToUser(ctx, tx, uid, *filter.CompanyID)
-		if err != nil {
-			return 0, err
-		}
-		n, err = deleteEntry(ctx, tx, filter, nil)
-	} else {
-		// lock delete to own
-		n, err = deleteEntry(ctx, tx, filter, &uid)
-	}
+  // lock delete to own
+  n, err = deleteEntry(ctx, tx, id, filter, &uid)
 
 	tx.Commit()
 
@@ -256,7 +248,6 @@ func findEntry(ctx context.Context, tx *Tx, filter dots.EntryFilter) (_ []*dots.
 
 	sqlstr := "select id, entry_type_id, date_added, quantity, company_id, count(*) over() from entry where "
 	sqlstr = sqlstr + strings.Join(where, " and ") + " " + formatLimitOffset(filter.Limit, filter.Offset)
-	fmt.Println(sqlstr)
 	rows, err := tx.QueryContext(
 		ctx,
 		sqlstr,
@@ -286,32 +277,9 @@ func findEntry(ctx context.Context, tx *Tx, filter dots.EntryFilter) (_ []*dots.
 	return entries, n, nil
 }
 
-func deleteEntry(ctx context.Context, tx *Tx, filter dots.EntryDelete, lockOwnID *ksuid.KSUID) (n int, err error) {
+func deleteEntry(ctx context.Context, tx *Tx, id int, filter dots.EntryDelete, lockOwnID *ksuid.KSUID) (n int, err error) {
 	where, args := []string{}, []interface{}{}
-	if v := filter.ID; v != nil {
-		where, args = append(where, "id = ?"), append(args, *v)
-	}
-	if v := filter.EntryTypeID; v != nil {
-		where, args = append(where, "entry_type_id = ?"), append(args, *v)
-	}
-	if v := filter.DateAdded; v != nil {
-		where, args = append(where, "date_added = ?"), append(args, *v)
-	}
-	if v := filter.Quantity; v != nil {
-		where, args = append(where, "quantity = ?"), append(args, *v)
-	}
-	if v := filter.CompanyID; v != nil {
-		where, args = append(where, "company_id = ?"), append(args, *v)
-	}
-	if v := filter.DeletedAtFrom; v != nil {
-		// >= ? is intentional
-		where, args = append(where, "deleted_at >= ?"), append(args, *v)
-	}
-	if v := filter.DeletedAtTo; v != nil {
-		// < ? is intentional
-		// avoid double counting exact midnight values
-		where, args = append(where, "deleted_at < ?"), append(args, *v)
-	}
+  where, args = append(where, "id = ?"), append(args, id)
 	if lockOwnID != nil {
 		where, args = append(where, "company_id = any(select id from company where tid = ?)"), append(args, *lockOwnID)
 	}
@@ -331,7 +299,7 @@ func deleteEntry(ctx context.Context, tx *Tx, filter dots.EntryDelete, lockOwnID
 		select id
 		from entry e left join drain d on(e.id = d.entry_id)
 		where %s)`
-	sqlstr = fmt.Sprintf(sqlstr, kind, strings.Join(where, " and ")+" "+formatLimitOffset(filter.Limit, filter.Offset))
+	sqlstr = fmt.Sprintf(sqlstr, kind, strings.Join(where, " and "))
 
 	result, err := tx.ExecContext(
 		ctx,
