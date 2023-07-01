@@ -18,7 +18,7 @@ func (s *Server) registerDeedRoutes(router *mux.Router) {
 func (s *Server) handleDeedCreate(w http.ResponseWriter, r *http.Request) {
 
 	var d dots.Deed
-	if ok := inputJSON[dots.Deed](w, r, &d, "create deed"); !ok {
+	if ok := inputJSON(w, r, &d, "create deed"); !ok {
 		return
 	}
 
@@ -28,7 +28,7 @@ func (s *Server) handleDeedCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	outputJSON[dots.Deed](w, r, http.StatusCreated, &d)
+	outputJSON(w, r, http.StatusCreated, &d)
 }
 
 func (s *Server) handleDeedUpdate(w http.ResponseWriter, r *http.Request) {
@@ -39,7 +39,7 @@ func (s *Server) handleDeedUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var updata dots.DeedUpdate
-	ok := inputJSON[dots.DeedUpdate](w, r, &updata, "update deed")
+	ok := inputJSON(w, r, &updata, "update deed")
 	if !ok {
 		return
 	}
@@ -55,12 +55,12 @@ func (s *Server) handleDeedUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	outputJSON[dots.Deed](w, r, http.StatusOK, d)
+	outputJSON(w, r, http.StatusOK, d)
 }
 
 func (s *Server) handleDeedFind(w http.ResponseWriter, r *http.Request) {
 	var filter dots.DeedFilter
-	ok := inputJSON[dots.DeedFilter](w, r, &filter, "find deed")
+	ok := inputJSON(w, r, &filter, "find deed")
 	if !ok {
 		return
 	}
@@ -71,12 +71,12 @@ func (s *Server) handleDeedFind(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	outputJSON[findDeedResponse](w, r, http.StatusFound, &findDeedResponse{Deeds: dd, N: n})
+	outputJSON(w, r, http.StatusFound, &findDeedResponse{Deeds: dd, N: n})
 }
 
 func (s *Server) handleDeedDelete(w http.ResponseWriter, r *http.Request) {
 	var filter dots.DeedDelete
-	ok := inputJSON[dots.DeedDelete](w, r, &filter, "delete deed")
+	ok := inputJSON(w, r, &filter, "delete deed")
 	if !ok {
 		return
 	}
@@ -90,7 +90,7 @@ func (s *Server) handleDeedDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	outputJSON[deleteDeedResponse](w, r, http.StatusFound, &deleteDeedResponse{N: n})
+	outputJSON(w, r, http.StatusFound, &deleteDeedResponse{N: n})
 }
 
 type findDeedResponse struct {
