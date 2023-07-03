@@ -17,7 +17,7 @@ const (
 type Error struct {
 	Code    string
 	Message string
-  Data interface{}
+  Data map[string]interface{}
 	err error
 }
 
@@ -55,6 +55,19 @@ func ErrorMessage(err error) string {
 		return e.Message
 	}
 	return "internal"
+}
+
+func ErrorData(err error) map[string]interface{} {
+  errdata := map[string]interface{}{}
+  if err == nil {
+		return errdata
+	}
+	var e *Error
+	if errors.As(err, &e) {
+		return e.Data
+	}
+
+	return errdata
 }
 
 func Errorf(code string, format string, args ...interface{}) *Error {
