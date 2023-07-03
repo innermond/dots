@@ -27,7 +27,8 @@ func (s *DeedService) CreateDeed(ctx context.Context, d *dots.Deed) error {
 	}
 	defer tx.Rollback()
 
-	if d.Distribute != nil {
+	// ensures to have something to process
+	if len(d.Distribute) > 0 {
 		// check entries are owned and enough
 		check, err := entriesAreOwnedAndEnough(ctx, tx, d.Distribute, d.CompanyID)
 		if err != nil {
@@ -127,7 +128,7 @@ func (s *DeedService) UpdateDeed(ctx context.Context, id int, upd dots.DeedUpdat
 	defer tx.Rollback()
 
 	// TODO: is CompanyID required for all update operations?
-	if upd.Distribute != nil {
+	if len(upd.Distribute) > 0 {
 		if upd.CompanyID == nil {
 			return nil, &dots.Error{
 				Code:    dots.EINVALID,
@@ -348,6 +349,7 @@ func updateDeed(ctx context.Context, tx *Tx, id int, upd dots.DeedUpdate) (*dots
 		}
 	}
 
+	e.Distribute = upd.Distribute
 	return e, nil
 }
 

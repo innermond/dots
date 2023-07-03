@@ -2,7 +2,6 @@ package postgres
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/innermond/dots"
 )
@@ -68,7 +67,7 @@ on conflict (deed_id, entry_id) do update set deed_id = EXCLUDED.deed_id, entry_
 		sqlstr,
 		d.DeedID, d.EntryID, d.Quantity, d.IsDeleted,
 	)
-	fmt.Println(sqlstr, d)
+
 	if err != nil {
 		return err
 	}
