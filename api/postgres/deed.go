@@ -28,28 +28,28 @@ func (s *DeedService) CreateDeed(ctx context.Context, d *dots.Deed) error {
 	defer tx.Rollback()
 
 	if d.Distribute != nil {
-    // check entries are owned and enough
-    check, err := entriesAreOwnedAndEnough(ctx, tx, d.Distribute, d.CompanyID)
-    if err != nil {
-      return err
-    }
-    // need to check check
-    notenough := map[int]float64{}
-    for eid, diff := range check {
-      if diff < 0 {
-        notenough[eid] = diff
-      }
-    }
-    // not enough
-    if len(notenough) > 0 {
-      err := &dots.Error{
-        Code: dots.ECONFLICT,
-        Message: "not enough entries",
-        Data: map[string]interface{}{"notenough":notenough, "company_id": d.CompanyID,},
-      }
-      return err 
-    }
-  }
+		// check entries are owned and enough
+		check, err := entriesAreOwnedAndEnough(ctx, tx, d.Distribute, d.CompanyID)
+		if err != nil {
+			return err
+		}
+		// need to check check
+		notenough := map[int]float64{}
+		for eid, diff := range check {
+			if diff < 0 {
+				notenough[eid] = diff
+			}
+		}
+		// not enough
+		if len(notenough) > 0 {
+			err := &dots.Error{
+				Code:    dots.ECONFLICT,
+				Message: "not enough entries",
+				Data:    map[string]interface{}{"notenough": notenough, "company_id": d.CompanyID},
+			}
+			return err
+		}
+	}
 
 	if canerr := dots.CanDoAnything(ctx); canerr == nil {
 		return createDeed(ctx, tx, d)
@@ -65,19 +65,21 @@ func (s *DeedService) CreateDeed(ctx context.Context, d *dots.Deed) error {
 		return err
 	}
 
-  ee := getEntryIDsFromDistribute(d.Distribute)
-  if len(ee) == 0 {
-      err := &dots.Error{
-        Code: dots.EINVALID,
-        Message: "entries not specified",
-      }
-      return err
-  }
-  // need deed ID and entry ID that belong to companies of user
-  err = entriesBelongsToUser(ctx, tx, uid, ee)
-  if err != nil {
-    return err
-  }
+	if d.Distribute != nil {
+		ee := getEntryIDsFromDistribute(d.Distribute)
+		if len(ee) == 0 {
+			err := &dots.Error{
+				Code:    dots.EINVALID,
+				Message: "entries not specified",
+			}
+			return err
+		}
+		// need deed ID and entry ID that belong to companies of user
+		err = entriesBelongsToUser(ctx, tx, uid, ee)
+		if err != nil {
+			return err
+		}
+	}
 
 	if err := createDeed(ctx, tx, d); err != nil {
 		return err
@@ -124,37 +126,37 @@ func (s *DeedService) UpdateDeed(ctx context.Context, id int, upd dots.DeedUpdat
 	}
 	defer tx.Rollback()
 
-  // TODO: is CompanyID required for all update operations?
+	// TODO: is CompanyID required for all update operations?
 	if upd.Distribute != nil {
-    if upd.CompanyID == nil {
-      return nil, &dots.Error{
-        Code: dots.EINVALID,
-        Message: "company id is required",
-      }
-    }
+		if upd.CompanyID == nil {
+			return nil, &dots.Error{
+				Code:    dots.EINVALID,
+				Message: "company id is required",
+			}
+		}
 
-    // check entries are owned and enough
-    check, err := entriesAreOwnedAndEnough(ctx, tx, upd.Distribute, *upd.CompanyID)
-    if err != nil {
-      return nil, err
-    }
-    // need to check check
-    notenough := map[int]float64{}
-    for eid, diff := range check {
-      if diff < 0 {
-        notenough[eid] = diff
-      }
-    }
-    // not enough
-    if len(notenough) > 0 {
-      err := &dots.Error{
-        Code: dots.ECONFLICT,
-        Message: "not enough entries",
-        Data: map[string]interface{}{"notenough":notenough, "company_id": *upd.CompanyID,},
-      }
-      return nil, err 
-    }
-  }
+		// check entries are owned and enough
+		check, err := entriesAreOwnedAndEnough(ctx, tx, upd.Distribute, *upd.CompanyID)
+		if err != nil {
+			return nil, err
+		}
+		// need to check check
+		notenough := map[int]float64{}
+		for eid, diff := range check {
+			if diff < 0 {
+				notenough[eid] = diff
+			}
+		}
+		// not enough
+		if len(notenough) > 0 {
+			err := &dots.Error{
+				Code:    dots.ECONFLICT,
+				Message: "not enough entries",
+				Data:    map[string]interface{}{"notenough": notenough, "company_id": *upd.CompanyID},
+			}
+			return nil, err
+		}
+	}
 
 	if canerr := dots.CanDoAnything(ctx); canerr == nil {
 		return updateDeed(ctx, tx, id, upd)
@@ -175,7 +177,7 @@ func (s *DeedService) UpdateDeed(ctx context.Context, id int, upd dots.DeedUpdat
 
 	deedUserID := deedGetUser(ctx, tx, id)
 	if deedUserID == nil {
-		return nil, dots.Errorf(dots.EINVALID, "deed user conflict")
+		return nil, dots.Errorf(dots.ECONFLICT, "deed user conflict")
 	}
 	if canerr := dots.CanWriteOwn(ctx, *deedUserID); canerr != nil {
 		return nil, canerr
@@ -191,7 +193,7 @@ func (s *DeedService) UpdateDeed(ctx context.Context, id int, upd dots.DeedUpdat
 	return d, nil
 }
 
-func (s *DeedService) DeleteDeed(ctx context.Context, filter dots.DeedDelete) (int, error) {
+func (s *DeedService) DeleteDeed(ctx context.Context, id int, filter dots.DeedDelete) (int, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, err
@@ -199,7 +201,7 @@ func (s *DeedService) DeleteDeed(ctx context.Context, filter dots.DeedDelete) (i
 	defer tx.Rollback()
 
 	if canerr := dots.CanDoAnything(ctx); canerr == nil {
-		return deleteDeed(ctx, tx, filter, nil)
+		return deleteDeed(ctx, tx, id, filter.Resurect)
 	}
 
 	if canerr := dots.CanDeleteOwn(ctx); canerr != nil {
@@ -209,16 +211,13 @@ func (s *DeedService) DeleteDeed(ctx context.Context, filter dots.DeedDelete) (i
 	var n int
 	// check search to own
 	uid := dots.UserFromContext(ctx).ID
-	if filter.CompanyID != nil {
-		err = companyBelongsToUser(ctx, tx, uid, *filter.CompanyID)
-		if err != nil {
-			return 0, err
-		}
-		n, err = deleteDeed(ctx, tx, filter, nil)
-	} else {
-		// lock delete to own
-		n, err = deleteDeed(ctx, tx, filter, &uid)
+
+	err = deedBelongsToUser(ctx, tx, uid, id)
+	if err != nil {
+		return 0, err
 	}
+
+	n, err = deleteDeed(ctx, tx, id, filter.Resurect)
 
 	tx.Commit()
 
@@ -249,25 +248,26 @@ values
 		return err
 	}
 
-  if len(d.Distribute) == 0 {
-    return nil
-  }
+	if len(d.Distribute) == 0 {
+		return nil
+	}
 
-  // manage distribute
-  for eid, qty := range d.Distribute {
+	// manage distribute
+	for eid, qty := range d.Distribute {
 		d := dots.Drain{
-			DeedID:   d.ID,
-			EntryID:  eid,
-			Quantity: qty,
+			DeedID:    d.ID,
+			EntryID:   eid,
+			Quantity:  qty,
+			IsDeleted: false,
 		}
 
 		err = createOrUpdateDrain(ctx, tx, d)
 		if err != nil {
-      // all or nothing
+			// all or nothing
 			return err
 		}
 
-  }
+	}
 
 	return nil
 }
@@ -317,36 +317,36 @@ func updateDeed(ctx context.Context, tx *Tx, id int, upd dots.DeedUpdate) (*dots
 		return nil, fmt.Errorf("postgres.deed: cannot update %w", err)
 	}
 
-  if len(upd.Distribute) == 0 {
-    return e, nil
-  }
+	if len(upd.Distribute) == 0 {
+		return e, nil
+	}
 
-  // manage distribute need CompanyID
+	// manage distribute need CompanyID
 	if upd.Distribute != nil {
-    if upd.CompanyID == nil {
-      return nil, errors.New("company id is required")
-    }
-  }
-  // delete all distribute
-  err = deleteDrainsOfDeed(ctx, tx, e.ID)
-  if err != nil {
-    return nil, err
-  }
+		if upd.CompanyID == nil {
+			return nil, errors.New("company id is required")
+		}
+	}
+	// delete all distribute
+	err = deleteDrainsOfDeed(ctx, tx, e.ID)
+	if err != nil {
+		return nil, err
+	}
 
-  for eid, qty := range upd.Distribute {
+	for eid, qty := range upd.Distribute {
 		d := dots.Drain{
-			DeedID:   e.ID,
-			EntryID:  eid,
-			Quantity: qty,
-      IsDeleted: false,
+			DeedID:    e.ID,
+			EntryID:   eid,
+			Quantity:  qty,
+			IsDeleted: false,
 		}
 
 		err = createOrUpdateDrain(ctx, tx, d)
 		if err != nil {
-      // all or nothing
+			// all or nothing
 			return nil, err
 		}
-  }
+	}
 
 	return e, nil
 }
@@ -428,49 +428,21 @@ func findDeed(ctx context.Context, tx *Tx, filter dots.DeedFilter, lockOwnID *ks
 	return deeds, n, nil
 }
 
-func deleteDeed(ctx context.Context, tx *Tx, filter dots.DeedDelete, lockOwnID *ksuid.KSUID) (n int, err error) {
+func deleteDeed(ctx context.Context, tx *Tx, id int, resurect bool) (n int, err error) {
 	where, args := []string{}, []interface{}{}
-	if v := filter.ID; v != nil {
-		where, args = append(where, "id = ?"), append(args, *v)
-	}
-	if v := filter.Title; v != nil {
-		where, args = append(where, "title = ?"), append(args, *v)
-	}
-	if v := filter.Quantity; v != nil {
-		where, args = append(where, "quantity = ?"), append(args, *v)
-	}
-	if v := filter.Unit; v != nil {
-		where, args = append(where, "unit = ?"), append(args, *v)
-	}
-	if v := filter.UnitPrice; v != nil {
-		where, args = append(where, "unitprice = ?"), append(args, *v)
-	}
-	if v := filter.CompanyID; v != nil {
-		where, args = append(where, "company_id = ?"), append(args, *v)
-	}
-	if v := filter.DeletedAtFrom; v != nil {
-		// >= ? is intentional
-		where, args = append(where, "deleted_at >= ?"), append(args, *v)
-	}
-	if v := filter.DeletedAtTo; v != nil {
-		// < ? is intentional
-		// avoid double counting exact midnight values
-		where, args = append(where, "deleted_at < ?"), append(args, *v)
-	}
-	if lockOwnID != nil {
-		where, args = append(where, "company_id = any(select id from company where tid = ?)"), append(args, *lockOwnID)
-	}
+	where, args = append(where, "id = ?"), append(args, id)
+
 	replaceQuestionMark(where, args)
 
 	kind := "date_trunc('minute', now())::timestamptz"
-	if filter.Resurect {
+	if resurect {
 		kind = "null"
 		where = append(where, "deleted_at is not null")
 	} else {
 		where = append(where, "deleted_at is null")
 	}
 	sqlstr := "update deed set deleted_at = " + kind + " where "
-	sqlstr = sqlstr + strings.Join(where, " and ") + " " + formatLimitOffset(filter.Limit, filter.Offset)
+	sqlstr = sqlstr + strings.Join(where, " and ")
 
 	result, err := tx.ExecContext(
 		ctx,
@@ -529,49 +501,49 @@ where d.id = $1)
 /*select json_object_agg(e.id, case when e.id = 54 then e.quantity - ... end) as enough from entry e where e.id = any(array[...]) and e.company_id = ...;*/
 func entriesAreOwnedAndEnough(ctx context.Context, tx *Tx, eq map[int]float64, cid int) (map[int]float64, error) {
 
-  var sqlb strings.Builder
-  sqlb.WriteString("select json_object_agg( e.id, case ")
-  ee := []interface{}{}
-  placeholders := []string{}
-  inx := 1
+	var sqlb strings.Builder
+	sqlb.WriteString("select json_object_agg( e.id, case ")
+	ee := []interface{}{}
+	placeholders := []string{}
+	inx := 1
 
-  for eid, quantity := range eq {
-    sqlb.WriteString(fmt.Sprintf("when e.id = %d then e.quantity - %v ", eid, quantity))
-    ee = append(ee, eid)
+	for eid, quantity := range eq {
+		sqlb.WriteString(fmt.Sprintf("when e.id = %d then e.quantity - %v ", eid, quantity))
+		ee = append(ee, eid)
 
-    placeholders = append(placeholders, fmt.Sprintf("$%d", inx))
-    inx++
-  }
+		placeholders = append(placeholders, fmt.Sprintf("$%d", inx))
+		inx++
+	}
 
-  arr := strings.Join(placeholders, ", ")
-  where := fmt.Sprintf(" end) as enough from entry e where e.id in (%s) and e.company_id = %d;", arr, cid)
-  sqlb.WriteString(where)
-  sqlstr := sqlb.String()
+	arr := strings.Join(placeholders, ", ")
+	where := fmt.Sprintf(" end) as enough from entry e where e.id in (%s) and e.company_id = %d;", arr, cid)
+	sqlb.WriteString(where)
+	sqlstr := sqlb.String()
 
-  // get byte representation of a json {int: flaot}
-  var bb []byte
+	// get byte representation of a json {int: flaot}
+	var bb []byte
 	err := tx.QueryRowContext(ctx, sqlstr, ee...).Scan(&bb)
 	if err != nil {
 		return nil, err
 	}
 
-  var check map[int]float64
-  if err := json.Unmarshal(bb, &check); err != nil {
-    return nil, err
-  }
+	var check map[int]float64
+	if err := json.Unmarshal(bb, &check); err != nil {
+		return nil, err
+	}
 
-  return check, nil
+	return check, nil
 }
 
 func getEntryIDsFromDistribute(ee map[int]float64) []int {
-  if len(ee) == 0 {
-    return []int{}
-  }
+	if len(ee) == 0 {
+		return []int{}
+	}
 
-  ids := []int{}
-  for id := range ee {
-    ids = append(ids, id)
-  }
+	ids := []int{}
+	for id := range ee {
+		ids = append(ids, id)
+	}
 
-  return ids
+	return ids
 }

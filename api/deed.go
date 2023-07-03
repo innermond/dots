@@ -14,17 +14,18 @@ type Deed struct {
 	Unit      string          `json:"unit"`
 	UnitPrice decimal.Decimal `json:"unitprice"`
 
-  Distribute map[int]float64 `json:"distribute"`
+	Distribute map[int]float64 `json:"distribute"`
 
-  EntryTypeID *int `json:"entry_type_id,omitempty"`
-  DistributeStrategy *DistributeDrain `json:"distribute_strategy"`
+	EntryTypeID        *int             `json:"entry_type_id,omitempty"`
+	DistributeStrategy *DistributeDrain `json:"distribute_strategy"`
 }
 
 type DistributeDrain int
+
 const (
-  DistributeFromOldest DistributeDrain = iota
-  DistributeFromNewest
-  DistributeAsEqual
+	DistributeFromOldest DistributeDrain = iota
+	DistributeFromNewest
+	DistributeAsEqual
 )
 
 func (d *Deed) Validate() error {
@@ -35,7 +36,7 @@ type DeedService interface {
 	CreateDeed(context.Context, *Deed) error
 	UpdateDeed(context.Context, int, DeedUpdate) (*Deed, error)
 	FindDeed(context.Context, DeedFilter) ([]*Deed, int, error)
-	DeleteDeed(context.Context, DeedDelete) (int, error)
+	DeleteDeed(context.Context, int, DeedDelete) (int, error)
 }
 
 type DeedFilter struct {
@@ -54,8 +55,6 @@ type DeedFilter struct {
 }
 
 type DeedDelete struct {
-	DeedFilter
-
 	Resurect bool
 }
 
@@ -66,7 +65,7 @@ type DeedUpdate struct {
 	Unit      *string          `json:"unit"`
 	UnitPrice *decimal.Decimal `json:"unitprice"`
 
-  Distribute map[int]float64 `json:"distribute"`
+	Distribute map[int]float64 `json:"distribute"`
 
 	EntryID         *int     `json:"entry_id"`
 	DrainedQuantity *float64 `json:"drained_quantity"`

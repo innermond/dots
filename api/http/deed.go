@@ -10,9 +10,8 @@ import (
 
 func (s *Server) registerDeedRoutes(router *mux.Router) {
 	router.HandleFunc("", s.handleDeedCreate).Methods("POST")
-	router.HandleFunc("/{id}/edit", s.handleDeedUpdate).Methods("PATCH")
+	router.HandleFunc("/{id}", s.handleDeedPatch).Methods("PATCH")
 	router.HandleFunc("", s.handleDeedFind).Methods("GET")
-	router.HandleFunc("", s.handleDeedDelete).Methods("PATCH")
 }
 
 func (s *Server) handleDeedCreate(w http.ResponseWriter, r *http.Request) {
@@ -29,6 +28,15 @@ func (s *Server) handleDeedCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	outputJSON(w, r, http.StatusCreated, &d)
+}
+
+func (s *Server) handleDeedPatch(w http.ResponseWriter, r *http.Request) {
+	if _, found := r.URL.Query()["del"]; found {
+		s.handleDeedDelete(w, r)
+		return
+	}
+
+	s.handleDeedUpdate(w, r)
 }
 
 func (s *Server) handleDeedUpdate(w http.ResponseWriter, r *http.Request) {
@@ -59,13 +67,13 @@ func (s *Server) handleDeedUpdate(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleDeedFind(w http.ResponseWriter, r *http.Request) {
-  filter := dots.DeedFilter{}
+	filter := dots.DeedFilter{}
 	if r.Body != http.NoBody {
-    ok := inputJSON(w, r, &filter, "find deed")
-    if !ok {
-      return
-    }
-  }
+		ok := inputJSON(w, r, &filter, "find deed")
+		if !ok {
+			return
+		}
+	}
 
 	dd, n, err := s.DeedService.FindDeed(r.Context(), filter)
 	if err != nil {
@@ -77,16 +85,24 @@ func (s *Server) handleDeedFind(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleDeedDelete(w http.ResponseWriter, r *http.Request) {
-	var filter dots.DeedDelete
-	ok := inputJSON(w, r, &filter, "delete deed")
-	if !ok {
+	id, err := strconv.Atoi(mux.Vars(r)["id"])
+	if err != nil {
+		Error(w, r, dots.Errorf(dots.EINVALID, "invalid ID format"))
 		return
 	}
 
-	if r.URL.Query().Get("resurect") != "" {
+	filter := dots.DeedDelete{}
+	if r.Body != http.NoBody {
+		ok := inputJSON(w, r, &filter, "delete deed")
+		if !ok {
+			return
+		}
+	}
+
+	if _, found := r.URL.Query()["resurect"]; found {
 		filter.Resurect = true
 	}
-	n, err := s.DeedService.DeleteDeed(r.Context(), filter)
+	n, err := s.DeedService.DeleteDeed(r.Context(), id, filter)
 	if err != nil {
 		Error(w, r, err)
 		return

@@ -56,19 +56,19 @@ func createOrUpdateDrain(ctx context.Context, tx *Tx, d dots.Drain) error {
 		return err
 	}
 
-  sqlstr := `
+	sqlstr := `
 insert into drain
 (deed_id, entry_id, quantity, is_deleted)
 values
 ($1, $2, $3, $4)
-on conflict (deed_id, entry_id) do update set quantity = EXCLUDED.quantity
+on conflict (deed_id, entry_id) do update set deed_id = EXCLUDED.deed_id, entry_id = EXCLUDED.entry_id, quantity = EXCLUDED.quantity, is_deleted = EXCLUDED.is_deleted
 		`
 	_, err := tx.ExecContext(
 		ctx,
-    sqlstr,
+		sqlstr,
 		d.DeedID, d.EntryID, d.Quantity, d.IsDeleted,
 	)
-  fmt.Println(sqlstr, d)
+	fmt.Println(sqlstr, d)
 	if err != nil {
 		return err
 	}
