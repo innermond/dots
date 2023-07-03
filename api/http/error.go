@@ -10,7 +10,7 @@ import (
 )
 
 func Error(w http.ResponseWriter, r *http.Request, err error) {
-	code, message := dots.ErrorCode(err), dots.ErrorMessage(err)
+	code, message, data := dots.ErrorCode(err), dots.ErrorMessage(err), dots.ErrorData(err)
 	deverr := err
 	logit := false
 	if werr := errors.Unwrap(err); werr != nil {
@@ -27,7 +27,7 @@ func Error(w http.ResponseWriter, r *http.Request, err error) {
 	switch r.Header.Get("Accept") {
 	case "application/json":
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(&errorResponse{Error: message})
+    json.NewEncoder(w).Encode(&errorResponse{Error: message, Data: data})
 	default:
 		w.Write([]byte(message))
 	}
@@ -35,6 +35,7 @@ func Error(w http.ResponseWriter, r *http.Request, err error) {
 
 type errorResponse struct {
 	Error string `json:"error"`
+  Data map[string]interface{} `json:"data"`
 }
 
 var codes = map[string]int{
