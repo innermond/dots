@@ -26,20 +26,6 @@ func (s *DeedService) CreateDeed(ctx context.Context, d *dots.Deed) error {
 	}
 	defer tx.Rollback()
 
-	if canerr := dots.CanDoAnything(ctx); canerr == nil {
-		return createDeed(ctx, tx, d)
-	}
-
-	if canerr := dots.CanCreateOwn(ctx); canerr != nil {
-		return canerr
-	}
-
-	uid := dots.UserFromContext(ctx).ID
-
-	if err := companyBelongsToUser(ctx, tx, uid, d.CompanyID); err != nil {
-		return err
-	}
-
 	if d.Distribute != nil {
     // check entries are owned and enough
     check, err := entriesAreOwnedAndEnough(ctx, tx, d.Distribute, d.CompanyID)
@@ -55,33 +41,49 @@ func (s *DeedService) CreateDeed(ctx context.Context, d *dots.Deed) error {
     }
     // not enough
     if len(notenough) > 0 {
-      var err = &dots.Error{
+      err := &dots.Error{
         Code: dots.ECONFLICT,
         Message: "not enough entries",
         Data: map[string]interface{}{"notenough":notenough, "company_id": d.CompanyID,},
       }
       return err 
     }
+  }
 
-		// lock create to own
-		// need deed ID and entry ID that belong to companies of user
-		/*err = entryBelongsToUser(ctx, tx, uid, *d.EntryID)
-		if err != nil {
-			return err
-		}*
-
-    // TODO: drained quantity is covered by existent quantity
-		/*err = drainedQuantityIsCovered(ctx, tx, uid, *d.DrainedQuantity)
-		if err != nil {
-			return err
-		}*/
+	if canerr := dots.CanDoAnything(ctx); canerr == nil {
+		return createDeed(ctx, tx, d)
 	}
+
+	if canerr := dots.CanCreateOwn(ctx); canerr != nil {
+		return canerr
+	}
+
+	uid := dots.UserFromContext(ctx).ID
+
+	if err := companyBelongsToUser(ctx, tx, uid, d.CompanyID); err != nil {
+		return err
+	}
+
+  ee := getEntryIDsFromDistribute(d.Distribute)
+  if len(ee) == 0 {
+      err := &dots.Error{
+        Code: dots.EINVALID,
+        Message: "entries not specified",
+      }
+      return err
+  }
+  // need deed ID and entry ID that belong to companies of user
+  err = entriesBelongsToUser(ctx, tx, uid, ee)
+  if err != nil {
+    return err
+  }
 
 	if err := createDeed(ctx, tx, d); err != nil {
 		return err
 	}
 
-	tx.Commit()
+  tx.Rollback()
+	//tx.Commit()
 
 	return nil
 }
@@ -504,4 +506,17 @@ func entriesAreOwnedAndEnough(ctx context.Context, tx *Tx, eq map[int]float64, c
   }
 
   return check, nil
+}
+
+func getEntryIDsFromDistribute(ee map[int]float64) []int {
+  if len(ee) == 0 {
+    return []int{}
+  }
+
+  ids := []int{}
+  for id, _ := range ee {
+    ids = append(ids, id)
+  }
+
+  return ids
 }

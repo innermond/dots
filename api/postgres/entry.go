@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -334,6 +335,73 @@ and e.id = $2);
 	if !exists {
 		return dots.Errorf(dots.EUNAUTHORIZED, "foreign entry")
 	}
+
+	return nil
+}
+
+func entriesBelongsToUser(ctx context.Context, tx *Tx, u ksuid.KSUID, ee []int) error {
+	if len(ee) == 0 {
+		return dots.Errorf(dots.EINVALID, "no entries")
+	}
+
+  /*
+--- Calculate difference on postgres side but this is not very explicit
+select coalesce(array_agg(wanted), '{}') diff from unnest($2) as wanted where wanted != all(
+select e.id
+from entry e
+where e.company_id = any(select id
+from company c
+where c.tid = $1)
+  and e.id = any($2)
+)*/
+
+  sqlstr := `select json_agg(e.id) as exists
+from entry e
+where e.company_id = any(select id
+from company c
+where c.tid = $1)
+  and e.id = any($2);
+`
+	var bb []byte
+	err := tx.QueryRowContext(ctx, sqlstr, u, ee).Scan(&bb)
+	if err != nil {
+		return err
+	}
+
+  var exists []int
+  if err := json.Unmarshal(bb, &exists); err != nil {
+    return err
+  }
+
+	if len(exists) == 0 {
+		return &dots.Error{
+      Code: dots.EUNAUTHORIZED,
+      Message: "foreign entry",
+      Data: map[string]interface{}{"foreign_entries": ee},
+    }
+	}
+
+  if len(exists) != len(ee) {
+    diff := []int{}
+    for _, v1 := range ee {
+      found := false
+      for _, v2 := range exists {
+       if v1 == v2 {
+        found = true
+        break
+       }
+      }
+      if !found {
+       diff = append(diff, v1)
+      }
+    }
+
+		return &dots.Error{
+      Code: dots.EUNAUTHORIZED,
+      Message: "foreign entry",
+      Data: map[string]interface{}{"foreign_entries": diff},
+    }
+  }
 
 	return nil
 }
