@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -82,8 +83,7 @@ func (s *DeedService) CreateDeed(ctx context.Context, d *dots.Deed) error {
 		return err
 	}
 
-  tx.Rollback()
-	//tx.Commit()
+	tx.Commit()
 
 	return nil
 }
@@ -123,6 +123,38 @@ func (s *DeedService) UpdateDeed(ctx context.Context, id int, upd dots.DeedUpdat
 		return nil, err
 	}
 	defer tx.Rollback()
+
+  // TODO: is CompanyID required for all update operations?
+	if upd.Distribute != nil {
+    if upd.CompanyID == nil {
+      return nil, &dots.Error{
+        Code: dots.EINVALID,
+        Message: "company id is required",
+      }
+    }
+
+    // check entries are owned and enough
+    check, err := entriesAreOwnedAndEnough(ctx, tx, upd.Distribute, *upd.CompanyID)
+    if err != nil {
+      return nil, err
+    }
+    // need to check check
+    notenough := map[int]float64{}
+    for eid, diff := range check {
+      if diff < 0 {
+        notenough[eid] = diff
+      }
+    }
+    // not enough
+    if len(notenough) > 0 {
+      err := &dots.Error{
+        Code: dots.ECONFLICT,
+        Message: "not enough entries",
+        Data: map[string]interface{}{"notenough":notenough, "company_id": *upd.CompanyID,},
+      }
+      return nil, err 
+    }
+  }
 
 	if canerr := dots.CanDoAnything(ctx); canerr == nil {
 		return updateDeed(ctx, tx, id, upd)
@@ -217,24 +249,30 @@ values
 		return err
 	}
 
-	/*if d.EntryID != nil && d.DrainedQuantity != nil {
+  if len(d.Distribute) == 0 {
+    return nil
+  }
+
+  // manage distribute
+  for eid, qty := range d.Distribute {
 		d := dots.Drain{
 			DeedID:   d.ID,
-			EntryID:  *d.EntryID,
-			Quantity: *d.DrainedQuantity,
+			EntryID:  eid,
+			Quantity: qty,
 		}
 
 		err = createOrUpdateDrain(ctx, tx, d)
 		if err != nil {
+      // all or nothing
 			return err
 		}
-	}
-*/
+
+  }
 
 	return nil
 }
 
-func updateDeed(ctx context.Context, tx *Tx, id int, updata dots.DeedUpdate) (*dots.Deed, error) {
+func updateDeed(ctx context.Context, tx *Tx, id int, upd dots.DeedUpdate) (*dots.Deed, error) {
 	dd, _, err := findDeed(ctx, tx, dots.DeedFilter{ID: &id, Limit: 1}, nil)
 	if err != nil {
 		return nil, fmt.Errorf("postgres.deed: cannot retrieve deed %w", err)
@@ -245,23 +283,23 @@ func updateDeed(ctx context.Context, tx *Tx, id int, updata dots.DeedUpdate) (*d
 	e := dd[0]
 
 	set, args := []string{}, []interface{}{}
-	if v := updata.Title; v != nil {
+	if v := upd.Title; v != nil {
 		e.Title = *v
 		set, args = append(set, "title = ?"), append(args, *v)
 	}
-	if v := updata.Quantity; v != nil {
+	if v := upd.Quantity; v != nil {
 		e.Quantity = *v
 		set, args = append(set, "quantity = ?"), append(args, *v)
 	}
-	if v := updata.Unit; v != nil {
+	if v := upd.Unit; v != nil {
 		e.Unit = *v
 		set, args = append(set, "unit = ?"), append(args, *v)
 	}
-	if v := updata.UnitPrice; v != nil {
+	if v := upd.UnitPrice; v != nil {
 		e.UnitPrice = *v
 		set, args = append(set, "unitprice = ?"), append(args, *v)
 	}
-	if v := updata.CompanyID; v != nil {
+	if v := upd.CompanyID; v != nil {
 		e.CompanyID = *v
 		set, args = append(set, "company_id = ?"), append(args, *v)
 	}
@@ -279,19 +317,36 @@ func updateDeed(ctx context.Context, tx *Tx, id int, updata dots.DeedUpdate) (*d
 		return nil, fmt.Errorf("postgres.deed: cannot update %w", err)
 	}
 
-	if updata.EntryID != nil && updata.DrainedQuantity != nil {
+  if len(upd.Distribute) == 0 {
+    return e, nil
+  }
+
+  // manage distribute need CompanyID
+	if upd.Distribute != nil {
+    if upd.CompanyID == nil {
+      return nil, errors.New("company id is required")
+    }
+  }
+  // delete all distribute
+  err = deleteDrainsOfDeed(ctx, tx, e.ID)
+  if err != nil {
+    return nil, err
+  }
+
+  for eid, qty := range upd.Distribute {
 		d := dots.Drain{
-			DeedID:   id,
-			EntryID:  *updata.EntryID,
-			Quantity: *updata.DrainedQuantity,
+			DeedID:   e.ID,
+			EntryID:  eid,
+			Quantity: qty,
+      IsDeleted: false,
 		}
 
 		err = createOrUpdateDrain(ctx, tx, d)
 		if err != nil {
-			return e, err
+      // all or nothing
+			return nil, err
 		}
-
-	}
+  }
 
 	return e, nil
 }
@@ -514,7 +569,7 @@ func getEntryIDsFromDistribute(ee map[int]float64) []int {
   }
 
   ids := []int{}
-  for id, _ := range ee {
+  for id := range ee {
     ids = append(ids, id)
   }
 

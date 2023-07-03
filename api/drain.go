@@ -6,6 +6,7 @@ type Drain struct {
 	DeedID   int     `json:"deed_id"`
 	EntryID  int     `json:"entry_id"`
 	Quantity float64 `json:"quantity"`
+  IsDeleted bool `json:"is_deleted"`
 }
 
 func (d *Drain) Validate() error {
