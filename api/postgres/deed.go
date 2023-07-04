@@ -510,7 +510,7 @@ func entriesAreOwnedAndEnough(ctx context.Context, tx *Tx, eq map[int]float64, c
 	inx := 1
 
 	for eid, quantity := range eq {
-		sqlb.WriteString(fmt.Sprintf("when e.id = %d then e.quantity - %v ", eid, quantity))
+		sqlb.WriteString(fmt.Sprintf("when e.id = %d then (e.quantity - (select sum(case when d.is_deleted = true then -d.quantity else d.quantity end) from drain d where d.entry_id = e.id))  - %v ", eid, quantity))
 		ee = append(ee, eid)
 
 		placeholders = append(placeholders, fmt.Sprintf("$%d", inx))
