@@ -15,6 +15,7 @@ import (
 	"github.com/innermond/dots/postgres"
 	"github.com/joho/godotenv"
 	"github.com/segmentio/ksuid"
+	"github.com/shopspring/decimal"
 )
 
 func TestDeed_Manage(t *testing.T) {
@@ -34,7 +35,7 @@ func TestDeed_Manage(t *testing.T) {
 	}
 	testuser := dots.User{
 		ID:     uid,
-		Powers: []dots.Power{dots.CreateOwn, dots.WriteOwn, dots.DeleteOwn},
+		Powers: []dots.Power{dots.ReadOwn, dots.CreateOwn, dots.WriteOwn, dots.DeleteOwn},
 	}
 	// create context with user
 	ctx := dots.NewContextWithUser(context.Background(), &testuser)
@@ -143,6 +144,61 @@ func TestDeed_Manage(t *testing.T) {
 	}
 
 	t.Log("updated entries")
+
+	t.Log("create deed")
+
+	deedService := postgres.NewDeedService(db)
+
+	distribute := map[int]float64{}
+	for _, e := range entries {
+		distribute[e.ID] = e.Quantity * 0.01
+	}
+	deed := dots.Deed{0, cid, "Test title", 100, "buc", decimal.NewFromFloat(10.5), distribute, nil, nil}
+	err = deedService.CreateDeed(ctx, &deed)
+	if err != nil {
+		t.Fatalf("unexpected: %v\n", err)
+	}
+
+	_, err = deedService.DeleteDeed(ctx, deed.ID, dots.DeedDelete{})
+	if err != nil {
+		t.Fatalf("unexpected: %v\n", err)
+	}
+
+	_, n, err := deedService.FindDeed(ctx, dots.DeedFilter{ID: &deed.ID})
+	if err != nil {
+		t.Fatalf("unexpected: %v\n", err)
+	}
+	if n != 0 {
+		t.Fatalf("unexpected length %v\n", n)
+	}
+
+	_, err = deedService.DeleteDeed(ctx, deed.ID, dots.DeedDelete{Resurect: true})
+	if err != nil {
+		t.Fatalf("unexpected: %v\n", err)
+	}
+
+	_, n, err = deedService.FindDeed(ctx, dots.DeedFilter{ID: &deed.ID})
+	if err != nil {
+		t.Fatalf("unexpected: %v\n", err)
+	}
+	if n != 1 {
+		t.Fatalf("unexpected length %v\n", n)
+	}
+
+	_, err = deedService.DeleteDeed(ctx, deed.ID, dots.DeedDelete{Undrain: true})
+	if err != nil {
+		t.Fatalf("unexpected: %v\n", err)
+	}
+
+	_, err = deedService.DeleteDeed(ctx, deed.ID, dots.DeedDelete{Resurect: true, Undrain: true})
+	if err != nil {
+		t.Fatalf("unexpected: %v\n", err)
+	}
+
+	_, err = deedService.DeleteDeed(ctx, deed.ID, dots.DeedDelete{Undrain: false})
+	if err != nil {
+		t.Fatalf("unexpected: %v\n", err)
+	}
 
 }
 
