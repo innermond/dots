@@ -16,7 +16,7 @@ type Deed struct {
 
 	Distribute map[int]float64 `json:"distribute"`
 
-	EntryTypeID        *int             `json:"entry_type_id,omitempty"`
+	EntryTypeID        []int            `json:"entry_type_id,omitempty"`
 	DistributeStrategy *DistributeDrain `json:"distribute_strategy"`
 }
 
@@ -55,7 +55,7 @@ type DeedFilter struct {
 }
 
 type DeedDelete struct {
-  Undrain bool
+	Undrain  bool
 	Resurect bool
 }
 
