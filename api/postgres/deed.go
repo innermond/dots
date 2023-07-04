@@ -202,7 +202,7 @@ func (s *DeedService) DeleteDeed(ctx context.Context, id int, filter dots.DeedDe
 	defer tx.Rollback()
 
 	if canerr := dots.CanDoAnything(ctx); canerr == nil {
-		return deleteDeed(ctx, tx, id, filter.Resurect)
+		return deleteDeed(ctx, tx, id, filter)
 	}
 
 	if canerr := dots.CanDeleteOwn(ctx); canerr != nil {
@@ -218,7 +218,7 @@ func (s *DeedService) DeleteDeed(ctx context.Context, id int, filter dots.DeedDe
 		return 0, err
 	}
 
-	n, err = deleteDeed(ctx, tx, id, filter.Resurect)
+	n, err = deleteDeed(ctx, tx, id, filter)
 
 	tx.Commit()
 
@@ -430,14 +430,14 @@ func findDeed(ctx context.Context, tx *Tx, filter dots.DeedFilter, lockOwnID *ks
 	return deeds, n, nil
 }
 
-func deleteDeed(ctx context.Context, tx *Tx, id int, resurect bool) (n int, err error) {
+func deleteDeed(ctx context.Context, tx *Tx, id int, filter dots.DeedDelete) (n int, err error) {
 	where, args := []string{}, []interface{}{}
 	where, args = append(where, "id = ?"), append(args, id)
 
 	replaceQuestionMark(where, args)
 
 	kind := "date_trunc('minute', now())::timestamptz"
-	if resurect {
+	if filter.Resurect {
 		kind = "null"
 		where = append(where, "deleted_at is not null")
 	} else {
@@ -454,6 +454,13 @@ func deleteDeed(ctx context.Context, tx *Tx, id int, resurect bool) (n int, err 
 	if err != nil {
 		return 0, fmt.Errorf("postgres.deed: cannot soft delete %w", err)
 	}
+
+  if filter.Undrain {
+    err := undrainDrainsOfDeed(ctx, tx, id)
+    if err != nil {
+      return 0, fmt.Errorf("postgres.deed: cannot undrain %w", err)
+    }
+  }
 
 	n64, err := result.RowsAffected()
 	if err != nil {

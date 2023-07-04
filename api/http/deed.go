@@ -102,6 +102,10 @@ func (s *Server) handleDeedDelete(w http.ResponseWriter, r *http.Request) {
 	if _, found := r.URL.Query()["resurect"]; found {
 		filter.Resurect = true
 	}
+	if _, found := r.URL.Query()["undrain"]; found {
+		filter.Undrain = true
+	}
+
 	n, err := s.DeedService.DeleteDeed(r.Context(), id, filter)
 	if err != nil {
 		Error(w, r, err)

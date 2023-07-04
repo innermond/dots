@@ -55,6 +55,7 @@ type DeedFilter struct {
 }
 
 type DeedDelete struct {
+  Undrain bool
 	Resurect bool
 }
 
