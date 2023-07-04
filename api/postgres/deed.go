@@ -500,7 +500,7 @@ where d.id = $1)
 }
 
 // it builds a sql as next:
-/*select json_object_agg(e.id, case when e.id = 54 then e.quantity - ... end) as enough from entry e where e.id = any(array[...]) and e.company_id = ...;*/
+/*select json_object_agg(e.id, case when e.id = 54 then e.quantity - (select sum(case when d.is_deleted = true then -d.quantity else d.quantity end) from drain d where d.entry_id = e.id)... end) as enough from entry e where e.id = any(array[...]) and e.company_id = ...;*/
 func entriesAreOwnedAndEnough(ctx context.Context, tx *Tx, eq map[int]float64, cid int) (map[int]float64, error) {
 
 	var sqlb strings.Builder
