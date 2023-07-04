@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/innermond/dots"
 	"github.com/segmentio/ksuid"
@@ -25,6 +26,11 @@ func (s *EntryService) CreateEntry(ctx context.Context, e *dots.Entry) error {
 		return err
 	}
 	defer tx.Rollback()
+
+	user := dots.UserFromContext(ctx)
+	if user.ID == ksuid.Nil {
+		return dots.Errorf(dots.EUNAUTHORIZED, "unauthorized user")
+	}
 
 	if canerr := dots.CanDoAnything(ctx); canerr == nil {
 		return createEntry(ctx, tx, e)
@@ -147,28 +153,32 @@ func (s *EntryService) DeleteEntry(ctx context.Context, id int, filter dots.Entr
 }
 
 func createEntry(ctx context.Context, tx *Tx, e *dots.Entry) error {
-	user := dots.UserFromContext(ctx)
-	if user.ID == ksuid.Nil {
-		return dots.Errorf(dots.EUNAUTHORIZED, "unauthorized user")
-	}
-
 	if err := e.Validate(); err != nil {
 		return err
 	}
 
-	err := tx.QueryRowContext(
-		ctx,
-		`
+	sqlstr := `
 insert into entry
 (entry_type_id, quantity, company_id, date_added)
 values
-($1, $2, $3, date_trunc('minute', now())::timestamptz) returning id, date_added
-		`,
+($1, $2, $3, date_trunc('minute', now())::timestamptz) returning id, date_added;
+		`
+	var (
+		id         int
+		date_added time.Time
+	)
+	err := tx.QueryRowContext(
+		ctx,
+		sqlstr,
 		e.EntryTypeID, e.Quantity, e.CompanyID,
-	).Scan(&e.ID, &e.DateAdded)
+	).Scan(&id, &date_added)
 	if err != nil {
 		return err
 	}
+
+	// update fields of entry
+	e.ID = id
+	e.DateAdded = date_added
 
 	return nil
 }
@@ -344,18 +354,18 @@ func entriesBelongsToUser(ctx context.Context, tx *Tx, u ksuid.KSUID, ee []int) 
 		return dots.Errorf(dots.EINVALID, "no entries")
 	}
 
-  /*
---- Calculate difference on postgres side but this is not very explicit
-select coalesce(array_agg(wanted), '{}') diff from unnest($2) as wanted where wanted != all(
-select e.id
-from entry e
-where e.company_id = any(select id
-from company c
-where c.tid = $1)
-  and e.id = any($2)
-)*/
+	/*
+		--- Calculate difference on postgres side but this is not very explicit
+		select coalesce(array_agg(wanted), '{}') diff from unnest($2) as wanted where wanted != all(
+		select e.id
+		from entry e
+		where e.company_id = any(select id
+		from company c
+		where c.tid = $1)
+		  and e.id = any($2)
+		)*/
 
-  sqlstr := `select json_agg(e.id) as exists
+	sqlstr := `select json_agg(e.id) as exists
 from entry e
 where e.company_id = any(select id
 from company c
@@ -368,40 +378,40 @@ where c.tid = $1)
 		return err
 	}
 
-  var exists []int
-  if err := json.Unmarshal(bb, &exists); err != nil {
-    return err
-  }
+	var exists []int
+	if err := json.Unmarshal(bb, &exists); err != nil {
+		return err
+	}
 
 	if len(exists) == 0 {
 		return &dots.Error{
-      Code: dots.EUNAUTHORIZED,
-      Message: "foreign entry",
-      Data: map[string]interface{}{"foreign_entries": ee},
-    }
+			Code:    dots.EUNAUTHORIZED,
+			Message: "foreign entry",
+			Data:    map[string]interface{}{"foreign_entries": ee},
+		}
 	}
 
-  if len(exists) != len(ee) {
-    diff := []int{}
-    for _, v1 := range ee {
-      found := false
-      for _, v2 := range exists {
-       if v1 == v2 {
-        found = true
-        break
-       }
-      }
-      if !found {
-       diff = append(diff, v1)
-      }
-    }
+	if len(exists) != len(ee) {
+		diff := []int{}
+		for _, v1 := range ee {
+			found := false
+			for _, v2 := range exists {
+				if v1 == v2 {
+					found = true
+					break
+				}
+			}
+			if !found {
+				diff = append(diff, v1)
+			}
+		}
 
 		return &dots.Error{
-      Code: dots.EUNAUTHORIZED,
-      Message: "foreign entry",
-      Data: map[string]interface{}{"foreign_entries": diff},
-    }
-  }
+			Code:    dots.EUNAUTHORIZED,
+			Message: "foreign entry",
+			Data:    map[string]interface{}{"foreign_entries": diff},
+		}
+	}
 
 	return nil
 }
