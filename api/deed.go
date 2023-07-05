@@ -16,15 +16,15 @@ type Deed struct {
 
 	Distribute map[int]float64 `json:"distribute"`
 
-	EntryTypeID        []int            `json:"entry_type_id,omitempty"`
+	EntryTypeDistribute        map[int]float64            `json:"entry_type_distribute,omitempty"`
 	DistributeStrategy *DistributeDrain `json:"distribute_strategy"`
 }
 
 type DistributeDrain int
 
 const (
-	DistributeFromOldest DistributeDrain = iota
-	DistributeFromNewest
+	DistributeFromNewest DistributeDrain = iota
+	DistributeFromOldest
 	DistributeAsEqual
 )
 

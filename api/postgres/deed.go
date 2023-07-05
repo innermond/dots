@@ -27,6 +27,69 @@ func (s *DeedService) CreateDeed(ctx context.Context, d *dots.Deed) error {
 	}
 	defer tx.Rollback()
 
+  // order for distribute is important
+  // try first automatic distribute
+  if len(d.EntryTypeDistribute) > 0 {
+    etids := []int{}
+    for etid := range d.EntryTypeDistribute{
+      etids = append(etids, etid)
+    }
+    ee, err := entriesOfEntryIDsForCompanyID(ctx, tx, etids, d.CompanyID)
+		if err != nil {
+			return err
+		}
+
+    // create distribute
+    dd := map[int][]map[int]float64{}
+    for _, e := range ee {
+      dd[e.etid] = append(dd[e.etid], map[int]float64{e.eid: e.qty})
+    }
+
+    if len(dd) == 0 {
+			err := &dots.Error{
+				Code:    dots.EINVALID,
+				Message: "empty distribute",
+        Data:    map[string]interface{}{"entrytypes": etids, "company_id": d.CompanyID,},
+			}
+			return err
+    }
+    
+    distribute := map[int]map[int]float64{}
+    for etid, requiredOty := range d.EntryTypeDistribute {
+      idqtyArr, found := dd[etid]
+      if !found {
+        continue
+      }
+      entryOty := map[int]float64{}
+      quantity:
+      for _, idqty := range idqtyArr {
+        for id, qty := range idqty {
+          // enough case
+          if requiredOty <= qty {
+            entryOty[id] = requiredOty
+            break quantity
+          }
+          // not enough need more entries to consume
+          requiredOty -= qty 
+          entryOty[id] = qty
+        }
+      }
+      distribute[etid] = entryOty
+      // hasn't been consumed
+      if requiredOty > 0 {
+        err := &dots.Error{
+          Code:    dots.EINVALID,
+          Message: "not enough quantities",
+          Data:    map[string]interface{}{"entrytypes": etids, "overflow": requiredOty,},
+        }
+        return err
+      }
+    }
+
+    fmt.Println(distribute)
+    return nil
+  }
+
 	// ensures to have something to process
 	if len(d.Distribute) > 0 {
 		// check entries are owned and enough
@@ -555,4 +618,56 @@ func getEntryIDsFromDistribute(ee map[int]float64) []int {
 	}
 
 	return ids
+}
+
+type entryRow struct {
+  eid int
+  etid int
+  qty float64
+} 
+
+func entriesOfEntryIDsForCompanyID(ctx context.Context, tx *Tx, etids []int, cid int) ([]entryRow, error) {
+  sqlstr := `select e.id, e.entry_type_id, e.quantity
+from entry e
+where e.entry_type_id = any(
+		select et.id
+from entry_type et
+where et.id = any($1))
+and
+e.company_id = (
+		select c.id
+from company c
+where c.id = $2 limit 1);`
+
+	rows, err := tx.QueryContext(
+		ctx,
+		sqlstr,
+    etids, cid,
+	)
+	if err == sql.ErrNoRows {
+		return nil, dots.Errorf(dots.ENOTFOUND, "entries of entry not found")
+	}
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var (
+    eid, etid int
+    eqty float64
+    lines []entryRow
+  )
+	for rows.Next() {
+		err := rows.Scan(&eid, &etid, &eqty)
+		if err != nil {
+			return nil, err
+		}
+    line := entryRow{eid, etid, eqty}
+		lines = append(lines, line)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return lines, nil
 }
