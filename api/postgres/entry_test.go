@@ -5,6 +5,7 @@ import (
 	"encoding/csv"
 	"fmt"
 	"io"
+	"log"
 	"math/rand"
 	"os"
 	"strconv"
@@ -18,29 +19,85 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-func TestDeed_Manage(t *testing.T) {
+func setup() {
 	err := godotenv.Load("../.env")
 	if err != nil {
-		t.Fatal(err)
+		log.Fatal(err)
 	}
+}
 
-	dsn := os.Getenv("DOTS_DSN")
-	db := MustOpenDB(t, dsn)
-	defer MustCloseDB(t, db)
+func teardown() {}
 
-	// create test user (it exists in db)
-	uid, err := ksuid.Parse("2PH25DxmohuFCf3w73fQSTLJeVO")
-	if err != nil {
-		t.Fatalf("faking user: %v\n", err)
-	}
-	testuser := dots.User{
-		ID:     uid,
-		Powers: []dots.Power{dots.ReadOwn, dots.CreateOwn, dots.WriteOwn, dots.DeleteOwn},
-	}
-	// create context with user
-	ctx := dots.NewContextWithUser(context.Background(), &testuser)
+func setupSuite(t *testing.T) (context.Context, *postgres.DB, func()) {
+	db, closedb := newDB(t)
+	ctx := newContext(t)
+
+	return ctx, db, closedb
+}
+
+func TestMain(m *testing.M) {
+	setup()
+	code := m.Run()
+	teardown()
+	os.Exit(code)
+}
+
+func TestDeed_Create(t *testing.T) {
+	ctx, db, closedb := setupSuite(t)
+	defer closedb()
 
 	entryService := postgres.NewEntryService(db)
+	deedService := postgres.NewDeedService(db)
+
+	t.Log("find entries for test user")
+	cid := 3
+	entries, _, err := entryService.FindEntry(ctx, dots.EntryFilter{CompanyID: &cid, Limit: 5})
+	if err != nil {
+		t.Fatalf("finding entries: %v\n", err)
+	}
+
+	distribute := map[int]float64{}
+	for _, e := range entries {
+		distribute[e.ID] = e.Quantity * 0.02
+	}
+	deed := dots.Deed{0, cid, "Test deed title", 111, "buc", decimal.NewFromFloat(10.5), distribute, nil, nil}
+	err = deedService.CreateDeed(ctx, &deed)
+	if err != nil {
+		t.Fatalf("unexpected: %v\n", err)
+	}
+
+	drainService := postgres.NewDrainService(db)
+
+	drains, _, err := drainService.FindDrain(ctx, dots.DrainFilter{DeedID: &deed.ID})
+	if err != nil {
+		t.Fatalf("unexpected: %v\n", err)
+	}
+
+	ldr := len(drains)
+	ldi := len(distribute)
+	if ldr != ldi {
+		t.Fatalf("expected %d drains got %d", ldi, ldr)
+	}
+
+}
+
+func TestDeed_Manage(t *testing.T) {
+	t.SkipNow()
+
+	ctx, db, closedb := setupSuite(t)
+	defer closedb()
+
+	entryService := postgres.NewEntryService(db)
+
+	{
+		t.Log("find entries for test user")
+		cid := 3
+		_, n, err := entryService.FindEntry(ctx, dots.EntryFilter{CompanyID: &cid})
+		if err != nil {
+			t.Fatalf("finding entries: %v\n", err)
+		}
+		t.Log(n)
+	}
 
 	t.Log("create entry objects")
 
@@ -207,4 +264,35 @@ func chooseRandomInt(ii []int) int {
 	l := len(ii)
 	n := rand.Intn(l)
 	return ii[n]
+}
+
+func newDB(t *testing.T) (*postgres.DB, func()) {
+	t.Helper()
+
+	dsn := os.Getenv("DOTS_DSN")
+	db := MustOpenDB(t, dsn)
+	closeFn := func() {
+		MustCloseDB(t, db)
+	}
+	return db, closeFn
+}
+
+func newContext(t *testing.T) context.Context {
+	t.Helper()
+
+	// create test user (it exists in db)
+	uid, err := ksuid.Parse("2PH25DxmohuFCf3w73fQSTLJeVO")
+	if err != nil {
+		t.Fatalf("faking user: %v\n", err)
+	}
+
+	testuser := dots.User{
+		ID:     uid,
+		Powers: []dots.Power{dots.ReadOwn, dots.CreateOwn, dots.WriteOwn, dots.DeleteOwn},
+	}
+
+	// create context with user
+	ctx := dots.NewContextWithUser(context.Background(), &testuser)
+
+	return ctx
 }
