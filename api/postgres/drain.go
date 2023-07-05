@@ -2,6 +2,8 @@ package postgres
 
 import (
 	"context"
+	"database/sql"
+	"strings"
 
 	"github.com/innermond/dots"
 )
@@ -48,6 +50,33 @@ func (s *DrainService) CreateOrUpdateDrain(ctx context.Context, d dots.Drain) er
 	tx.Commit()
 
 	return nil
+}
+
+func (s *DrainService) FindDrain(ctx context.Context, filter dots.DrainFilter) ([]*dots.Drain, int, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer tx.Rollback()
+
+	if canerr := dots.CanDoAnything(ctx); canerr == nil {
+		return findDrain(ctx, tx, filter)
+	}
+
+	if canerr := dots.CanReadOwn(ctx); canerr != nil {
+		return nil, 0, canerr
+	}
+
+	uid := dots.UserFromContext(ctx).ID
+	// trying to get companies for a different TID
+	if filter.TID != nil && *filter.TID != uid {
+		// will get empty results and not error
+		return make([]*dots.Drain, 0), 0, nil
+	}
+	// lock search to own
+	filter.TID = &uid
+
+	return findDrain(ctx, tx, filter)
 }
 
 func createOrUpdateDrain(ctx context.Context, tx *Tx, d dots.Drain) error {
@@ -100,4 +129,65 @@ func undrainDrainsOfDeed(ctx context.Context, tx *Tx, id int) error {
 
 	return nil
 
+}
+
+func findDrain(ctx context.Context, tx *Tx, filter dots.DrainFilter) (_ []*dots.Drain, n int, err error) {
+	where, args := []string{}, []interface{}{}
+	if v := filter.DeedID; v != nil {
+		where, args = append(where, "deed_id = ?"), append(args, *v)
+	}
+	if v := filter.EntryID; v != nil {
+		where, args = append(where, "entry_id = ?"), append(args, *v)
+	}
+
+	if v := filter.TID; !v.IsNil() {
+		where = append(where, `d.deed_id = any(select de.id
+from deed de
+where de.id = d.deed_id and de.company_id = any(select c.id
+from company c
+where c.tid = ?))`)
+		args = append(args, *v)
+	}
+
+	replaceQuestionMark(where, args)
+
+	v := filter.IsDeleted
+	if v != nil && *v == true {
+		where = append(where, "deleted_at is not null")
+	} else if v != nil && *v == false {
+		where = append(where, "deleted_at is null")
+	}
+
+	sqlstr := `
+		select d.deed_id, d.entry_id, d.quantity, d.is_deleted, count(*) over() from drain d
+		where ` + strings.Join(where, " and ") + ` ` + formatLimitOffset(filter.Limit, filter.Offset)
+
+	rows, err := tx.QueryContext(
+		ctx,
+		sqlstr,
+		args...,
+	)
+
+	if err == sql.ErrNoRows {
+		return nil, 0, dots.Errorf(dots.ENOTFOUND, "drain not found")
+	}
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	drains := []*dots.Drain{}
+	for rows.Next() {
+		var e dots.Drain
+		err := rows.Scan(&e.DeedID, &e.EntryID, &e.Quantity, &e.IsDeleted, &n)
+		if err != nil {
+			return nil, 0, err
+		}
+		drains = append(drains, &e)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
+
+	return drains, n, nil
 }
