@@ -95,6 +95,9 @@ func (s *DeedService) CreateDeed(ctx context.Context, d *dots.Deed) error {
 		// check entries are owned and enough
 		check, err := entriesAreOwnedAndEnough(ctx, tx, d.Distribute, d.CompanyID)
 		if err != nil {
+      if err == sql.ErrNoRows {
+        return dots.Errorf(dots.ENOTFOUND, "entries owned and enough not found")
+      }
 			return err
 		}
 		// need to check check
@@ -202,6 +205,9 @@ func (s *DeedService) UpdateDeed(ctx context.Context, id int, upd dots.DeedUpdat
 		// check entries are owned and enough
 		check, err := entriesAreOwnedAndEnough(ctx, tx, upd.Distribute, *upd.CompanyID)
 		if err != nil {
+      if err == sql.ErrNoRows {
+        return nil, dots.Errorf(dots.ENOTFOUND, "entries owned and enough not found")
+      }
 			return nil, err
 		}
 		// need to check check
@@ -364,6 +370,13 @@ func updateDeed(ctx context.Context, tx *Tx, id int, upd dots.DeedUpdate) (*dots
 		set, args = append(set, "unitprice = ?"), append(args, *v)
 	}
 	if v := upd.CompanyID; v != nil {
+    if e.CompanyID != *v {
+      // start from fresh
+      err = hardDeleteDrainsOfDeed(ctx, tx, e.ID)
+      if err != nil {
+        return nil, err
+      }
+    }
 		e.CompanyID = *v
 		set, args = append(set, "company_id = ?"), append(args, *v)
 	}
@@ -413,6 +426,11 @@ func updateDeed(ctx context.Context, tx *Tx, id int, upd dots.DeedUpdate) (*dots
 	}
 
 	e.Distribute = upd.Distribute
+
+	err = hardDeleteDrainsOfDeedAlreadyDeleted(ctx, tx, e.ID)
+	if err != nil {
+		return nil, err
+	}
 	return e, nil
 }
 
@@ -598,6 +616,9 @@ func entriesAreOwnedAndEnough(ctx context.Context, tx *Tx, eq map[int]float64, c
 	if err != nil {
 		return nil, err
 	}
+  if bb == nil {
+    return nil, sql.ErrNoRows
+  }
 
 	var check map[int]float64
 	if err := json.Unmarshal(bb, &check); err != nil {
