@@ -27,15 +27,15 @@ func Error(w http.ResponseWriter, r *http.Request, err error) {
 	switch r.Header.Get("Accept") {
 	case "application/json":
 		w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(&errorResponse{Error: message, Data: data})
+		json.NewEncoder(w).Encode(&errorResponse{Error: message, Data: data})
 	default:
 		w.Write([]byte(message))
 	}
 }
 
 type errorResponse struct {
-	Error string `json:"error"`
-  Data map[string]interface{} `json:"data"`
+	Error string                 `json:"error"`
+	Data  map[string]interface{} `json:"data"`
 }
 
 var codes = map[string]int{

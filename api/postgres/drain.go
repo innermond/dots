@@ -132,7 +132,7 @@ func undrainDrainsOfDeed(ctx context.Context, tx *Tx, id int) error {
 }
 
 func hardDeleteDrainsOfDeed(ctx context.Context, tx *Tx, did int) error {
-  sqlstr := `delete from drain d where d.deed_id = $1`
+	sqlstr := `delete from drain d where d.deed_id = $1`
 
 	_, err := tx.ExecContext(ctx, sqlstr, did)
 	if err != nil {
@@ -143,7 +143,7 @@ func hardDeleteDrainsOfDeed(ctx context.Context, tx *Tx, did int) error {
 }
 
 func hardDeleteDrainsOfDeedAlreadyDeleted(ctx context.Context, tx *Tx, did int) error {
-  sqlstr := `delete from drain d where d.deed_id = $1 and d.is_deleted = true`
+	sqlstr := `delete from drain d where d.deed_id = $1 and d.is_deleted = true`
 
 	_, err := tx.ExecContext(ctx, sqlstr, did)
 	if err != nil {
@@ -154,7 +154,7 @@ func hardDeleteDrainsOfDeedAlreadyDeleted(ctx context.Context, tx *Tx, did int) 
 }
 
 func deleteDrainsOfDeedPrevCompany(ctx context.Context, tx *Tx, did, cid int) error {
-  sqlstr := `delete from drain d where d.deed_id = $1 and d.entry_id = any(select e.id from entry e where e.company_id = $2)`
+	sqlstr := `delete from drain d where d.deed_id = $1 and d.entry_id = any(select e.id from entry e where e.company_id = $2)`
 
 	_, err := tx.ExecContext(ctx, sqlstr, did, cid)
 	if err != nil {

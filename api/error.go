@@ -17,8 +17,8 @@ const (
 type Error struct {
 	Code    string
 	Message string
-  Data map[string]interface{}
-	err error
+	Data    map[string]interface{}
+	err     error
 }
 
 func (e *Error) Error() string {
@@ -58,8 +58,8 @@ func ErrorMessage(err error) string {
 }
 
 func ErrorData(err error) map[string]interface{} {
-  errdata := map[string]interface{}{}
-  if err == nil {
+	errdata := map[string]interface{}{}
+	if err == nil {
 		return errdata
 	}
 	var e *Error
