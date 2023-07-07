@@ -34,12 +34,12 @@ func (s *DeedService) CreateDeed(ctx context.Context, d *dots.Deed) error {
 		for etid := range d.EntryTypeDistribute {
 			etids = append(etids, etid)
 		}
-    // this do take into account the coresponding quantities from drain
+		// this do take into account the coresponding quantities from drain
 		ee, err := entriesOfEntryIDsForCompanyID(ctx, tx, etids, d.CompanyID)
 		if err != nil {
 			return err
 		}
-    fmt.Println("entries with quantity synced", ee)
+		fmt.Println("entries with quantity synced", ee)
 
 		// create distribute
 		dd := map[int][]map[int]float64{}
@@ -66,15 +66,15 @@ func (s *DeedService) CreateDeed(ctx context.Context, d *dots.Deed) error {
 		quantity:
 			for _, idqty := range idqtyArr {
 				for id, qty := range idqty {
-          if requiredOty == 0.0 {
-            continue
-          }
+					if requiredOty == 0.0 {
+						continue
+					}
 					// enough case
 					if requiredOty <= qty {
 						entryOty[id] = requiredOty
-            // it is completly consumed
-            // this consuming state will be checked later in code
-            requiredOty = 0
+						// it is completly consumed
+						// this consuming state will be checked later in code
+						requiredOty = 0
 						break quantity
 					}
 					// not enough need more entries to consume
@@ -94,26 +94,26 @@ func (s *DeedService) CreateDeed(ctx context.Context, d *dots.Deed) error {
 			}
 		}
 
-    // found no solution
-    if len(distribute) == 0 {
-				err := &dots.Error{
-					Code:    dots.ENOTFOUND,
-					Message: "not found a solution to distribute by entry types",
-					Data:    map[string]interface{}{"entrytypes": etids},
-				}
-				return err
-    }
+		// found no solution
+		if len(distribute) == 0 {
+			err := &dots.Error{
+				Code:    dots.ENOTFOUND,
+				Message: "not found a solution to distribute by entry types",
+				Data:    map[string]interface{}{"entrytypes": etids},
+			}
+			return err
+		}
 
-    // all seems good
-    // collect all entry quantity for every entry type
-    calculated := map[int]float64{}
-    for _, eidqty := range distribute {
-      for eid, qty := range eidqty {
-        calculated[eid] = qty
-      }
-    }
-    fmt.Println("calculated:", calculated)
-    d.Distribute = calculated
+		// all seems good
+		// collect all entry quantity for every entry type
+		calculated := map[int]float64{}
+		for _, eidqty := range distribute {
+			for eid, qty := range eidqty {
+				calculated[eid] = qty
+			}
+		}
+		fmt.Println("calculated:", calculated)
+		d.Distribute = calculated
 	}
 
 	// ensures to have something to process
