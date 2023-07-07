@@ -39,87 +39,30 @@ func (s *DeedService) CreateDeed(ctx context.Context, d *dots.Deed) error {
 		if err != nil {
 			return err
 		}
-		fmt.Println("entries with quantity synced", ee)
 
 		// create distribute
-		dd := map[int][]map[int]float64{}
+		dd := map[int]map[int]float64{}
 		for _, e := range ee {
-			dd[e.etid] = append(dd[e.etid], map[int]float64{e.eid: e.qty})
-		}
-
-		if len(dd) == 0 {
-			err := &dots.Error{
-				Code:    dots.EINVALID,
-				Message: "empty distribute",
-				Data:    map[string]interface{}{"entrytypes": etids, "company_id": d.CompanyID},
-			}
-			return err
-		}
-
-		distribute := map[int]map[int]float64{}
-		for etid, requiredOty := range d.EntryTypeDistribute {
-			idqtyArr, found := dd[etid]
+			_, found := dd[e.etid]
 			if !found {
-				continue
-			}
-			entryOty := map[int]float64{}
-		quantity:
-			for _, idqty := range idqtyArr {
-				for id, qty := range idqty {
-					if requiredOty == 0.0 {
-						continue
-					}
-					// enough case
-					if requiredOty <= qty {
-						entryOty[id] = requiredOty
-						// it is completly consumed
-						// this consuming state will be checked later in code
-						requiredOty = 0
-						break quantity
-					}
-					// not enough need more entries to consume
-					requiredOty -= qty
-					entryOty[id] = qty
-				}
-			}
-			distribute[etid] = entryOty
-			// hasn't been consumed
-			if requiredOty > 0 {
-				err := &dots.Error{
-					Code:    dots.EINVALID,
-					Message: "not enough quantities",
-					Data:    map[string]interface{}{"entrytypes": etids, "overflow": requiredOty},
-				}
-				return err
+				dd[e.etid] = map[int]float64{e.eid: e.qty}
+			} else {
+				dd[e.etid][e.eid] = e.qty
 			}
 		}
 
-		// found no solution
-		if len(distribute) == 0 {
-			err := &dots.Error{
-				Code:    dots.ENOTFOUND,
-				Message: "not found a solution to distribute by entry types",
-				Data:    map[string]interface{}{"entrytypes": etids},
-			}
+		distribute, err := DistributeFrom(dd, d.EntryTypeDistribute)
+		if err != nil {
 			return err
 		}
-
-		// all seems good
-		// collect all entry quantity for every entry type
-		calculated := map[int]float64{}
-		for _, eidqty := range distribute {
-			for eid, qty := range eidqty {
-				calculated[eid] = qty
-			}
-		}
-		fmt.Println("calculated:", calculated)
-		d.Distribute = calculated
+		d.Distribute = distribute
 	}
 
 	// ensures to have something to process
 	if len(d.Distribute) > 0 {
 		// check entries are owned and enough
-		check, err := entriesAreOwnedAndEnough(ctx, tx, d.Distribute, d.CompanyID)
+		// this doesn't check user ownership over entries
+		check, err := entriesOfCompanyAreEnough(ctx, tx, d.Distribute, d.CompanyID)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				return dots.Errorf(dots.ENOTFOUND, "entries owned and enough not found")
@@ -615,7 +558,7 @@ where d.id = $1)
 
 // it builds a sql as next:
 /*select json_object_agg(e.id, case when e.id = 54 then e.quantity - (select sum(case when d.is_deleted = true then -d.quantity else d.quantity end) from drain d where d.entry_id = e.id)... end) as enough from entry e where e.id = any(array[...]) and e.company_id = ...;*/
-func entriesAreOwnedAndEnough(ctx context.Context, tx *Tx, eq map[int]float64, cid int) (map[int]float64, error) {
+func entriesOfCompanyAreEnough(ctx context.Context, tx *Tx, eq map[int]float64, cid int) (map[int]float64, error) {
 
 	var sqlb strings.Builder
 	sqlb.WriteString("select json_object_agg( e.id, case ")
