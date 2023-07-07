@@ -1,6 +1,8 @@
 package postgres
 
 import (
+	"context"
+	"database/sql"
 	"errors"
 )
 
@@ -10,6 +12,8 @@ var (
 	ErrDistributeCalculation = errors.New("not found a solution")
 )
 
+// TODO this is no longer used as will force calling code to use a map that
+// will alter the order given from database
 func DistributeFrom(dd map[int]map[int]float64, etd map[int]float64) (map[int]float64, error) {
 
 	if len(dd) == 0 {
@@ -63,4 +67,40 @@ func DistributeFrom(dd map[int]map[int]float64, etd map[int]float64) (map[int]fl
 	}
 
 	return calculated, nil
+}
+
+func suggestDistributeOverEntryType(ctx context.Context, tx *Tx, etid int, num float64) (map[int]float64, error) {
+	sqlstr := `
+with entry as (
+ select e.date_added, e.id, e.entry_type_id, (e.quantity - coalesce((select sum(case when d.is_deleted = true then -d.quantity else d.quantity end)
+from drain d
+where d.entry_id = e.id), 0)
+) quantity
+from entry e
+where e.entry_type_id = $1
+order by e.date_added desc  
+), cumulative_sum as (
+  select id, quantity, date_added, SUM(quantity) over (partition by entry_type_id order by date_added desc) as running_sum
+from entry 
+)
+select id, quantity, case
+    when running_sum <= $2 then quantity
+else quantity - (running_sum - $2)
+  end as subtracted_quantity,
+  running_sum
+from cumulative_sum
+where quantity - (running_sum - $2) >= 0
+;
+	`
+
+	var m map[int]float64
+	err := tx.QueryRowContext(ctx, sqlstr, etid, num).Scan(&m)
+	if err != nil {
+		return nil, err
+	}
+	if len(m) == 0 {
+		return nil, sql.ErrNoRows
+	}
+
+	return m, nil
 }

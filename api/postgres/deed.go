@@ -30,32 +30,17 @@ func (s *DeedService) CreateDeed(ctx context.Context, d *dots.Deed) error {
 	// order for distribute is important
 	// try first automatic distribute
 	if len(d.EntryTypeDistribute) > 0 {
-		etids := []int{}
-		for etid := range d.EntryTypeDistribute {
-			etids = append(etids, etid)
-		}
-		// this do take into account the coresponding quantities from drain
-		ee, err := entriesOfEntryIDsForCompanyID(ctx, tx, etids, d.CompanyID)
-		if err != nil {
-			return err
-		}
-
-		// create distribute
-		dd := map[int]map[int]float64{}
-		for _, e := range ee {
-			_, found := dd[e.etid]
-			if !found {
-				dd[e.etid] = map[int]float64{e.eid: e.qty}
-			} else {
-				dd[e.etid][e.eid] = e.qty
+		distributeAll := map[int]float64{}
+		for etid, qty := range d.EntryTypeDistribute {
+			distribute, err := suggestDistributeOverEntryType(ctx, tx, etid, qty)
+			if err != nil {
+				return err
+			}
+			for k, v := range distribute {
+				distributeAll[k] = v
 			}
 		}
-
-		distribute, err := DistributeFrom(dd, d.EntryTypeDistribute)
-		if err != nil {
-			return err
-		}
-		d.Distribute = distribute
+		d.Distribute = distributeAll
 	}
 
 	// ensures to have something to process
@@ -172,7 +157,7 @@ func (s *DeedService) UpdateDeed(ctx context.Context, id int, upd dots.DeedUpdat
 		}
 
 		// check entries are owned and enough
-		check, err := entriesAreOwnedAndEnough(ctx, tx, upd.Distribute, *upd.CompanyID)
+		check, err := entriesOfCompanyAreEnough(ctx, tx, upd.Distribute, *upd.CompanyID)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				return nil, dots.Errorf(dots.ENOTFOUND, "entries owned and enough not found")
@@ -616,7 +601,7 @@ type entryRow struct {
 	qty  float64
 }
 
-func entriesOfEntryIDsForCompanyID(ctx context.Context, tx *Tx, etids []int, cid int) ([]entryRow, error) {
+func entriesOfEntryTypeForCompanyID(ctx context.Context, tx *Tx, etids []int, cid int) ([]entryRow, error) {
 	sqlstr := `with s as (
   select e.id, e.entry_type_id, (e.quantity - coalesce((select sum(case when d.is_deleted = true then -d.quantity else d.quantity end)
 from drain d
@@ -632,6 +617,7 @@ e.company_id = (
 		select c.id
 from company c
 where c.id = $2 limit 1)
+order by e.date_added  DESC
   ) select s.id, s.entry_type_id, s.quantity from s;`
 
 	rows, err := tx.QueryContext(
