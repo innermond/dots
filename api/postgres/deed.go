@@ -34,10 +34,12 @@ func (s *DeedService) CreateDeed(ctx context.Context, d *dots.Deed) error {
 		for etid := range d.EntryTypeDistribute {
 			etids = append(etids, etid)
 		}
+    // this do take into account the coresponding quantities from drain
 		ee, err := entriesOfEntryIDsForCompanyID(ctx, tx, etids, d.CompanyID)
 		if err != nil {
 			return err
 		}
+    fmt.Println("entries with quantity synced", ee)
 
 		// create distribute
 		dd := map[int][]map[int]float64{}
@@ -64,9 +66,15 @@ func (s *DeedService) CreateDeed(ctx context.Context, d *dots.Deed) error {
 		quantity:
 			for _, idqty := range idqtyArr {
 				for id, qty := range idqty {
+          if requiredOty == 0.0 {
+            continue
+          }
 					// enough case
 					if requiredOty <= qty {
 						entryOty[id] = requiredOty
+            // it is completly consumed
+            // this consuming state will be checked later in code
+            requiredOty = 0
 						break quantity
 					}
 					// not enough need more entries to consume
@@ -86,8 +94,26 @@ func (s *DeedService) CreateDeed(ctx context.Context, d *dots.Deed) error {
 			}
 		}
 
-		fmt.Println(distribute)
-		return nil
+    // found no solution
+    if len(distribute) == 0 {
+				err := &dots.Error{
+					Code:    dots.ENOTFOUND,
+					Message: "not found a solution to distribute by entry types",
+					Data:    map[string]interface{}{"entrytypes": etids},
+				}
+				return err
+    }
+
+    // all seems good
+    // collect all entry quantity for every entry type
+    calculated := map[int]float64{}
+    for _, eidqty := range distribute {
+      for eid, qty := range eidqty {
+        calculated[eid] = qty
+      }
+    }
+    fmt.Println("calculated:", calculated)
+    d.Distribute = calculated
 	}
 
 	// ensures to have something to process
@@ -648,7 +674,11 @@ type entryRow struct {
 }
 
 func entriesOfEntryIDsForCompanyID(ctx context.Context, tx *Tx, etids []int, cid int) ([]entryRow, error) {
-	sqlstr := `select e.id, e.entry_type_id, e.quantity
+	sqlstr := `with s as (
+  select e.id, e.entry_type_id, (e.quantity - coalesce((select sum(case when d.is_deleted = true then -d.quantity else d.quantity end)
+from drain d
+where d.entry_id = e.id), 0)
+) quantity
 from entry e
 where e.entry_type_id = any(
 		select et.id
@@ -658,7 +688,8 @@ and
 e.company_id = (
 		select c.id
 from company c
-where c.id = $2 limit 1);`
+where c.id = $2 limit 1)
+  ) select s.id, s.entry_type_id, s.quantity from s;`
 
 	rows, err := tx.QueryContext(
 		ctx,
