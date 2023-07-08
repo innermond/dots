@@ -30,17 +30,35 @@ func (s *DeedService) CreateDeed(ctx context.Context, d *dots.Deed) error {
 	// order for distribute is important
 	// try first automatic distribute
 	if len(d.EntryTypeDistribute) > 0 {
-		distributeAll := map[int]float64{}
-		for etid, qty := range d.EntryTypeDistribute {
-			distribute, err := suggestDistributeOverEntryType(ctx, tx, etid, qty)
-			if err != nil {
-				return err
+    etids := getEntryIDsFromDistribute(d.EntryTypeDistribute)
+    etqty, err := quantityByEntryTypes(ctx, tx, etids)
+    if err != nil {
+      return err
+    }
+
+    notenough := map[int]float64{}
+    for k, wanted := range d.EntryTypeDistribute {
+      if existent, found := etqty[k]; !found {
+				return dots.Errorf(dots.ENOTFOUND, "not found entry type %v", k)
+      } else if wanted > existent {
+        notenough[k] = wanted - existent
+      }
+    }
+
+    if len(notenough) > 0 {
+			err := &dots.Error{
+				Code:    dots.EINVALID,
+				Message: "not enough quantity",
+				Data:    map[string]interface{}{"notenough": notenough},
 			}
-			for k, v := range distribute {
-				distributeAll[k] = v
-			}
-		}
-		d.Distribute = distributeAll
+			return err
+    }
+    // suggestDistributeOverEntryType 
+    distribute, err := suggestDistributeOverEntryType(ctx, tx, d.EntryTypeDistribute)
+    if err != nil {
+      return err
+    }
+		d.Distribute = distribute
 	}
 
 	// ensures to have something to process
