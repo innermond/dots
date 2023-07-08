@@ -71,33 +71,41 @@ func DistributeFrom(dd map[int]map[int]float64, etd map[int]float64) (map[int]fl
 
 func suggestDistributeOverEntryType(ctx context.Context, tx *Tx, etid int, num float64) (map[int]float64, error) {
 	sqlstr := `
-with entry as (
+with entrysync as (
  select e.date_added, e.id, e.entry_type_id, (e.quantity - coalesce((select sum(case when d.is_deleted = true then -d.quantity else d.quantity end)
 from drain d
 where d.entry_id = e.id), 0)
 ) quantity
 from entry e
-where e.entry_type_id = $1
-order by e.date_added desc  
+where e.entry_type_id = $1 and quantity > 0
 ), cumulative_sum as (
-  select id, quantity, date_added, SUM(quantity) over (partition by entry_type_id order by date_added desc) as running_sum
-from entry 
+  select id, quantity, date_added, SUM(quantity) over (order by date_added desc, quantity asc, id) as running_sum
+from entrysync
 )
-select id, quantity, case
+select id, case
     when running_sum <= $2 then quantity
 else quantity - (running_sum - $2)
-  end as subtracted_quantity,
-  running_sum
+  end as subtracted_quantity
 from cumulative_sum
 where quantity - (running_sum - $2) >= 0
-;
 	`
 
-	var m map[int]float64
-	err := tx.QueryRowContext(ctx, sqlstr, etid, num).Scan(&m)
+  m := map[int]float64{}
+	rows, err := tx.QueryContext(ctx, sqlstr, etid, num)
 	if err != nil {
 		return nil, err
 	}
+  for rows.Next() {
+    var (
+      eid int
+      qty float64
+    )
+    err = rows.Scan(&eid, &qty)
+    if err != nil {
+      return nil, err
+    }
+    m[eid] = qty
+  }
 	if len(m) == 0 {
 		return nil, sql.ErrNoRows
 	}
