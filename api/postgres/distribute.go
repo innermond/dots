@@ -195,7 +195,7 @@ where entry_type_id = %d and quantity - (running_sum - %f) >= 0
 		if err != nil {
 			return nil, err
 		}
-		m[eid] = qty
+		m[eid] = aprox(qty, 5)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
