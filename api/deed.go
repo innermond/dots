@@ -20,12 +20,13 @@ type Deed struct {
 	DistributeStrategy  *DistributeDrain `json:"distribute_strategy"`
 }
 
-type DistributeDrain int
+type DistributeDrain string
 
 const (
-	DistributeFromNewest DistributeDrain = iota
-	DistributeFromOldest
-	DistributeAsEqual
+	DistributeNewMany DistributeDrain = "new_many"
+  DistributeNewFew  DistributeDrain = "new_few"
+	DistributeOldMany DistributeDrain = "old_many"
+	DistributeOldFew DistributeDrain = "old_few"
 )
 
 func (d *Deed) Validate() error {

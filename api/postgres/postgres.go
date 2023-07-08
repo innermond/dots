@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -130,4 +131,10 @@ func replaceQuestionMark(where []string, args []interface{}) {
 		// move index
 		args_inx++
 	}
+}
+
+func aprox(v float64, numberDecimals int) float64 {
+  num := math.Pow(10, float64(numberDecimals))
+  rounded := math.Round(v*num)/num
+  return rounded
 }
