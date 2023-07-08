@@ -110,18 +110,18 @@ where e.entry_type_id = any($1)
 }
 
 func suggestDistributeOverEntryType(ctx context.Context, tx *Tx, etqty map[int]float64, strategy string) (map[int]float64, error) {
-  switch strategy {
-    case "new_many":
-      strategy = "date_added desc, quantity desc"
-    case "new_few":
-      strategy = "date_added desc, quantity asc"
-    case "old_many":
-      strategy = "date_added asc, quantity desc"
-    case "old_few":
-      strategy = "date_added asc, quantity asc"
-    default:
-      strategy = "date_added desc, quantity desc"
-  }
+	switch strategy {
+	case "new_many":
+		strategy = "date_added desc, quantity desc"
+	case "new_few":
+		strategy = "date_added desc, quantity asc"
+	case "old_many":
+		strategy = "date_added asc, quantity desc"
+	case "old_few":
+		strategy = "date_added asc, quantity asc"
+	default:
+		strategy = "date_added desc, quantity desc"
+	}
 	// check if have enough quantities?
 	var sqlb strings.Builder
 	sqlb.WriteString(`with entrysync as (
@@ -132,7 +132,7 @@ where d.entry_id = e.id), 0)
 from entry e
 where e.entry_type_id = any($1)
 ), cumulative_sum as (
-  select id, quantity, date_added, entry_type_id, SUM(quantity) over (partition by entry_type_id order by `+strategy+`, id) as running_sum
+  select id, quantity, date_added, entry_type_id, SUM(quantity) over (partition by entry_type_id order by ` + strategy + `, id) as running_sum
 from entrysync where quantity > 0
 )`)
 
@@ -156,7 +156,7 @@ where entry_type_id = %d and quantity - (running_sum - %f) >= 0
 	}
 
 	sqlstr := sqlb.String()
-  fmt.Println(sqlstr)
+	fmt.Println(sqlstr)
 
 	/*sqlstr := `
 	with entrysync as (

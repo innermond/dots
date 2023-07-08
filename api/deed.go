@@ -24,9 +24,9 @@ type DistributeDrain string
 
 const (
 	DistributeNewMany DistributeDrain = "new_many"
-  DistributeNewFew  DistributeDrain = "new_few"
+	DistributeNewFew  DistributeDrain = "new_few"
 	DistributeOldMany DistributeDrain = "old_many"
-	DistributeOldFew DistributeDrain = "old_few"
+	DistributeOldFew  DistributeDrain = "old_few"
 )
 
 func (d *Deed) Validate() error {

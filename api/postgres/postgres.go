@@ -134,7 +134,7 @@ func replaceQuestionMark(where []string, args []interface{}) {
 }
 
 func aprox(v float64, numberDecimals int) float64 {
-  num := math.Pow(10, float64(numberDecimals))
-  rounded := math.Round(v*num)/num
-  return rounded
+	num := math.Pow(10, float64(numberDecimals))
+	rounded := math.Round(v*num) / num
+	return rounded
 }

@@ -54,11 +54,11 @@ func (s *DeedService) CreateDeed(ctx context.Context, d *dots.Deed) error {
 			return err
 		}
 
-    if d.DistributeStrategy == nil {
-      var dnm = dots.DistributeNewMany
-      d.DistributeStrategy = &dnm
-    }
-    distributeStrategy := string(*d.DistributeStrategy)
+		if d.DistributeStrategy == nil {
+			var dnm = dots.DistributeNewMany
+			d.DistributeStrategy = &dnm
+		}
+		distributeStrategy := string(*d.DistributeStrategy)
 
 		distribute, err := suggestDistributeOverEntryType(ctx, tx, d.EntryTypeDistribute, distributeStrategy)
 		if err != nil {
