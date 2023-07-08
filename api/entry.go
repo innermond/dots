@@ -14,6 +14,9 @@ type Entry struct {
 }
 
 func (e *Entry) Validate() error {
+  if e.EntryTypeID <= 0 || int(e.Quantity) <= 0 || e.CompanyID <= 0 {
+		return Errorf(EINVALID, "zero or bellow is not accepted")
+  }
 	return nil
 }
 
