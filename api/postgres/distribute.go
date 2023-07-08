@@ -72,7 +72,7 @@ func DistributeFrom(dd map[int]map[int]float64, etd map[int]float64) (map[int]fl
 }
 
 func quantityByEntryTypes(ctx context.Context, tx *Tx, etids []int) (map[int]float64, error) {
-  sqlstr := `select entry_type_id, sum(quantity) from (
+	sqlstr := `select entry_type_id, sum(quantity) from (
 select e.date_added, e.id, e.entry_type_id, (e.quantity - coalesce((select sum(case when d.is_deleted = true then -d.quantity else d.quantity end)
 from drain d
 where d.entry_id = e.id), 0)
@@ -85,20 +85,20 @@ where e.entry_type_id = any($1)
 	if err != nil {
 		return nil, err
 	}
-  defer rows.Close()
+	defer rows.Close()
 
-  m := map[int]float64{}
-  for rows.Next() {
-    var (
-      eid int
-      qty float64
-    )
-    err = rows.Scan(&eid, &qty)
-    if err != nil {
-      return nil, err
-    }
-    m[eid] = qty
-  }
+	m := map[int]float64{}
+	for rows.Next() {
+		var (
+			eid int
+			qty float64
+		)
+		err = rows.Scan(&eid, &qty)
+		if err != nil {
+			return nil, err
+		}
+		m[eid] = qty
+	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
@@ -106,11 +106,11 @@ where e.entry_type_id = any($1)
 		return nil, sql.ErrNoRows
 	}
 
-  return m, nil
+	return m, nil
 }
 
 func suggestDistributeOverEntryType(ctx context.Context, tx *Tx, etqty map[int]float64) (map[int]float64, error) {
-  // check if have enough quantities?
+	// check if have enough quantities?
 	var sqlb strings.Builder
 	sqlb.WriteString(`with entrysync as (
  select e.date_added, e.id, e.entry_type_id, (e.quantity - coalesce((select sum(case when d.is_deleted = true then -d.quantity else d.quantity end)
@@ -124,13 +124,13 @@ where e.entry_type_id = any($1) and quantity > 0
 from entrysync
 )`)
 
-  etids := []int{}
+	etids := []int{}
 	inx := 0
 
 	for etid, qty := range etqty {
-    if inx > 0 {
-      sqlb.WriteString("union all")
-    }
+		if inx > 0 {
+			sqlb.WriteString("union all")
+		}
 		sqlb.WriteString(fmt.Sprintf(`
 select id, case
   when running_sum <= %f then quantity
@@ -140,31 +140,31 @@ from cumulative_sum
 where entry_type_id = %d and quantity - (running_sum - %f) >= 0
 `, qty, qty, etid, qty))
 		inx++
-    etids = append(etids, etid)
+		etids = append(etids, etid)
 	}
 
-  sqlstr := sqlb.String()
+	sqlstr := sqlb.String()
 
 	/*sqlstr := `
-with entrysync as (
- select e.date_added, e.id, e.entry_type_id, (e.quantity - coalesce((select sum(case when d.is_deleted = true then -d.quantity else d.quantity end)
-from drain d
-where d.entry_id = e.id), 0)
-) quantity
-from entry e
-where e.entry_type_id = $1 and quantity > 0
-), cumulative_sum as (
-  select id, quantity, date_added, SUM(quantity) over (partition by entry_type_id order by date_added desc, quantity asc, id) as running_sum
-from entrysync
-)
-select id, case
-    when running_sum <= $2 then quantity
-else quantity - (running_sum - $2)
-  end as subtracted_quantity
-from cumulative_sum
-where quantity - (running_sum - $2) >= 0
-	`
-*/
+	with entrysync as (
+	 select e.date_added, e.id, e.entry_type_id, (e.quantity - coalesce((select sum(case when d.is_deleted = true then -d.quantity else d.quantity end)
+	from drain d
+	where d.entry_id = e.id), 0)
+	) quantity
+	from entry e
+	where e.entry_type_id = $1 and quantity > 0
+	), cumulative_sum as (
+	  select id, quantity, date_added, SUM(quantity) over (partition by entry_type_id order by date_added desc, quantity asc, id) as running_sum
+	from entrysync
+	)
+	select id, case
+	    when running_sum <= $2 then quantity
+	else quantity - (running_sum - $2)
+	  end as subtracted_quantity
+	from cumulative_sum
+	where quantity - (running_sum - $2) >= 0
+		`
+	*/
 
 	rows, err := tx.QueryContext(ctx, sqlstr, etids)
 	if err != nil {
@@ -172,18 +172,18 @@ where quantity - (running_sum - $2) >= 0
 	}
 	defer rows.Close()
 
-  m := map[int]float64{}
-  for rows.Next() {
-    var (
-      eid int
-      qty float64
-    )
-    err = rows.Scan(&eid, &qty)
-    if err != nil {
-      return nil, err
-    }
-    m[eid] = qty
-  }
+	m := map[int]float64{}
+	for rows.Next() {
+		var (
+			eid int
+			qty float64
+		)
+		err = rows.Scan(&eid, &qty)
+		if err != nil {
+			return nil, err
+		}
+		m[eid] = qty
+	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
