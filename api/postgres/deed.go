@@ -26,6 +26,21 @@ func (s *DeedService) CreateDeed(ctx context.Context, d *dots.Deed) error {
 	}
 	defer tx.Rollback()
 
+	errNotFoundCompany := dots.Errorf(dots.ENOTFOUND, "company not found %v", d.CompanyID)
+
+	if d.CompanyID == 0 {
+		return errNotFoundCompany
+	}
+
+	filterFind := dots.CompanyFilter{ID: &d.CompanyID}
+	_, n, err := findCompany(ctx, tx, filterFind)
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return errNotFoundCompany
+	}
+
 	// try first automatic distribute
 	enoughChecked := false
 	if len(d.EntryTypeDistribute) > 0 {
@@ -48,6 +63,10 @@ func (s *DeedService) CreateDeed(ctx context.Context, d *dots.Deed) error {
 		// this doesn't check user ownership over entries
 		_, err := entriesOfCompanyAreEnough(ctx, tx, d.Distribute, d.CompanyID)
 		if err != nil {
+			if err == sql.ErrNoRows {
+				err0 := dots.Errorf(dots.ENOTFOUND, "entries not found for company %v", d.CompanyID)
+				return err0
+			}
 			return err
 		}
 	}
