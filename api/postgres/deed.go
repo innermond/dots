@@ -523,11 +523,17 @@ func entriesOfCompanyAreEnough(ctx context.Context, tx *Tx, eq map[int]float64, 
 	}
 	if len(belong) != len(eids) {
 		notbelong := []int{}
+	eidfor:
 		for _, eid := range eids {
+			found := false
 			for _, beid := range belong {
-				if beid == eid {
+				if eid != beid {
 					continue
 				}
+				found = true
+				continue eidfor
+			}
+			if !found {
 				notbelong = append(notbelong, eid)
 			}
 		}
