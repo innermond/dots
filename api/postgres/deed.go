@@ -516,8 +516,33 @@ where d.id = $1)
 
 func entriesOfCompanyAreEnough(ctx context.Context, tx *Tx, eq map[int]float64, cid int) (map[int]float64, error) {
 	eids := keysOf(eq)
+
+	belong, err := entriesBelongsToCompany(ctx, tx, eids, cid)
+	if err != nil {
+		return nil, err
+	}
+	if len(belong) != len(eids) {
+		notbelong := []int{}
+		for _, eid := range eids {
+			for _, beid := range belong {
+				if beid == eid {
+					continue
+				}
+				notbelong = append(notbelong, eid)
+			}
+		}
+		errd := dots.Errorf(dots.ENOTFOUND, "some entries do not belong")
+		errd.Data = map[string]interface{}{"entry_id": notbelong, "company_id": cid}
+		return nil, errd
+	}
+
 	eidqty, err := quantityByEntries(ctx, tx, eids, cid)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			errd := dots.Errorf(dots.ENOTFOUND, "entries not found")
+			errd.Data = map[string]interface{}{"entry_id": eids, "company_id": cid}
+			return nil, errd
+		}
 		return nil, err
 	}
 

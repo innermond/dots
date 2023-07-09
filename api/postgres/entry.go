@@ -356,6 +356,34 @@ and e.id = $2);
 	return nil
 }
 
+func entriesBelongsToCompany(ctx context.Context, tx *Tx, eids []int, cid int) ([]int, error) {
+	sqlstr := `select e.id from entry e where e.id = any($1) and e.company_id = $2`
+
+	rows, err := tx.QueryContext(ctx, sqlstr, eids, cid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	ee := []int{}
+	for rows.Next() {
+		var eid int
+		err = rows.Scan(&eid)
+		if err != nil {
+			return nil, err
+		}
+		ee = append(ee, eid)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if len(ee) == 0 {
+		return nil, sql.ErrNoRows
+	}
+
+	return ee, nil
+}
+
 func entriesBelongsToUser(ctx context.Context, tx *Tx, u ksuid.KSUID, ee []int) error {
 	if len(ee) == 0 {
 		return dots.Errorf(dots.EINVALID, "no entries")
