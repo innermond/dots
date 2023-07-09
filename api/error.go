@@ -17,7 +17,7 @@ const (
 type Error struct {
 	Code    string
 	Message string
-	Data    map[string]interface{} `json:",omitempty"`
+	Data    map[string]interface{}
 	err     error
 }
 
