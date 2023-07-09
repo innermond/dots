@@ -3,7 +3,6 @@ package postgres
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -27,71 +26,28 @@ func (s *DeedService) CreateDeed(ctx context.Context, d *dots.Deed) error {
 	}
 	defer tx.Rollback()
 
-	// order for distribute is important
 	// try first automatic distribute
+	enoughChecked := false
 	if len(d.EntryTypeDistribute) > 0 {
-		etids := getEntryIDsFromDistribute(d.EntryTypeDistribute)
-		etqty, err := quantityByEntryTypes(ctx, tx, etids)
-		if err != nil {
-			return err
+		strategy := ""
+		if d.DistributeStrategy != nil {
+			strategy = string(*d.DistributeStrategy)
 		}
 
-		notenough := map[int]float64{}
-		for k, wanted := range d.EntryTypeDistribute {
-			if existent, found := etqty[k]; !found {
-				return dots.Errorf(dots.ENOTFOUND, "not found entry type %v", k)
-			} else if wanted > existent {
-				notenough[k] = wanted - existent
-			}
-		}
-
-		if len(notenough) > 0 {
-			err := &dots.Error{
-				Code:    dots.EINVALID,
-				Message: "not enough quantity",
-				Data:    map[string]interface{}{"notenough": notenough},
-			}
-			return err
-		}
-
-		if d.DistributeStrategy == nil {
-			var dnm = dots.DistributeNewMany
-			d.DistributeStrategy = &dnm
-		}
-		distributeStrategy := string(*d.DistributeStrategy)
-
-		distribute, err := suggestDistributeOverEntryType(ctx, tx, d.EntryTypeDistribute, distributeStrategy)
+		distribute, err := tryDistributeOverEntryType(ctx, tx, d.EntryTypeDistribute, d.CompanyID, strategy)
 		if err != nil {
 			return err
 		}
 		d.Distribute = distribute
+		enoughChecked = true
 	}
 
 	// ensures to have something to process
-	if len(d.Distribute) > 0 {
+	if len(d.Distribute) > 0 && !enoughChecked {
 		// check entries are owned and enough
 		// this doesn't check user ownership over entries
-		check, err := entriesOfCompanyAreEnough(ctx, tx, d.Distribute, d.CompanyID)
+		_, err := entriesOfCompanyAreEnough(ctx, tx, d.Distribute, d.CompanyID)
 		if err != nil {
-			if err == sql.ErrNoRows {
-				return dots.Errorf(dots.ENOTFOUND, "entries owned and enough not found")
-			}
-			return err
-		}
-		// need to check check
-		notenough := map[int]float64{}
-		for eid, diff := range check {
-			if diff < 0 {
-				notenough[eid] = diff
-			}
-		}
-		// not enough
-		if len(notenough) > 0 {
-			err := &dots.Error{
-				Code:    dots.ECONFLICT,
-				Message: "not enough entries",
-				Data:    map[string]interface{}{"notenough": notenough, "company_id": d.CompanyID},
-			}
 			return err
 		}
 	}
@@ -110,15 +66,8 @@ func (s *DeedService) CreateDeed(ctx context.Context, d *dots.Deed) error {
 		return err
 	}
 
-	if d.Distribute != nil {
-		ee := getEntryIDsFromDistribute(d.Distribute)
-		if len(ee) == 0 {
-			err := &dots.Error{
-				Code:    dots.EINVALID,
-				Message: "entries not specified",
-			}
-			return err
-		}
+	if len(d.Distribute) > 0 {
+		ee := keysOf(d.Distribute)
 		// need deed ID and entry ID that belong to companies of user
 		err = entriesBelongsToUser(ctx, tx, uid, ee)
 		if err != nil {
@@ -565,53 +514,37 @@ where d.id = $1)
 	return &uid
 }
 
-// it builds a sql as next:
-/*select json_object_agg(e.id, case when e.id = 54 then e.quantity - (select sum(case when d.is_deleted = true then -d.quantity else d.quantity end) from drain d where d.entry_id = e.id)... end) as enough from entry e where e.id = any(array[...]) and e.company_id = ...;*/
 func entriesOfCompanyAreEnough(ctx context.Context, tx *Tx, eq map[int]float64, cid int) (map[int]float64, error) {
-
-	var sqlb strings.Builder
-	sqlb.WriteString("select json_object_agg( e.id, case ")
-	ee := []interface{}{}
-	placeholders := []string{}
-	inx := 1
-
-	for eid, quantity := range eq {
-		sqlb.WriteString(fmt.Sprintf("when e.id = %d then (e.quantity - (select sum(case when d.is_deleted = true then -d.quantity else d.quantity end) from drain d where d.entry_id = e.id))  - %v ", eid, quantity))
-		ee = append(ee, eid)
-
-		placeholders = append(placeholders, fmt.Sprintf("$%d", inx))
-		inx++
-	}
-
-	arr := strings.Join(placeholders, ", ")
-	where := fmt.Sprintf(" end) as enough from entry e where e.id in (%s) and e.company_id = %d;", arr, cid)
-	sqlb.WriteString(where)
-	sqlstr := sqlb.String()
-
-	// get byte representation of a json {int: flaot}
-	var bb []byte
-	err := tx.QueryRowContext(ctx, sqlstr, ee...).Scan(&bb)
+	eids := keysOf(eq)
+	eidqty, err := quantityByEntries(ctx, tx, eids, cid)
 	if err != nil {
 		return nil, err
 	}
-	if bb == nil {
-		return nil, sql.ErrNoRows
+
+	notenough := map[int]float64{}
+	for k, wanted := range eidqty {
+		if existent, found := eidqty[k]; !found {
+			return nil, dots.Errorf(dots.ENOTFOUND, "not found entry %v", k)
+		} else if wanted > existent {
+			notenough[k] = wanted - existent
+		}
 	}
 
-	var check map[int]float64
-	if err := json.Unmarshal(bb, &check); err != nil {
+	if len(notenough) > 0 {
+		err := dots.Errorf(dots.EINVALID, "not enough quantity")
+		err.Data = map[string]interface{}{"notenough": notenough}
 		return nil, err
 	}
 
-	return check, nil
+	return eidqty, nil
 }
 
-func getEntryIDsFromDistribute(ee map[int]float64) []int {
+func keysOf[K, V comparable](ee map[K]V) []K {
 	if len(ee) == 0 {
-		return []int{}
+		return []K{}
 	}
 
-	ids := []int{}
+	ids := []K{}
 	for id := range ee {
 		ids = append(ids, id)
 	}

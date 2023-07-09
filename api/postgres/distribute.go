@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+
+	"github.com/innermond/dots"
 )
 
 var (
@@ -71,17 +73,17 @@ func DistributeFrom(dd map[int]map[int]float64, etd map[int]float64) (map[int]fl
 	return calculated, nil
 }
 
-func quantityByEntryTypes(ctx context.Context, tx *Tx, etids []int) (map[int]float64, error) {
+func quantityByEntryTypes(ctx context.Context, tx *Tx, etids []int, cid int) (map[int]float64, error) {
 	sqlstr := `select entry_type_id, sum(quantity) from (
 select e.date_added, e.id, e.entry_type_id, (e.quantity - coalesce((select sum(case when d.is_deleted = true then -d.quantity else d.quantity end)
 from drain d
 where d.entry_id = e.id), 0)
 ) quantity
 from entry e
-where e.entry_type_id = any($1)
+where e.entry_type_id = any($1) and e.company_id = $2
 ) entrysync group by entry_type_id`
 
-	rows, err := tx.QueryContext(ctx, sqlstr, etids)
+	rows, err := tx.QueryContext(ctx, sqlstr, etids, cid)
 	if err != nil {
 		return nil, err
 	}
@@ -109,7 +111,45 @@ where e.entry_type_id = any($1)
 	return m, nil
 }
 
-func suggestDistributeOverEntryType(ctx context.Context, tx *Tx, etqty map[int]float64, strategy string) (map[int]float64, error) {
+func quantityByEntries(ctx context.Context, tx *Tx, eids []int, cid int) (map[int]float64, error) {
+	sqlstr := `select e.id, sum(e.quantity - coalesce((select sum(case when d.is_deleted = true then -d.quantity else d.quantity end)
+from drain d
+where d.entry_id = e.id), 0)
+) quantity
+from entry e
+where e.id = any($1) and e.company_id = $2
+group by e.id
+`
+
+	rows, err := tx.QueryContext(ctx, sqlstr, eids, cid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	m := map[int]float64{}
+	for rows.Next() {
+		var (
+			eid int
+			qty float64
+		)
+		err = rows.Scan(&eid, &qty)
+		if err != nil {
+			return nil, err
+		}
+		m[eid] = qty
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if len(m) == 0 {
+		return nil, sql.ErrNoRows
+	}
+
+	return m, nil
+}
+
+func distributeOverEntryType(ctx context.Context, tx *Tx, etqty map[int]float64, cid int, strategy string) (map[int]float64, error) {
 	switch strategy {
 	case "new_many":
 		strategy = "date_added desc, quantity desc"
@@ -130,7 +170,7 @@ from drain d
 where d.entry_id = e.id), 0)
 ) quantity
 from entry e
-where e.entry_type_id = any($1)
+where e.entry_type_id = any($1) and e.company_id = $2
 ), cumulative_sum as (
   select id, quantity, date_added, entry_type_id, SUM(quantity) over (partition by entry_type_id order by ` + strategy + `, id) as running_sum
 from entrysync where quantity > 0
@@ -158,28 +198,7 @@ where entry_type_id = %d and quantity - (running_sum - %f) >= 0
 	sqlstr := sqlb.String()
 	fmt.Println(sqlstr)
 
-	/*sqlstr := `
-	with entrysync as (
-	 select e.date_added, e.id, e.entry_type_id, (e.quantity - coalesce((select sum(case when d.is_deleted = true then -d.quantity else d.quantity end)
-	from drain d
-	where d.entry_id = e.id), 0)
-	) quantity
-	from entry e
-	where e.entry_type_id = $1 and quantity > 0
-	), cumulative_sum as (
-	  select id, quantity, date_added, SUM(quantity) over (partition by entry_type_id order by date_added desc, quantity asc, id) as running_sum
-	from entrysync
-	)
-	select id, case
-	    when running_sum <= $2 then quantity
-	else quantity - (running_sum - $2)
-	  end as subtracted_quantity
-	from cumulative_sum
-	where quantity - (running_sum - $2) >= 0
-		`
-	*/
-
-	rows, err := tx.QueryContext(ctx, sqlstr, etids)
+	rows, err := tx.QueryContext(ctx, sqlstr, etids, cid)
 	if err != nil {
 		return nil, err
 	}
@@ -205,4 +224,34 @@ where entry_type_id = %d and quantity - (running_sum - %f) >= 0
 	}
 
 	return m, nil
+}
+
+func tryDistributeOverEntryType(ctx context.Context, tx *Tx, etqty map[int]float64, cid int, strategy string) (map[int]float64, error) {
+	etids := keysOf(etqty)
+	etqty, err := quantityByEntryTypes(ctx, tx, etids, cid)
+	if err != nil {
+		return nil, err
+	}
+
+	notenough := map[int]float64{}
+	for k, wanted := range etqty {
+		if existent, found := etqty[k]; !found {
+			return nil, dots.Errorf(dots.ENOTFOUND, "not found entry type %v", k)
+		} else if wanted > existent {
+			notenough[k] = wanted - existent
+		}
+	}
+
+	if len(notenough) > 0 {
+		err := dots.Errorf(dots.EINVALID, "not enough quantity")
+		err.Data = map[string]interface{}{"notenough": notenough}
+		return nil, err
+	}
+
+	distribute, err := distributeOverEntryType(ctx, tx, etqty, cid, strategy)
+	if err != nil {
+		return nil, err
+	}
+
+	return distribute, nil
 }
