@@ -22,7 +22,15 @@ var ServerGitHash = "not set"
 func main() {
 	var printVersion bool
 	flag.BoolVar(&printVersion, "version", false, "print server version")
+
+	var superUser bool
+	flag.BoolVar(&superUser, "superuser", false, "connect to db as supersuer")
+
 	flag.Parse()
+
+	if superUser {
+		fmt.Println("server started with db superuser")
+	}
 
 	if printVersion {
 		fmt.Printf("server version: %s\n", ServerGitHash)
@@ -58,6 +66,9 @@ func main() {
 	}
 
 	dsn := os.Getenv("DOTS_DSN")
+	if superUser {
+		dsn = os.Getenv("DOTS_DSN_SUPERUSER")
+	}
 	db := postgres.NewDB(dsn)
 	if err := db.Open(); err != nil {
 		panic(fmt.Errorf("cannot open database: %w", err))
@@ -73,6 +84,7 @@ func main() {
 	server.ClientID = clientId
 	server.ClientSecret = clientSecret
 
+	tenentService := postgres.NewTenentService(db)
 	authService := postgres.NewAuthService(db)
 	userService := postgres.NewUserService(db)
 	tokenService := postgres.NewTokenService(db, tokenSecret, tokenPrefix, tokenTTL, userService)
@@ -83,6 +95,7 @@ func main() {
 	companyService := postgres.NewCompanyService(db)
 	deedService := postgres.NewDeedService(db)
 
+	server.TenentService = tenentService
 	server.UserService = userService
 	server.AuthService = authService
 	server.TokenService = tokenService

@@ -27,6 +27,8 @@ type Server struct {
 	ClientID     string
 	ClientSecret string
 
+	TenentService dots.TenentService
+
 	UserService  dots.UserService
 	AuthService  dots.AuthService
 	TokenService dots.TokenService
@@ -233,8 +235,14 @@ func (s *Server) authenticate(next http.Handler) http.Handler {
 
 func (s *Server) yesAuthenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		u := dots.UserFromContext(r.Context())
+		ctx := r.Context()
+		u := dots.UserFromContext(ctx)
 		if u.ID != ksuid.Nil {
+			err := s.TenentService.Set(ctx)
+			fmt.Println("tenent:", err)
+			if err != nil {
+				return
+			}
 			next.ServeHTTP(w, r)
 			return
 		}
