@@ -11,6 +11,7 @@ import (
 
 	"github.com/innermond/dots"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/segmentio/ksuid"
 )
 
 type DB struct {
@@ -93,6 +94,32 @@ func (tx *Tx) RollbackOrCommit(err error) {
 	default:
 		tx.Rollback()
 	}
+}
+
+func (tx *Tx) getUserIDSetting(ctx context.Context) (*ksuid.KSUID, error) {
+	sqlstr := `select nullif(current_setting('app.uid', true), '')::ksuid;`
+	var uidSetting *ksuid.KSUID
+	err := tx.QueryRowContext(ctx, sqlstr).Scan(&uidSetting)
+	if err != nil {
+		return nil, err
+	}
+	if uidSetting == nil {
+		return nil, errors.New("app.uid setting not found")
+	}
+	return uidSetting, nil
+}
+
+func (tx *Tx) setUserIDPerConnection(ctx context.Context) error {
+	u := dots.UserFromContext(ctx)
+	if u.ID.IsNil() {
+		return errors.New("user expected to be found")
+	}
+	_, err := tx.ExecContext(ctx, "SELECT set_config('app.uid', $1::ksuid, false)", u.ID)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("set uid per connection %v\n:", u.ID.String())
+	return nil
 }
 
 func (db *DB) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) {

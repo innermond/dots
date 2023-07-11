@@ -295,7 +295,11 @@ func updateCompany(ctx context.Context, tx *Tx, id int, updata dots.CompanyUpdat
 		ct.RN = *v
 		set, args = append(set, "rn = ?"), append(args, *v)
 	}
-	replaceQuestionMark(set, args)
+
+	for inx, v := range set {
+		v = strings.Replace(v, "?", fmt.Sprintf("$%d", inx+1), 1)
+		set[inx] = v
+	}
 	args = append(args, id)
 
 	sqlstr := `
@@ -312,7 +316,7 @@ func updateCompany(ctx context.Context, tx *Tx, id int, updata dots.CompanyUpdat
 }
 
 func deleteCompany(ctx context.Context, tx *Tx, id int, resurect bool) (n int, err error) {
-	where, args := []string{}, []interface{}{}
+	where, args := []string{"1 = 1"}, []interface{}{}
 	where, args = append(where, "c.id = ?"), append(args, id)
 	replaceQuestionMark(where, args)
 
@@ -357,7 +361,7 @@ func deleteCompany(ctx context.Context, tx *Tx, id int, resurect bool) (n int, e
 }
 
 func deleteCompanyPermanently(ctx context.Context, tx *Tx, id int) (n int, err error) {
-	where, args := []string{}, []interface{}{}
+	where, args := []string{"1 = 1"}, []interface{}{}
 	where, args = append(where, "c.id = ?"), append(args, id)
 	replaceQuestionMark(where, args)
 
@@ -400,6 +404,7 @@ from company c
 where c.id = $1 and c.tid = $2
 );
 `
+	fmt.Println(sqlstr)
 	var exists bool
 	err := tx.QueryRowContext(ctx, sqlstr, companyID, u).Scan(&exists)
 	if err != nil {
