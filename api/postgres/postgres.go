@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/innermond/dots"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/segmentio/ksuid"
 )
@@ -32,32 +31,6 @@ func NewDB(dsn string) *DB {
 	db.ctx, db.cancel = context.WithCancel(context.Background())
 
 	return db
-}
-
-func (db *DB) setUserIDPerConnection(ctx context.Context) error {
-	u := dots.UserFromContext(ctx)
-	if u.ID.IsNil() {
-		return errors.New("user expected to be found")
-	}
-	_, err := db.db.ExecContext(ctx, "SELECT set_config('app.uid', $1, false)", u.ID.String())
-	if err != nil {
-		return err
-	}
-	fmt.Printf("set uid per connection %v\n:", u.ID.String())
-	return nil
-}
-
-func (db *DB) getUserIDSetting(ctx context.Context) (string, error) {
-	sqlstr := `select nullif(current_setting('app.uid', true), '')::text;`
-	var uidSetting *string
-	err := db.db.QueryRowContext(ctx, sqlstr).Scan(&uidSetting)
-	if err != nil {
-		return "", err
-	}
-	if uidSetting == nil {
-		return "", errors.New("app.uid setting not found")
-	}
-	return *uidSetting, nil
 }
 
 func (db *DB) Open() (err error) {

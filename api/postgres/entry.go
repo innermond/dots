@@ -27,12 +27,6 @@ func (s *EntryService) CreateEntry(ctx context.Context, e *dots.Entry) error {
 	}
 	defer tx.Rollback()
 
-	uidSetting, err := s.db.getUserIDSetting(ctx)
-	if err != nil {
-		return err
-	}
-	fmt.Println(uidSetting)
-
 	user := dots.UserFromContext(ctx)
 	if user.ID == ksuid.Nil {
 		return dots.Errorf(dots.EUNAUTHORIZED, "unauthorized user")
