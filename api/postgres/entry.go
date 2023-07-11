@@ -64,6 +64,10 @@ func (s *EntryService) FindEntry(ctx context.Context, filter dots.EntryFilter) (
 	}
 	defer tx.Rollback()
 
+	if err := tx.setUserIDPerConnection(ctx); err != nil {
+		return nil, 0, err
+	}
+
 	if canerr := dots.CanDoAnything(ctx); canerr == nil {
 		return findEntry(ctx, tx, filter)
 	}
@@ -77,10 +81,18 @@ func (s *EntryService) FindEntry(ctx context.Context, filter dots.EntryFilter) (
 		return nil, 0, dots.Errorf(dots.EINVALID, "missing company")
 	}
 
-	uid := dots.UserFromContext(ctx).ID
-	err = companyBelongsToUser(ctx, tx, uid, *filter.CompanyID)
-	if err != nil {
+	/*	uid := dots.UserFromContext(ctx).ID
+		err = companyBelongsToUser(ctx, tx, uid, *filter.CompanyID)
+		if err != nil {
+			return nil, 0, err
+		}
+	*/
+
+	if us, err := tx.getUserIDSetting(ctx); err != nil {
+		fmt.Println("tenent id")
 		return nil, 0, err
+	} else {
+		fmt.Println(us)
 	}
 
 	return findEntry(ctx, tx, filter)
@@ -227,6 +239,12 @@ func updateEntry(ctx context.Context, tx *Tx, id int, updata dots.EntryUpdate) (
 }
 
 func findEntry(ctx context.Context, tx *Tx, filter dots.EntryFilter) (_ []*dots.Entry, n int, err error) {
+	if us, err := tx.getUserIDSetting(ctx); err != nil {
+		return nil, 0, err
+	} else {
+		fmt.Println(us)
+	}
+
 	where, args := []string{}, []interface{}{}
 	if v := filter.ID; v != nil {
 		where, args = append(where, "id = ?"), append(args, *v)
@@ -271,6 +289,7 @@ func findEntry(ctx context.Context, tx *Tx, filter dots.EntryFilter) (_ []*dots.
 		sqlstr,
 		args...,
 	)
+
 	if err == sql.ErrNoRows {
 		return nil, 0, dots.Errorf(dots.ENOTFOUND, "entry not found")
 	}
