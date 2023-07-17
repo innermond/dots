@@ -75,6 +75,10 @@ func (s *CompanyService) FindCompany(ctx context.Context, filter dots.CompanyFil
 	}
 	defer tx.Rollback()
 
+	if err := tx.setUserIDPerConnection(ctx); err != nil {
+		return nil, 0, err
+	}
+
 	if canerr := dots.CanDoAnything(ctx); canerr == nil {
 		return findCompany(ctx, tx, filter)
 	}
@@ -82,15 +86,6 @@ func (s *CompanyService) FindCompany(ctx context.Context, filter dots.CompanyFil
 	if canerr := dots.CanReadOwn(ctx); canerr != nil {
 		return nil, 0, canerr
 	}
-
-	uid := dots.UserFromContext(ctx).ID
-	// trying to get companies for a different TID
-	if filter.TID != nil && *filter.TID != uid {
-		// will get empty results and not error
-		return make([]*dots.Company, 0), 0, nil
-	}
-	// lock search to own
-	filter.TID = &uid
 
 	return findCompany(ctx, tx, filter)
 }
@@ -214,6 +209,8 @@ func findCompany(ctx context.Context, tx *Tx, filter dots.CompanyFilter) (_ []*d
 	if v != nil && *v == true {
 		where = append(where, "deleted_at is not null")
 	} else if v != nil && *v == false {
+		where = append(where, "deleted_at is null")
+	} else if v == nil {
 		where = append(where, "deleted_at is null")
 	}
 

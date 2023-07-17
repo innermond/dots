@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/innermond/dots"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/segmentio/ksuid"
 )
