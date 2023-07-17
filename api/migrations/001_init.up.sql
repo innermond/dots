@@ -1,26 +1,28 @@
-DROP TABLE IF EXISTS public.auth CASCADE;
+set search_path to api;
 
-DROP TABLE IF EXISTS public.company CASCADE;
+DROP TABLE IF EXISTS api.auth CASCADE;
 
-DROP TABLE IF EXISTS public.deed CASCADE;
+DROP TABLE IF EXISTS api.company CASCADE;
 
-DROP TABLE IF EXISTS public.drain CASCADE;
+DROP TABLE IF EXISTS api.deed CASCADE;
 
-DROP TABLE IF EXISTS public.entry CASCADE;
+DROP TABLE IF EXISTS api.drain CASCADE;
 
-DROP TABLE IF EXISTS public.entry_type CASCADE;
+DROP TABLE IF EXISTS api.entry CASCADE;
 
-DROP TABLE IF EXISTS public.package CASCADE;
+DROP TABLE IF EXISTS api.entry_type CASCADE;
 
-DROP TABLE IF EXISTS public."user" CASCADE;
+DROP TABLE IF EXISTS api.package CASCADE;
 
-DROP TABLE IF EXISTS public.user_restriction CASCADE;
+DROP TABLE IF EXISTS api."user" CASCADE;
 
-DROP DOMAIN IF EXISTS public.KSUID;
+DROP TABLE IF EXISTS api.user_restriction CASCADE;
 
-CREATE DOMAIN KSUID CHARACTER VARYING(27);
+DROP DOMAIN IF EXISTS api.KSUID;
 
-CREATE OR REPLACE FUNCTION public.ksuid()
+CREATE DOMAIN api.KSUID CHARACTER VARYING(27);
+
+CREATE OR REPLACE FUNCTION api.ksuid()
  RETURNS text
  LANGUAGE plpgsql
 AS $function$
@@ -66,7 +68,7 @@ begin
 end $function$
 ;
 
-CREATE OR REPLACE FUNCTION public.update_drain_is_deleted()
+CREATE OR REPLACE FUNCTION api.update_drain_is_deleted()
  RETURNS trigger
  LANGUAGE plpgsql
 AS $function$
@@ -84,7 +86,7 @@ $function$
 ;
 
 
--- public.package definition
+-- api.package definition
 
 -- Drop table
 
@@ -104,14 +106,14 @@ CREATE TABLE IF NOT EXISTS package (
 );
 
 
--- public."user" definition
+-- api."user" definition
 
 -- Drop table
 
 -- DROP TABLE IF EXISTS "user";
 
 CREATE TABLE IF NOT EXISTS "user" (
-	id public.KSUID NOT NULL DEFAULT ksuid(),
+	id api.KSUID NOT NULL DEFAULT api.ksuid(),
 	"name" text NOT NULL,
 	created_at timestamptz NOT NULL DEFAULT now(),
 	updated_at timestamptz NULL,
@@ -126,14 +128,14 @@ CREATE TABLE IF NOT EXISTS "user" (
 );
 
 
--- public.user_restriction definition
+-- api.user_restriction definition
 
 -- Drop table
 
 -- DROP TABLE IF EXISTS user_restriction;
 
 CREATE TABLE IF NOT EXISTS user_restriction (
-	user_id public.KSUID NOT NULL,
+	user_id api.KSUID NOT NULL,
 	company int2 NULL,
 	deed int4 NULL,
 	drain int8 NULL,
@@ -145,7 +147,7 @@ CREATE TABLE IF NOT EXISTS user_restriction (
 );
 
 
--- public.auth definition
+-- api.auth definition
 
 -- Drop table
 
@@ -153,7 +155,7 @@ CREATE TABLE IF NOT EXISTS user_restriction (
 
 CREATE TABLE IF NOT EXISTS auth (
 	id int4 NOT NULL GENERATED ALWAYS AS IDENTITY,
-	user_id public.KSUID NOT NULL,
+	user_id api.KSUID NOT NULL,
 	"source" text NOT NULL,
 	source_id text NOT NULL,
 	access_token text NOT NULL,
@@ -168,7 +170,7 @@ CREATE TABLE IF NOT EXISTS auth (
 );
 
 
--- public.company definition
+-- api.company definition
 
 -- Drop table
 
@@ -176,7 +178,7 @@ CREATE TABLE IF NOT EXISTS auth (
 
 CREATE TABLE IF NOT EXISTS company (
 	id int4 NOT NULL GENERATED ALWAYS AS IDENTITY,
-	tid public.KSUID NOT NULL,
+	tid api.KSUID NOT NULL,
 	longname varchar NOT NULL,
 	tin varchar NOT NULL,
 	rn varchar NOT NULL,
@@ -187,7 +189,7 @@ CREATE TABLE IF NOT EXISTS company (
 );
 
 
--- public.deed definition
+-- api.deed definition
 
 -- Drop table
 
@@ -208,12 +210,12 @@ CREATE TABLE IF NOT EXISTS deed (
 -- Table Triggers
 
 create trigger update_drain_is_deleted_trigger after update on
-public.deed for each row
+api.deed for each row
 when ((old.deleted_at is distinct
 from new.deleted_at)) execute function update_drain_is_deleted();
 
 
--- public.entry_type definition
+-- api.entry_type definition
 
 -- Drop table
 
@@ -224,7 +226,7 @@ CREATE TABLE IF NOT EXISTS entry_type (
 	code varchar NOT NULL,
 	description text NULL,
 	unit varchar NOT NULL,
-	tid public.KSUID NOT NULL,
+	tid api.KSUID NOT NULL,
 	deleted_at timestamptz NULL,
 	CONSTRAINT entry_type_code_check CHECK ((length((code)::text) > 0)),
 	CONSTRAINT entry_type_code_tid_key UNIQUE (code, tid),
@@ -233,7 +235,7 @@ CREATE TABLE IF NOT EXISTS entry_type (
 );
 
 
--- public.entry definition
+-- api.entry definition
 
 -- Drop table
 
@@ -252,7 +254,7 @@ CREATE TABLE IF NOT EXISTS entry (
 );
 
 
--- public.drain definition
+-- api.drain definition
 
 -- Drop table
 
