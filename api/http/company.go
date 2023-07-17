@@ -84,7 +84,11 @@ func (s *Server) handleCompanyFind(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	outputJSON(w, r, http.StatusFound, &findCompanyResponse{Companys: ee, N: n})
+	status := http.StatusFound
+	if n == 0 {
+		status = http.StatusNotFound
+	}
+	outputJSON(w, r, status, &findCompanyResponse{Companys: ee, N: n})
 }
 
 func (s *Server) handleCompanyDelete(w http.ResponseWriter, r *http.Request) {

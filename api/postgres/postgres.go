@@ -71,7 +71,7 @@ func (tx *Tx) RollbackOrCommit(err error) {
 }
 
 func (tx *Tx) getUserIDSetting(ctx context.Context) (*ksuid.KSUID, error) {
-	sqlstr := `select nullif(current_setting('app.uid', true), '')::ksuid;`
+	sqlstr := `select get_tenent()::ksuid;`
 	var uidSetting *ksuid.KSUID
 	err := tx.QueryRowContext(ctx, sqlstr).Scan(&uidSetting)
 	if err != nil {

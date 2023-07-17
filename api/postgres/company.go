@@ -75,12 +75,12 @@ func (s *CompanyService) FindCompany(ctx context.Context, filter dots.CompanyFil
 	}
 	defer tx.Rollback()
 
-	if err := tx.setUserIDPerConnection(ctx); err != nil {
-		return nil, 0, err
-	}
-
 	if canerr := dots.CanDoAnything(ctx); canerr == nil {
 		return findCompany(ctx, tx, filter)
+	}
+
+	if err := tx.setUserIDPerConnection(ctx); err != nil {
+		return nil, 0, err
 	}
 
 	if canerr := dots.CanReadOwn(ctx); canerr != nil {
