@@ -22,11 +22,21 @@ alter table drain add constraint drain_tid_fk_user_id foreign key (tid) referenc
 alter table company alter tid set not null;
 alter table entry_type alter tid set not null;
 
-alter table entry_type alter tid set default get_tenent();
-alter table entry alter tid set default get_tenent();
-alter table deed alter tid set default get_tenent();
-alter table drain alter tid set default get_tenent();
 alter table company alter tid set default get_tenent();
+alter table company enable row level security;
+alter table company force row level security;
+alter table entry_type alter tid set default get_tenent();
+alter table entry_type enable row level security;
+alter table entry_type force row level security;
+alter table entry alter tid set default get_tenent();
+alter table entry enable row level security;
+alter table entry force row level security;
+alter table deed alter tid set default get_tenent();
+alter table deed enable row level security;
+alter table deed force row level security;
+alter table drain alter tid set default get_tenent();
+alter table drain enable row level security;
+alter table drain force row level security;
 
 drop policy if exists company_tent on company;
 create policy company_tent on company to dots_api_user 
