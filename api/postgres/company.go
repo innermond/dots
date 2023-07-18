@@ -20,7 +20,7 @@ func NewCompanyService(db *DB) *CompanyService {
 
 func (s *CompanyService) CreateCompany(ctx context.Context, c *dots.Company) error {
 	user := dots.UserFromContext(ctx)
-	if user.ID == ksuid.Nil {
+	if user.ID.IsNil() {
 		return dots.Errorf(dots.EUNAUTHORIZED, "unauthorized user")
 	}
 
@@ -48,12 +48,10 @@ func (s *CompanyService) CreateCompany(ctx context.Context, c *dots.Company) err
 		return canerr
 	}
 
-	// a user trying to set a TID other than his own
-	if !c.TID.IsNil() && c.TID != user.ID {
-		return dots.Errorf(dots.EUNAUTHORIZED, "unauthorized user")
+	if err := tx.setUserIDPerConnection(ctx); err != nil {
+		return err
 	}
-	// lock owner company to user
-	c.TID = user.ID
+
 	err = companyCheckDeleted(ctx, tx, *c)
 	if err != nil {
 		return err
@@ -206,9 +204,9 @@ func findCompany(ctx context.Context, tx *Tx, filter dots.CompanyFilter) (_ []*d
 	replaceQuestionMark(where, args)
 
 	v := filter.IsDeleted
-	if v != nil && *v == true {
+	if v != nil && *v {
 		where = append(where, "deleted_at is not null")
-	} else if v != nil && *v == false {
+	} else if v != nil && !*v {
 		where = append(where, "deleted_at is null")
 	} else if v == nil {
 		where = append(where, "deleted_at is null")
@@ -251,17 +249,27 @@ func createCompany(ctx context.Context, tx *Tx, c *dots.Company) error {
 		return err
 	}
 
-	err := tx.QueryRowContext(
-		ctx,
-		`
+	sqlstr, args := `
+insert into company
+(longname, tin, rn)
+values
+($1, $2, $3) returning id, tid
+	`, []interface{}{c.Longname, c.TIN, c.RN}
+	if !c.TID.IsNil() {
+		sqlstr = `
 insert into company
 (longname, tin, rn, tid)
 values
-($1, $2, $3, $4) returning id
-		`,
-		c.Longname, c.TIN, c.RN,
-		c.TID,
-	).Scan(&c.ID)
+($1, $2, $3, $4) returning id, tid
+`
+		args = append(args, c.TID)
+	}
+
+	err := tx.QueryRowContext(
+		ctx,
+		sqlstr,
+		args...,
+	).Scan(&c.ID, &c.TID)
 	if err != nil {
 		return err
 	}
