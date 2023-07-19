@@ -94,14 +94,22 @@ func (s *CompanyService) UpdateCompany(ctx context.Context, id int, upd dots.Com
 		return nil, dots.Errorf(dots.EINVALID, "missing owner identificator")
 	}
 
+	if canerr := dots.CanDoAnything(ctx); canerr == nil {
+		// TODO changing company tid may divert from the tids of records referenced by this company
+		// semanticly updating tid means you hand over the company to other tid/user
+		// all records tied to the company must have change their tid to the new one
+		// currentlyupdateCompany do not alows to change tid
+		return updateCompany(ctx, tx, id, upd)
+	}
+
+	if err := tx.setUserIDPerConnection(ctx); err != nil {
+		return nil, 0, err
+	}
+
 	company := dots.Company{ID: id}
 	err = companyCheckDeleted(ctx, tx, company)
 	if err != nil {
 		return nil, err
-	}
-
-	if canerr := dots.CanDoAnything(ctx); canerr == nil {
-		return updateCompany(ctx, tx, id, upd)
 	}
 
 	uid := dots.UserFromContext(ctx).ID
@@ -287,6 +295,11 @@ func updateCompany(ctx context.Context, tx *Tx, id int, updata dots.CompanyUpdat
 	ct := cc[0]
 
 	set, args := []string{}, []interface{}{}
+	// TODO changing tis is a compplicated case
+	/*if v := updata.TID; v != nil {
+		ct.TID = *v
+		set, args = append(set, "tid = ?"), append(args, *v)
+	}*/
 	if v := updata.Longname; v != nil {
 		ct.Longname = *v
 		set, args = append(set, "longname = ?"), append(args, *v)
