@@ -8,7 +8,7 @@ import (
 
 func CanDoAnything(ctx context.Context) error {
 	user := UserFromContext(ctx)
-	if user.ID == ksuid.Nil {
+	if user.ID.IsNil() {
 		return Errorf(EUNAUTHORIZED, "unauthorized user")
 	}
 
@@ -22,7 +22,7 @@ func CanDoAnything(ctx context.Context) error {
 
 func CanDeleteOwn(ctx context.Context) error {
 	user := UserFromContext(ctx)
-	if user.ID == ksuid.Nil {
+	if user.ID.IsNil() {
 		return Errorf(EUNAUTHORIZED, "unauthorized user")
 	}
 
@@ -36,7 +36,7 @@ func CanDeleteOwn(ctx context.Context) error {
 
 func CanWriteOwn(ctx context.Context, tid ksuid.KSUID) error {
 	user := UserFromContext(ctx)
-	if user.ID == ksuid.Nil {
+	if user.ID.IsNil() {
 		return Errorf(EUNAUTHORIZED, "unauthorized user")
 	}
 
@@ -50,7 +50,7 @@ func CanWriteOwn(ctx context.Context, tid ksuid.KSUID) error {
 
 func CanReadOwn(ctx context.Context) error {
 	user := UserFromContext(ctx)
-	if user.ID == ksuid.Nil {
+	if user.ID.IsNil() {
 		return Errorf(EUNAUTHORIZED, "unauthorized user")
 	}
 
@@ -64,7 +64,7 @@ func CanReadOwn(ctx context.Context) error {
 
 func CanCreateOwn(ctx context.Context) error {
 	user := UserFromContext(ctx)
-	if user.ID == ksuid.Nil {
+	if user.ID.IsNil() {
 		return Errorf(EUNAUTHORIZED, "unauthorized user")
 	}
 
