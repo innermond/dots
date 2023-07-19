@@ -19,11 +19,6 @@ func NewCompanyService(db *DB) *CompanyService {
 }
 
 func (s *CompanyService) CreateCompany(ctx context.Context, c *dots.Company) error {
-	user := dots.UserFromContext(ctx)
-	if user.ID.IsNil() {
-		return dots.Errorf(dots.EUNAUTHORIZED, "unauthorized user")
-	}
-
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -160,6 +155,10 @@ func (s *CompanyService) DeleteCompany(ctx context.Context, id int, filter dots.
 
 	if canerr := dots.CanDeleteOwn(ctx); canerr != nil {
 		return 0, canerr
+	}
+
+	if err := tx.setUserIDPerConnection(ctx); err != nil {
+		return 0, err
 	}
 
 	var n int
@@ -321,7 +320,7 @@ func updateCompany(ctx context.Context, tx *Tx, id int, updata dots.CompanyUpdat
 }
 
 func deleteCompany(ctx context.Context, tx *Tx, id int, resurect bool) (n int, err error) {
-	where, args := []string{"1 = 1"}, []interface{}{}
+	where, args := []string{}, []interface{}{}
 	where, args = append(where, "c.id = ?"), append(args, id)
 	replaceQuestionMark(where, args)
 
@@ -409,12 +408,12 @@ from company c
 where c.id = $1 and c.tid = $2
 );
 `
-	fmt.Println(sqlstr)
 	var exists bool
 	err := tx.QueryRowContext(ctx, sqlstr, companyID, u).Scan(&exists)
 	if err != nil {
 		return err
 	}
+
 	if !exists {
 		return dots.Errorf(dots.EUNAUTHORIZED, "foreign entry")
 	}
