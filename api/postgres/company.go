@@ -103,7 +103,7 @@ func (s *CompanyService) UpdateCompany(ctx context.Context, id int, upd dots.Com
 	}
 
 	if err := tx.setUserIDPerConnection(ctx); err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 
 	company := dots.Company{ID: id}
