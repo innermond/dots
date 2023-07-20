@@ -19,6 +19,10 @@ func NewCompanyService(db *DB) *CompanyService {
 }
 
 func (s *CompanyService) CreateCompany(ctx context.Context, c *dots.Company) error {
+	if err := c.Validate(); err != nil {
+		return err
+	}
+
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -85,6 +89,10 @@ func (s *CompanyService) FindCompany(ctx context.Context, filter dots.CompanyFil
 }
 
 func (s *CompanyService) UpdateCompany(ctx context.Context, id int, upd dots.CompanyUpdate) (*dots.Company, error) {
+	if err := upd.Validate(); err != nil {
+		return nil, err
+	}
+
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
@@ -253,10 +261,6 @@ func findCompany(ctx context.Context, tx *Tx, filter dots.CompanyFilter) (_ []*d
 }
 
 func createCompany(ctx context.Context, tx *Tx, c *dots.Company) error {
-	if err := c.Validate(); err != nil {
-		return err
-	}
-
 	sqlstr, args := `
 insert into company
 (longname, tin, rn)
@@ -430,7 +434,7 @@ where c.id = $1 and c.tid = $2
 	}
 
 	if !exists {
-		return dots.Errorf(dots.EUNAUTHORIZED, "foreign entry")
+		return dots.Errorf(dots.ENOTFOUND, "company not found")
 	}
 
 	return nil

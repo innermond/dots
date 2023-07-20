@@ -3,6 +3,7 @@ package dots
 import (
 	"context"
 	"regexp"
+	"strings"
 
 	"github.com/segmentio/ksuid"
 )
@@ -83,9 +84,30 @@ type CompanyUpdate struct {
 	RN       *string      `json:"rn"`
 }
 
-func (cu *CompanyUpdate) Valid() error {
+func (cu *CompanyUpdate) Validate() error {
+	// required
 	if cu.Longname == nil && cu.TIN == nil && cu.RN == nil {
-		return Errorf(EINVALID, "at least name, tax identification number and  registration number are required")
+		return Errorf(EINVALID, "al least one of name, tax identification number or registration number are required")
+	}
+
+	// trim white space
+	if cu.Longname != nil {
+		if len(*cu.Longname) == 0 {
+			return Errorf(EINVALID, "name need content")
+		}
+		*cu.Longname = strings.Trim(*cu.Longname, " ")
+	}
+	if cu.TIN != nil {
+		if len(*cu.TIN) == 0 {
+			return Errorf(EINVALID, "tax identification  number need content")
+		}
+		*cu.TIN = strings.Trim(*cu.TIN, " ")
+	}
+	if cu.RN != nil {
+		if len(*cu.RN) == 0 {
+			return Errorf(EINVALID, "registration number need content")
+		}
+		*cu.RN = strings.Trim(*cu.RN, " ")
 	}
 
 	return nil
