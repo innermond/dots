@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/innermond/dots"
+	"github.com/jackc/pgx/v5/pgconn"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/segmentio/ksuid"
 )
@@ -165,4 +166,24 @@ func aprox(v float64, numberDecimals int) float64 {
 	num := math.Pow(10, float64(numberDecimals))
 	rounded := math.Round(v*num) / num
 	return rounded
+}
+
+func perr(err error) error {
+	if err == nil {
+		return nil
+	}
+
+	var perr *pgconn.PgError
+	if !errors.As(err, &perr) {
+		return err
+	}
+
+	switch perr.Code {
+	case "23505":
+		return dots.Errorf(dots.EINVALID, "duplicate: %v", perr.ConstraintName)
+	default:
+		return errors.New(perr.Message)
+	}
+
+	return err
 }

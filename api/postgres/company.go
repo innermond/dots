@@ -52,8 +52,9 @@ func (s *CompanyService) CreateCompany(ctx context.Context, c *dots.Company) err
 		return err
 	}
 
-	if err := createCompany(ctx, tx, c); err != nil {
-		return err
+	err = createCompany(ctx, tx, c)
+	if err != nil {
+		return perr(err)
 	}
 
 	tx.Commit()
@@ -277,6 +278,7 @@ values
 		sqlstr,
 		args...,
 	).Scan(&c.ID, &c.TID)
+
 	if err != nil {
 		return err
 	}
