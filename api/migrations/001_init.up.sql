@@ -1,4 +1,4 @@
-set search_path to api;
+---set search_path to api;
 
 DROP TABLE IF EXISTS api.auth CASCADE;
 
@@ -17,6 +17,9 @@ DROP TABLE IF EXISTS api.package CASCADE;
 DROP TABLE IF EXISTS api."user" CASCADE;
 
 DROP TABLE IF EXISTS api.user_restriction CASCADE;
+
+drop function if exists api.ksuid();
+drop function if exists api.get_tenent();
 
 DROP DOMAIN IF EXISTS api.KSUID;
 
@@ -92,7 +95,7 @@ $function$
 
 -- DROP TABLE IF EXISTS package;
 
-CREATE TABLE IF NOT EXISTS package (
+CREATE TABLE IF NOT EXISTS api.package (
 	"name" text NOT NULL,
 	company int2 NOT NULL,
 	deed int4 NOT NULL,
@@ -112,7 +115,7 @@ CREATE TABLE IF NOT EXISTS package (
 
 -- DROP TABLE IF EXISTS "user";
 
-CREATE TABLE IF NOT EXISTS "user" (
+CREATE TABLE IF NOT EXISTS api."user" (
 	id api.KSUID NOT NULL DEFAULT api.ksuid(),
 	"name" text NOT NULL,
 	created_at timestamptz NOT NULL DEFAULT now(),
@@ -124,7 +127,7 @@ CREATE TABLE IF NOT EXISTS "user" (
 	CONSTRAINT user_api_key_key UNIQUE (api_key),
 	CONSTRAINT user_email_key UNIQUE (email),
 	CONSTRAINT users_pkey PRIMARY KEY (id),
-	CONSTRAINT user_package_kind_fkey FOREIGN KEY (package_kind) REFERENCES package("name")
+	CONSTRAINT user_package_kind_fkey FOREIGN KEY (package_kind) REFERENCES api.package("name")
 );
 
 
@@ -134,7 +137,7 @@ CREATE TABLE IF NOT EXISTS "user" (
 
 -- DROP TABLE IF EXISTS user_restriction;
 
-CREATE TABLE IF NOT EXISTS user_restriction (
+CREATE TABLE IF NOT EXISTS api.user_restriction (
 	user_id api.KSUID NOT NULL,
 	company int2 NULL,
 	deed int4 NULL,
@@ -143,7 +146,7 @@ CREATE TABLE IF NOT EXISTS user_restriction (
 	entry int8 NULL,
 	field_len jsonb NULL,
 	CONSTRAINT user_restriction_user_id_key UNIQUE (user_id),
-	CONSTRAINT user_num_record_user_id_fkey FOREIGN KEY (user_id) REFERENCES "user"(id) DEFERRABLE
+	CONSTRAINT user_num_record_user_id_fkey FOREIGN KEY (user_id) REFERENCES api."user"(id) DEFERRABLE
 );
 
 
@@ -153,7 +156,7 @@ CREATE TABLE IF NOT EXISTS user_restriction (
 
 -- DROP TABLE IF EXISTS auth;
 
-CREATE TABLE IF NOT EXISTS auth (
+CREATE TABLE IF NOT EXISTS api.auth (
 	id int4 NOT NULL GENERATED ALWAYS AS IDENTITY,
 	user_id api.KSUID NOT NULL,
 	"source" text NOT NULL,
@@ -166,7 +169,7 @@ CREATE TABLE IF NOT EXISTS auth (
 	CONSTRAINT auth_pkey PRIMARY KEY (id),
 	CONSTRAINT auth_source_source_id UNIQUE (source, source_id),
 	CONSTRAINT auth_user_id_source UNIQUE (user_id, source),
-	CONSTRAINT auth_user_id_fkey FOREIGN KEY (user_id) REFERENCES "user"(id)
+	CONSTRAINT auth_user_id_fkey FOREIGN KEY (user_id) REFERENCES api."user"(id)
 );
 
 
@@ -176,7 +179,7 @@ CREATE TABLE IF NOT EXISTS auth (
 
 -- DROP TABLE IF EXISTS company;
 
-CREATE TABLE IF NOT EXISTS company (
+CREATE TABLE IF NOT EXISTS api.company (
 	id int4 NOT NULL GENERATED ALWAYS AS IDENTITY,
 	tid api.KSUID NOT NULL,
 	longname varchar NOT NULL,
@@ -185,7 +188,7 @@ CREATE TABLE IF NOT EXISTS company (
 	deleted_at timestamptz NULL,
 	CONSTRAINT company_pkey PRIMARY KEY (id),
 	CONSTRAINT company_tid_rn_tin_key UNIQUE (tid, rn, tin),
-	CONSTRAINT company_tid_fk_user_tid FOREIGN KEY (tid) REFERENCES "user"(id)
+	CONSTRAINT company_tid_fk_user_tid FOREIGN KEY (tid) REFERENCES api."user"(id)
 );
 
 
@@ -195,7 +198,7 @@ CREATE TABLE IF NOT EXISTS company (
 
 -- DROP TABLE IF EXISTS deed;
 
-CREATE TABLE IF NOT EXISTS deed (
+CREATE TABLE IF NOT EXISTS api.deed (
 	id int8 NOT NULL GENERATED ALWAYS AS IDENTITY,
 	company_id int4 NULL,
 	title varchar NOT NULL,
@@ -204,7 +207,7 @@ CREATE TABLE IF NOT EXISTS deed (
 	unitprice numeric(15, 2) NULL,
 	deleted_at timestamptz NULL,
 	CONSTRAINT deed_pkey PRIMARY KEY (id),
-	CONSTRAINT deed_company_id_fk_company_id FOREIGN KEY (company_id) REFERENCES company(id)
+	CONSTRAINT deed_company_id_fk_company_id FOREIGN KEY (company_id) REFERENCES api.company(id)
 );
 
 -- Table Triggers
@@ -212,7 +215,7 @@ CREATE TABLE IF NOT EXISTS deed (
 create trigger update_drain_is_deleted_trigger after update on
 api.deed for each row
 when ((old.deleted_at is distinct
-from new.deleted_at)) execute function update_drain_is_deleted();
+from new.deleted_at)) execute function api.update_drain_is_deleted();
 
 
 -- api.entry_type definition
@@ -221,7 +224,7 @@ from new.deleted_at)) execute function update_drain_is_deleted();
 
 -- DROP TABLE IF EXISTS entry_type;
 
-CREATE TABLE IF NOT EXISTS entry_type (
+CREATE TABLE IF NOT EXISTS api.entry_type (
 	id int4 NOT NULL GENERATED ALWAYS AS IDENTITY,
 	code varchar NOT NULL,
 	description text NULL,
@@ -231,7 +234,7 @@ CREATE TABLE IF NOT EXISTS entry_type (
 	CONSTRAINT entry_type_code_check CHECK ((length((code)::text) > 0)),
 	CONSTRAINT entry_type_code_tid_key UNIQUE (code, tid),
 	CONSTRAINT entry_type_pkey PRIMARY KEY (id),
-	CONSTRAINT entry_type_tid_fk_user_id FOREIGN KEY (tid) REFERENCES "user"(id)
+	CONSTRAINT entry_type_tid_fk_user_id FOREIGN KEY (tid) REFERENCES api."user"(id)
 );
 
 
@@ -241,7 +244,7 @@ CREATE TABLE IF NOT EXISTS entry_type (
 
 -- DROP TABLE IF EXISTS entry;
 
-CREATE TABLE IF NOT EXISTS entry (
+CREATE TABLE IF NOT EXISTS api.entry (
 	id int8 NOT NULL GENERATED ALWAYS AS IDENTITY,
 	entry_type_id int4 NOT NULL,
 	date_added timestamptz NULL DEFAULT now(),
@@ -249,8 +252,8 @@ CREATE TABLE IF NOT EXISTS entry (
 	company_id int4 NOT NULL,
 	deleted_at timestamptz NULL,
 	CONSTRAINT entry_pkey PRIMARY KEY (id),
-	CONSTRAINT entry_company_id_fk_company_id FOREIGN KEY (company_id) REFERENCES company(id),
-	CONSTRAINT entry_entry_type_id_fk_entry_type_id FOREIGN KEY (entry_type_id) REFERENCES entry_type(id)
+	CONSTRAINT entry_company_id_fk_company_id FOREIGN KEY (company_id) REFERENCES api.company(id),
+	CONSTRAINT entry_entry_type_id_fk_entry_type_id FOREIGN KEY (entry_type_id) REFERENCES api.entry_type(id)
 );
 
 
@@ -260,12 +263,12 @@ CREATE TABLE IF NOT EXISTS entry (
 
 -- DROP TABLE IF EXISTS drain;
 
-CREATE TABLE IF NOT EXISTS drain (
+CREATE TABLE IF NOT EXISTS api.drain (
 	deed_id int8 NOT NULL,
 	entry_id int8 NOT NULL,
 	quantity float8 NOT NULL DEFAULT 0,
 	is_deleted bool NOT NULL DEFAULT false,
 	CONSTRAINT drain_deed_entry_unique_key UNIQUE (deed_id, entry_id),
-	CONSTRAINT drain_deed_id_fk_deed_id FOREIGN KEY (deed_id) REFERENCES deed(id) ON UPDATE CASCADE,
-	CONSTRAINT drain_entry_id_fk_entry_id FOREIGN KEY (entry_id) REFERENCES entry(id)
+	CONSTRAINT drain_deed_id_fk_deed_id FOREIGN KEY (deed_id) REFERENCES api.deed(id) ON UPDATE CASCADE,
+	CONSTRAINT drain_entry_id_fk_entry_id FOREIGN KEY (entry_id) REFERENCES api.entry(id)
 );

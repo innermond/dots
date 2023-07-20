@@ -4,4 +4,4 @@ update
     api.deed for each row
     when ((old.deleted_at is distinct
 from
-    new.deleted_at)) execute function update_drain_is_deleted();
+    new.deleted_at)) execute function api.update_drain_is_deleted();

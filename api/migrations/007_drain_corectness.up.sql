@@ -1,11 +1,11 @@
-create or replace function deed_entry_same_tid() returns trigger as $$
+create or replace function api.deed_entry_same_tid() returns trigger as $$
 declare 
 	has_not_same boolean;
-	deed_tid ksuid;
-	entry_tid ksuid;
+	deed_tid api.ksuid;
+	entry_tid api.ksuid;
 begin
-	select tid from deed where id = NEW.deed_id into deed_tid;
-	select tid from entry where id = NEW.entry_id into entry_tid;
+	select tid from api.deed where id = NEW.deed_id into deed_tid;
+	select tid from api.entry where id = NEW.entry_id into entry_tid;
 	has_not_same = (
 		(deed_tid is not null and entry_tid is not null) and 
 		(deed_tid != entry_tid or (deed_tid != NEW.tid or entry_tid != NEW.tid))
@@ -17,7 +17,7 @@ begin
 end;
 $$ language plpgsql;
 
-drop trigger if exists deed_entry_has_same_tid_tg on drain;
-create trigger deed_entry_has_same_tid_tg before insert or update on drain 
+drop trigger if exists deed_entry_has_same_tid_tg on api.drain;
+create trigger deed_entry_has_same_tid_tg before insert or update on api.drain 
 for each row
-execute function deed_entry_same_tid();
+execute function api.deed_entry_same_tid();

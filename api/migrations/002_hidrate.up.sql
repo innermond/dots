@@ -101,7 +101,7 @@ INSERT INTO api.entry (entry_type_id,date_added,quantity,company_id,deleted_at) 
 	 (3,'2023-04-22 09:43:00+00',123.0,1,NULL),
 	 (3,'2023-04-22 09:44:00+00',123.0,1,NULL),
 	 (2,'2022-02-06 10:28:02.796652+00',12.0,1,NULL),
-	 (4,'2022-02-06 10:45:09.800472+00',0.0,1,NULL),
+	 (4,'2022-02-06 10:45:09.800472+00',100.0,1,NULL),
 	 (1,'2022-02-06 10:28:02.796652+00',200.0,1,NULL);
 INSERT INTO api.drain (deed_id,entry_id,quantity,is_deleted) VALUES
 	 (1,1,333.0,true),
