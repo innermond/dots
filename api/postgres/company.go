@@ -115,16 +115,10 @@ func (s *CompanyService) UpdateCompany(ctx context.Context, id int, upd dots.Com
 		return nil, err
 	}
 
-	company := dots.Company{ID: id}
-	err = companyCheckDeleted(ctx, tx, company)
-	if err != nil {
-		return nil, err
-	}
-
-	uid := dots.UserFromContext(ctx).ID
+	isDeleted := false
 	find := dots.CompanyFilter{
-		ID:  &id,
-		TID: &uid,
+		ID:        &id,
+		IsDeleted: &isDeleted,
 	}
 	cc, n, err := findCompany(ctx, tx, find)
 	if err != nil {
@@ -134,12 +128,7 @@ func (s *CompanyService) UpdateCompany(ctx context.Context, id int, upd dots.Com
 		return &dots.Company{}, dots.Errorf(dots.ENOTFOUND, "company not found")
 	}
 
-	tid := cc[0].TID
-	if uid != tid {
-		return nil, dots.Errorf(dots.EINVALID, "update company: unexpected user")
-	}
-
-	if canerr := dots.CanWriteOwn(ctx, tid); canerr != nil {
+	if canerr := dots.CanWriteOwn(ctx, cc[0].TID); canerr != nil {
 		return nil, canerr
 	}
 
