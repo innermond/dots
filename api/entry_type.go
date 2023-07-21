@@ -43,6 +43,8 @@ type EntryTypeFilter struct {
 	Offset int `json:"offset"`
 	Limit  int `json:"limit"`
 
+	IsDeleted *bool `json:"is_deleted"`
+
 	DeletedAtFrom *PartialTime `json:"deleted_at_from,omitempty"`
 	DeletedAtTo   *PartialTime `json:"deleted_at_to,omitempty"`
 }

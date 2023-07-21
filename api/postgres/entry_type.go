@@ -19,6 +19,10 @@ func NewEntryTypeService(db *DB) *EntryTypeService {
 }
 
 func (s *EntryTypeService) CreateEntryType(ctx context.Context, et *dots.EntryType) (err error) {
+	if err := et.Validate(); err != nil {
+		return err
+	}
+
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -28,13 +32,19 @@ func (s *EntryTypeService) CreateEntryType(ctx context.Context, et *dots.EntryTy
 	}()
 
 	if canerr := dots.CanDoAnything(ctx); canerr == nil {
+		if et.TID.IsNil() {
+			return dots.Errorf(dots.EINVALID, "missing owner identificator")
+		}
 		return createEntryType(ctx, tx, et)
 	}
 
 	if canerr := dots.CanCreateOwn(ctx); canerr != nil {
 		return canerr
 	}
-	et.TID = dots.UserFromContext(ctx).ID
+
+	if err := tx.setUserIDPerConnection(ctx); err != nil {
+		return err
+	}
 
 	if err := createEntryType(ctx, tx, et); err != nil {
 		return err
@@ -53,18 +63,13 @@ func (s *EntryTypeService) FindEntryType(ctx context.Context, filter dots.EntryT
 		return findEntryType(ctx, tx, filter)
 	}
 
+	if err := tx.setUserIDPerConnection(ctx); err != nil {
+		return nil, 0, err
+	}
+
 	if canerr := dots.CanReadOwn(ctx); canerr != nil {
 		return nil, 0, canerr
 	}
-
-	uid := dots.UserFromContext(ctx).ID
-	// trying to get entry types for a different TID
-	if filter.TID != nil && *filter.TID != uid {
-		// will get empty results and not error
-		return make([]*dots.EntryType, 0), 0, nil
-	}
-	// lock search to own
-	filter.TID = &uid
 
 	return findEntryType(ctx, tx, filter)
 }
@@ -137,10 +142,6 @@ func createEntryType(ctx context.Context, tx *Tx, et *dots.EntryType) error {
 	user := dots.UserFromContext(ctx)
 	if user.ID == ksuid.Nil {
 		return dots.Errorf(dots.EUNAUTHORIZED, "unauthorized user")
-	}
-
-	if err := et.Validate(); err != nil {
-		return err
 	}
 
 	sqlstr := `
@@ -216,9 +217,19 @@ func findEntryType(ctx context.Context, tx *Tx, filter dots.EntryTypeFilter) (_ 
 	}
 	replaceQuestionMark(where, args)
 
-	rows, err := tx.QueryContext(ctx, `
-		select id, code, description, unit, tid, count(*) over() from entry_type
-		where `+strings.Join(where, " and ")+` `+formatLimitOffset(filter.Limit, filter.Offset),
+	v := filter.IsDeleted
+	if v != nil && *v {
+		where = append(where, "deleted_at is not null")
+	} else if v != nil && !*v {
+		where = append(where, "deleted_at is null")
+	} else if v == nil {
+		where = append(where, "deleted_at is null")
+	}
+
+	sqlstr := "select id, code, description, unit, tid, count(*) over() from entry_type where " +
+		strings.Join(where, " and ") + " " + formatLimitOffset(filter.Limit, filter.Offset)
+	rows, err := tx.QueryContext(ctx,
+		sqlstr,
 		args...,
 	)
 	if err == sql.ErrNoRows {
