@@ -52,9 +52,6 @@ func (s *Server) handleCompanyUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	u := dots.UserFromContext(r.Context())
-	updata.TID = &u.ID
-
 	c, err := s.CompanyService.UpdateCompany(r.Context(), id, updata)
 	if err != nil {
 		Error(w, r, err)

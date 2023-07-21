@@ -89,7 +89,7 @@ func (tx *Tx) setUserIDPerConnection(ctx context.Context) error {
 	if u.ID.IsNil() {
 		return errors.New("user expected to be found")
 	}
-	_, err := tx.ExecContext(ctx, "SELECT set_config('app.uid', $1::ksuid, false)", u.ID)
+	_, err := tx.ExecContext(ctx, "SELECT set_config('app.uid', $1::ksuid, true)", u.ID)
 	if err != nil {
 		return err
 	}

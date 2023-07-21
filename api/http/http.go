@@ -32,9 +32,9 @@ func inputJSON[T any](w http.ResponseWriter, r *http.Request, e *T, prefix strin
 
 	// keep the body here
 	buf := bytes.Buffer{}
-	r.Body = io.NopCloser(io.TeeReader(r.Body, &buf))
+	r := io.NopCloser(io.TeeReader(r.Body, &buf))
 
-	if err := json.NewDecoder(r.Body).Decode(e); err != nil {
+	if err := json.NewDecoder(r).Decode(e); err != nil {
 		LogError(r, err)
 		msg := fmt.Sprintf("%s: undecodable input", prefix)
 		Error(w, r, dots.Errorf(dots.EINVALID, msg))

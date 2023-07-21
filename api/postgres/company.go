@@ -99,11 +99,11 @@ func (s *CompanyService) UpdateCompany(ctx context.Context, id int, upd dots.Com
 	}
 	defer tx.Rollback()
 
-	if upd.TID.IsNil() {
-		return nil, dots.Errorf(dots.EINVALID, "missing owner identificator")
-	}
-
 	if canerr := dots.CanDoAnything(ctx); canerr == nil {
+
+		if upd.TID == nil {
+			return nil, dots.Errorf(dots.EINVALID, "missing owner identificator")
+		}
 		// TODO changing company tid may divert from the tids of records referenced by this company
 		// semanticly updating tid means you hand over the company to other tid/user
 		// all records tied to the company must have change their tid to the new one
@@ -122,16 +122,24 @@ func (s *CompanyService) UpdateCompany(ctx context.Context, id int, upd dots.Com
 	}
 
 	uid := dots.UserFromContext(ctx).ID
-	err = companyBelongsToUser(ctx, tx, uid, id)
+	find := dots.CompanyFilter{
+		ID:  &id,
+		TID: &uid,
+	}
+	cc, n, err := findCompany(ctx, tx, find)
 	if err != nil {
 		return nil, err
 	}
+	if n == 0 {
+		return &dots.Company{}, dots.Errorf(dots.ENOTFOUND, "company not found")
+	}
 
-	if upd.TID != nil && uid != *upd.TID {
+	tid := cc[0].TID
+	if uid != tid {
 		return nil, dots.Errorf(dots.EINVALID, "update company: unexpected user")
 	}
 
-	if canerr := dots.CanWriteOwn(ctx, *upd.TID); canerr != nil {
+	if canerr := dots.CanWriteOwn(ctx, tid); canerr != nil {
 		return nil, canerr
 	}
 
@@ -301,7 +309,7 @@ func updateCompany(ctx context.Context, tx *Tx, id int, updata dots.CompanyUpdat
 	ct := cc[0]
 
 	set, args := []string{}, []interface{}{}
-	// TODO changing tis is a compplicated case
+	// TODO changing tid is a compplicated case
 	/*if v := updata.TID; v != nil {
 		ct.TID = *v
 		set, args = append(set, "tid = ?"), append(args, *v)

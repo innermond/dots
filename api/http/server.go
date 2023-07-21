@@ -234,7 +234,7 @@ func (s *Server) authenticate(next http.Handler) http.Handler {
 func (s *Server) yesAuthenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		u := dots.UserFromContext(r.Context())
-		if u.ID != ksuid.Nil {
+		if !u.ID.IsNil() {
 			next.ServeHTTP(w, r)
 			return
 		}
