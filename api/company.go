@@ -41,6 +41,17 @@ func (c *Company) Validate() error {
 		}
 	}
 
+	// trim white space
+	if c.Longname != "" {
+		c.Longname = strings.Trim(c.Longname, " ")
+	}
+	if c.TIN != "" {
+		c.TIN = strings.Trim(c.TIN, " ")
+	}
+	if c.RN != "" {
+		c.RN = strings.Trim(c.RN, " ")
+	}
+
 	return nil
 }
 
