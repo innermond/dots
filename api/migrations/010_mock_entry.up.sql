@@ -1,3 +1,13 @@
+create or replace function mock.generate_random_title(a integer default 1, z integer default 4)
+ returns text
+ language sql
+as $function$
+  select initcap(array_to_string(array(
+    select v from mock.word order by random() limit (select floor(random()*(z-a+1)+a)::int)
+  ), ' '))
+$function$
+;
+
 create or replace function mock.gen_rnd_unit()
  returns text
  language sql
@@ -31,7 +41,7 @@ declare etid integer default null;
 declare cid integer default null;
 begin
 	select mock.gen_rnd_tid() into vtid;
-	if not dispersed then
+	if dispersed then
 		insert into api.entry
 		(entry_type_id, quantity, company_id, tid)
 		values 
