@@ -7,15 +7,14 @@ drop schema if exists mock cascade;
 
 CREATE SCHEMA api;
 
-
-ALTER SCHEMA api OWNER TO dots_owner;
+grant usage, create on schema api to dots_readwrite;
+grant select, insert, update, delete on all tables in schema api to dots_readwrite;
+alter default privileges in schema api grant select, insert, update, delete on tables to dots_readwrite;
+grant usage on all sequences in schema api to dots_readwrite;
+alter default privileges in schema api grant usage on sequences to dots_readwrite;
 
 --
 -- Name: mock; Type: SCHEMA; Schema: -; Owner: dots_owner
 --
 
 CREATE SCHEMA mock;
-
-
-ALTER SCHEMA mock OWNER TO dots_owner;
-
