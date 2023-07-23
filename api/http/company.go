@@ -9,13 +9,13 @@ import (
 )
 
 func (s *Server) registerCompanyRoutes(router *mux.Router) {
-	router.HandleFunc("", s.handlecompanyCreate).Methods("POST")
+	router.HandleFunc("", s.handleCompanyCreate).Methods("POST")
 	router.HandleFunc("/{id}", s.handleCompanyPatch).Methods("PATCH")
 	router.HandleFunc("", s.handleCompanyFind).Methods("GET")
 	router.HandleFunc("/{id}", s.handleCompanyHardDelete).Methods("DELETE")
 }
 
-func (s *Server) handlecompanyCreate(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleCompanyCreate(w http.ResponseWriter, r *http.Request) {
 	var c dots.Company
 
 	if ok := inputJSON(w, r, &c, "create company"); !ok {

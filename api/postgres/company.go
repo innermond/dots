@@ -51,11 +51,6 @@ func (s *CompanyService) CreateCompany(ctx context.Context, c *dots.Company) err
 		return err
 	}
 
-	err = companyCheckDeleted(ctx, tx, *c)
-	if err != nil {
-		return err
-	}
-
 	err = createCompany(ctx, tx, c)
 	if err != nil {
 		return perr(err)
@@ -259,26 +254,17 @@ func findCompany(ctx context.Context, tx *Tx, filter dots.CompanyFilter) (_ []*d
 
 func createCompany(ctx context.Context, tx *Tx, c *dots.Company) error {
 	sqlstr, args := `
-insert into company
+insert into core.company
 (longname, tin, rn)
 values
-($1, $2, $3) returning id, tid
+($1, $2, $3) returning id
 	`, []interface{}{c.Longname, c.TIN, c.RN}
-	if !c.TID.IsNil() {
-		sqlstr = `
-insert into company
-(longname, tin, rn, tid)
-values
-($1, $2, $3, $4) returning id, tid
-`
-		args = append(args, c.TID)
-	}
 
 	err := tx.QueryRowContext(
 		ctx,
 		sqlstr,
 		args...,
-	).Scan(&c.ID, &c.TID)
+	).Scan(&c.ID)
 
 	if err != nil {
 		return err
