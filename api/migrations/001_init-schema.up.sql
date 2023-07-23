@@ -21,12 +21,6 @@ alter role dots_api_user set search_path to api,"$user",public;
 
 revoke create on schema public from public;
 revoke all on database dots from public;
---
--- PostgreSQL database dump
---
-
--- Dumped from database version 15.1 (Debian 15.1-1.pgdg110+1)
--- Dumped by pg_dump version 15.1 (Debian 15.1-1.pgdg110+1)
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -39,18 +33,9 @@ SET xmloption = content;
 SET client_min_messages = warning;
 SET row_security = off;
 
---
--- Name: ksuid; Type: DOMAIN; Schema: api; Owner: dots_owner
---
-
 CREATE DOMAIN core.ksuid AS character varying(27);
 
-
 ALTER DOMAIN core.ksuid OWNER TO dots_owner;
-
---
--- Name: company_has_same_tid(); Type: FUNCTION; Schema: api; Owner: dots_owner
---
 
 CREATE FUNCTION core.company_has_same_tid() RETURNS trigger
     LANGUAGE plpgsql
@@ -65,12 +50,7 @@ begin
 end;
 $$;
 
-
 ALTER FUNCTION core.company_has_same_tid() OWNER TO dots_owner;
-
---
--- Name: deed_entry_same_tid(); Type: FUNCTION; Schema: api; Owner: dots_owner
---
 
 CREATE FUNCTION core.deed_entry_same_tid() RETURNS trigger
     LANGUAGE plpgsql
@@ -93,12 +73,7 @@ begin
 end;
 $$;
 
-
 ALTER FUNCTION core.deed_entry_same_tid() OWNER TO dots_owner;
-
---
--- Name: entry_type_company_same_tid(); Type: FUNCTION; Schema: api; Owner: dots_owner
---
 
 CREATE FUNCTION core.entry_type_company_same_tid() RETURNS trigger
     LANGUAGE plpgsql
@@ -136,12 +111,7 @@ begin
 end;
 $$;
 
-
 ALTER FUNCTION core.entry_type_company_same_tid() OWNER TO dots_owner;
-
---
--- Name: get_tenent(); Type: FUNCTION; Schema: api; Owner: dots_owner
---
 
 CREATE FUNCTION core.get_tenent() RETURNS core.ksuid
     LANGUAGE plpgsql
@@ -151,12 +121,7 @@ begin
 end;
 $$;
 
-
 ALTER FUNCTION core.get_tenent() OWNER TO dots_owner;
-
---
--- Name: ksuid(); Type: FUNCTION; Schema: api; Owner: dots_owner
---
 
 CREATE FUNCTION core.ksuid() RETURNS text
     LANGUAGE plpgsql
@@ -202,12 +167,7 @@ begin
 
 end $$;
 
-
 ALTER FUNCTION core.ksuid() OWNER TO dots_owner;
-
---
--- Name: update_drain_is_deleted(); Type: FUNCTION; Schema: api; Owner: dots_owner
---
 
 CREATE FUNCTION core.update_drain_is_deleted() RETURNS trigger
     LANGUAGE plpgsql
@@ -224,12 +184,7 @@ begin
 end;
 $$;
 
-
 ALTER FUNCTION core.update_drain_is_deleted() OWNER TO dots_owner;
-
---
--- Name: create_company(); Type: FUNCTION; Schema: mock; Owner: dots_owner
---
 
 CREATE FUNCTION mock.create_company() RETURNS void
     LANGUAGE sql
@@ -245,12 +200,7 @@ CREATE FUNCTION mock.create_company() RETURNS void
 	)
 $$;
 
-
 ALTER FUNCTION mock.create_company() OWNER TO dots_owner;
-
---
--- Name: create_entry(boolean, integer, integer, integer, integer); Type: FUNCTION; Schema: mock; Owner: dots_owner
---
 
 CREATE FUNCTION mock.create_entry(dispersed boolean DEFAULT true, entry_type_id integer DEFAULT NULL::integer, company_id integer DEFAULT NULL::integer, a integer DEFAULT 1, z integer DEFAULT 1000) RETURNS void
     LANGUAGE plpgsql
@@ -290,12 +240,7 @@ begin
 end;
 $$;
 
-
 ALTER FUNCTION mock.create_entry(dispersed boolean, entry_type_id integer, company_id integer, a integer, z integer) OWNER TO dots_owner;
-
---
--- Name: create_entry_type(); Type: FUNCTION; Schema: mock; Owner: dots_owner
---
 
 CREATE FUNCTION mock.create_entry_type() RETURNS void
     LANGUAGE sql
@@ -311,12 +256,7 @@ CREATE FUNCTION mock.create_entry_type() RETURNS void
 	)
 $$;
 
-
 ALTER FUNCTION mock.create_entry_type() OWNER TO dots_owner;
-
---
--- Name: gen_rnd_tid(); Type: FUNCTION; Schema: mock; Owner: dots_owner
---
 
 CREATE FUNCTION mock.gen_rnd_tid() RETURNS text
     LANGUAGE sql
@@ -324,12 +264,7 @@ CREATE FUNCTION mock.gen_rnd_tid() RETURNS text
 	select id from (values ('2PH25DxmohuFCf3w73fQSTLJeVO'), ('2PH24UhBlN5tlYdAmpdwiyPuWgB')) a(id) order by random() limit 1;
 $$;
 
-
 ALTER FUNCTION mock.gen_rnd_tid() OWNER TO dots_owner;
-
---
--- Name: gen_rnd_unit(); Type: FUNCTION; Schema: mock; Owner: dots_owner
---
 
 CREATE FUNCTION mock.gen_rnd_unit() RETURNS text
     LANGUAGE sql
@@ -337,12 +272,7 @@ CREATE FUNCTION mock.gen_rnd_unit() RETURNS text
 	select id from (values ('unit'), ('buc'), ('piece'), ('cm'), ('mm'), ('pcs'), ('sq'), ('square meter'), ('piese'), ('hour'), ('rola')) a(id) order by random() limit 1;
 $$;
 
-
 ALTER FUNCTION mock.gen_rnd_unit() OWNER TO dots_owner;
-
---
--- Name: generate_random_title(integer, integer); Type: FUNCTION; Schema: mock; Owner: dots_owner
---
 
 CREATE FUNCTION mock.generate_random_title(a integer DEFAULT 1, z integer DEFAULT 4) RETURNS text
     LANGUAGE sql
@@ -352,16 +282,11 @@ CREATE FUNCTION mock.generate_random_title(a integer DEFAULT 1, z integer DEFAUL
   ), ' '))
 $$;
 
-
 ALTER FUNCTION mock.generate_random_title(a integer, z integer) OWNER TO dots_owner;
 
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;
-
---
--- Name: auth; Type: TABLE; Schema: api; Owner: dots_owner
---
 
 CREATE TABLE core.auth (
     id integer NOT NULL,
@@ -375,12 +300,7 @@ CREATE TABLE core.auth (
     updated_at timestamp with time zone NOT NULL
 );
 
-
 ALTER TABLE core.auth OWNER TO dots_owner;
-
---
--- Name: auth_id_seq; Type: SEQUENCE; Schema: api; Owner: dots_owner
---
 
 ALTER TABLE core.auth ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
     SEQUENCE NAME core.auth_id_seq
@@ -391,26 +311,16 @@ ALTER TABLE core.auth ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
     CACHE 1
 );
 
-
---
--- Name: company; Type: TABLE; Schema: api; Owner: dots_owner
---
-
 CREATE TABLE core.company (
     id integer NOT NULL,
-    tid core.ksuid DEFAULT core.get_tenent() NOT NULL,
     longname character varying NOT NULL,
     tin character varying NOT NULL,
     rn character varying NOT NULL,
-    deleted_at timestamp with time zone
+    deleted_at timestamp with time zone,
+    tid core.ksuid DEFAULT core.get_tenent() NOT NULL
 );
 
-
 ALTER TABLE core.company OWNER TO dots_owner;
-
---
--- Name: company_id_seq; Type: SEQUENCE; Schema: api; Owner: dots_owner
---
 
 ALTER TABLE core.company ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
     SEQUENCE NAME core.company_id_seq
@@ -420,11 +330,6 @@ ALTER TABLE core.company ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
     NO MAXVALUE
     CACHE 1
 );
-
-
---
--- Name: deed; Type: TABLE; Schema: api; Owner: dots_owner
---
 
 CREATE TABLE core.deed (
     id bigint NOT NULL,
@@ -437,12 +342,7 @@ CREATE TABLE core.deed (
     tid core.ksuid DEFAULT core.get_tenent() NOT NULL
 );
 
-
 ALTER TABLE core.deed OWNER TO dots_owner;
-
---
--- Name: deed_id_seq; Type: SEQUENCE; Schema: api; Owner: dots_owner
---
 
 ALTER TABLE core.deed ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
     SEQUENCE NAME core.deed_id_seq
@@ -453,11 +353,6 @@ ALTER TABLE core.deed ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
     CACHE 1
 );
 
-
---
--- Name: drain; Type: TABLE; Schema: api; Owner: dots_owner
---
-
 CREATE TABLE core.drain (
     deed_id bigint NOT NULL,
     entry_id bigint NOT NULL,
@@ -466,12 +361,7 @@ CREATE TABLE core.drain (
     tid core.ksuid DEFAULT core.get_tenent() NOT NULL
 );
 
-
 ALTER TABLE core.drain OWNER TO dots_owner;
-
---
--- Name: entry; Type: TABLE; Schema: api; Owner: dots_owner
---
 
 CREATE TABLE core.entry (
     id bigint NOT NULL,
@@ -484,12 +374,7 @@ CREATE TABLE core.entry (
     CONSTRAINT check_entry_quantity CHECK ((quantity > (0)::double precision))
 );
 
-
 ALTER TABLE core.entry OWNER TO dots_owner;
-
---
--- Name: entry_id_seq; Type: SEQUENCE; Schema: api; Owner: dots_owner
---
 
 ALTER TABLE core.entry ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
     SEQUENCE NAME core.entry_id_seq
@@ -500,27 +385,17 @@ ALTER TABLE core.entry ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
     CACHE 1
 );
 
-
---
--- Name: entry_type; Type: TABLE; Schema: api; Owner: dots_owner
---
-
 CREATE TABLE core.entry_type (
     id integer NOT NULL,
     code character varying NOT NULL,
     description text,
     unit character varying NOT NULL,
-    tid core.ksuid DEFAULT core.get_tenent() NOT NULL,
     deleted_at timestamp with time zone,
+    tid core.ksuid DEFAULT core.get_tenent() NOT NULL,
     CONSTRAINT entry_type_code_check CHECK ((length((code)::text) > 0))
 );
 
-
 ALTER TABLE core.entry_type OWNER TO dots_owner;
-
---
--- Name: entry_type_id_seq; Type: SEQUENCE; Schema: api; Owner: dots_owner
---
 
 ALTER TABLE core.entry_type ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
     SEQUENCE NAME core.entry_type_id_seq
@@ -530,11 +405,6 @@ ALTER TABLE core.entry_type ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
     NO MAXVALUE
     CACHE 1
 );
-
-
---
--- Name: package; Type: TABLE; Schema: api; Owner: dots_owner
---
 
 CREATE TABLE core.package (
     name text NOT NULL,
@@ -547,12 +417,7 @@ CREATE TABLE core.package (
     CONSTRAINT package_name_check CHECK ((name = ANY (ARRAY['one eye'::text, 'two eyes'::text, 'three eyes'::text])))
 );
 
-
 ALTER TABLE core.package OWNER TO dots_owner;
-
---
--- Name: user; Type: TABLE; Schema: api; Owner: dots_owner
---
 
 CREATE TABLE core."user" (
     id core.ksuid DEFAULT core.ksuid() NOT NULL,
@@ -566,12 +431,7 @@ CREATE TABLE core."user" (
     pass_hash character varying(255)
 );
 
-
 ALTER TABLE core."user" OWNER TO dots_owner;
-
---
--- Name: user_restriction; Type: TABLE; Schema: api; Owner: dots_owner
---
 
 CREATE TABLE core.user_restriction (
     user_id core.ksuid NOT NULL,
@@ -583,339 +443,125 @@ CREATE TABLE core.user_restriction (
     field_len jsonb
 );
 
-
 ALTER TABLE core.user_restriction OWNER TO dots_owner;
-
---
--- Name: word; Type: TABLE; Schema: mock; Owner: dots_owner
---
 
 CREATE TABLE mock.word (
     v text
 );
 
-
 ALTER TABLE mock.word OWNER TO dots_owner;
-
---
--- Name: auth auth_pkey; Type: CONSTRAINT; Schema: api; Owner: dots_owner
---
 
 ALTER TABLE ONLY core.auth
     ADD CONSTRAINT auth_pkey PRIMARY KEY (id);
 
-
---
--- Name: auth auth_source_source_id; Type: CONSTRAINT; Schema: api; Owner: dots_owner
---
-
 ALTER TABLE ONLY core.auth
     ADD CONSTRAINT auth_source_source_id UNIQUE (source, source_id);
-
-
---
--- Name: auth auth_user_id_source; Type: CONSTRAINT; Schema: api; Owner: dots_owner
---
 
 ALTER TABLE ONLY core.auth
     ADD CONSTRAINT auth_user_id_source UNIQUE (user_id, source);
 
-
---
--- Name: company company_pkey; Type: CONSTRAINT; Schema: api; Owner: dots_owner
---
-
 ALTER TABLE ONLY core.company
     ADD CONSTRAINT company_pkey PRIMARY KEY (id);
-
-
---
--- Name: company company_tid_rn_tin_key; Type: CONSTRAINT; Schema: api; Owner: dots_owner
---
 
 ALTER TABLE ONLY core.company
     ADD CONSTRAINT company_tid_rn_tin_key UNIQUE (tid, rn, tin);
 
-
---
--- Name: deed deed_pkey; Type: CONSTRAINT; Schema: api; Owner: dots_owner
---
-
 ALTER TABLE ONLY core.deed
     ADD CONSTRAINT deed_pkey PRIMARY KEY (id);
-
-
---
--- Name: drain drain_deed_entry_unique_key; Type: CONSTRAINT; Schema: api; Owner: dots_owner
---
 
 ALTER TABLE ONLY core.drain
     ADD CONSTRAINT drain_deed_entry_unique_key UNIQUE (deed_id, entry_id);
 
-
---
--- Name: entry entry_pkey; Type: CONSTRAINT; Schema: api; Owner: dots_owner
---
-
 ALTER TABLE ONLY core.entry
     ADD CONSTRAINT entry_pkey PRIMARY KEY (id);
-
-
---
--- Name: entry_type entry_type_code_tid_key; Type: CONSTRAINT; Schema: api; Owner: dots_owner
---
 
 ALTER TABLE ONLY core.entry_type
     ADD CONSTRAINT entry_type_code_tid_key UNIQUE (code, tid);
 
-
---
--- Name: entry_type entry_type_pkey; Type: CONSTRAINT; Schema: api; Owner: dots_owner
---
-
 ALTER TABLE ONLY core.entry_type
     ADD CONSTRAINT entry_type_pkey PRIMARY KEY (id);
-
-
---
--- Name: package package_field_len_unique; Type: CONSTRAINT; Schema: api; Owner: dots_owner
---
 
 ALTER TABLE ONLY core.package
     ADD CONSTRAINT package_field_len_unique UNIQUE (field_len);
 
-
---
--- Name: package package_name_key; Type: CONSTRAINT; Schema: api; Owner: dots_owner
---
-
 ALTER TABLE ONLY core.package
     ADD CONSTRAINT package_name_key UNIQUE (name);
-
-
---
--- Name: user user_api_key_key; Type: CONSTRAINT; Schema: api; Owner: dots_owner
---
 
 ALTER TABLE ONLY core."user"
     ADD CONSTRAINT user_api_key_key UNIQUE (api_key);
 
-
---
--- Name: user user_email_key; Type: CONSTRAINT; Schema: api; Owner: dots_owner
---
-
 ALTER TABLE ONLY core."user"
     ADD CONSTRAINT user_email_key UNIQUE (email);
-
-
---
--- Name: user_restriction user_restriction_user_id_key; Type: CONSTRAINT; Schema: api; Owner: dots_owner
---
 
 ALTER TABLE ONLY core.user_restriction
     ADD CONSTRAINT user_restriction_user_id_key UNIQUE (user_id);
 
-
---
--- Name: user users_pkey; Type: CONSTRAINT; Schema: api; Owner: dots_owner
---
-
 ALTER TABLE ONLY core."user"
     ADD CONSTRAINT users_pkey PRIMARY KEY (id);
 
---
--- Name: user_email_pass_hash; Type: INDEX; Schema: api; Owner: dots_owner
---
-
 CREATE UNIQUE INDEX user_email_pass_hash ON core."user" USING btree (email, pass_hash);
-
-
---
--- Name: deed company_has_same_tid_tg; Type: TRIGGER; Schema: api; Owner: dots_owner
---
 
 CREATE TRIGGER company_has_same_tid_tg BEFORE INSERT OR UPDATE ON core.deed FOR EACH ROW EXECUTE FUNCTION core.company_has_same_tid();
 
-
---
--- Name: drain deed_entry_has_same_tid_tg; Type: TRIGGER; Schema: api; Owner: dots_owner
---
-
 CREATE TRIGGER deed_entry_has_same_tid_tg BEFORE INSERT OR UPDATE ON core.drain FOR EACH ROW EXECUTE FUNCTION core.deed_entry_same_tid();
 
-
---
--- Name: entry entry_type_company_has_same_tid_tg; Type: TRIGGER; Schema: api; Owner: dots_owner
---
-
 CREATE TRIGGER entry_type_company_has_same_tid_tg BEFORE INSERT OR UPDATE ON core.entry FOR EACH ROW EXECUTE FUNCTION core.entry_type_company_same_tid();
-
-
---
--- Name: auth auth_user_id_fkey; Type: FK CONSTRAINT; Schema: api; Owner: dots_owner
---
 
 ALTER TABLE ONLY core.auth
     ADD CONSTRAINT auth_user_id_fkey FOREIGN KEY (user_id) REFERENCES core."user"(id);
 
-
---
--- Name: company company_tid_fk_user_tid; Type: FK CONSTRAINT; Schema: api; Owner: dots_owner
---
-
 ALTER TABLE ONLY core.company
     ADD CONSTRAINT company_tid_fk_user_tid FOREIGN KEY (tid) REFERENCES core."user"(id);
-
-
---
--- Name: deed deed_company_id_fk_company_id; Type: FK CONSTRAINT; Schema: api; Owner: dots_owner
---
 
 ALTER TABLE ONLY core.deed
     ADD CONSTRAINT deed_company_id_fk_company_id FOREIGN KEY (company_id) REFERENCES core.company(id);
 
-
---
--- Name: deed deed_tid_fk_user_id; Type: FK CONSTRAINT; Schema: api; Owner: dots_owner
---
-
 ALTER TABLE ONLY core.deed
     ADD CONSTRAINT deed_tid_fk_user_id FOREIGN KEY (tid) REFERENCES core."user"(id);
-
-
---
--- Name: drain drain_deed_id_fk_deed_id; Type: FK CONSTRAINT; Schema: api; Owner: dots_owner
---
 
 ALTER TABLE ONLY core.drain
     ADD CONSTRAINT drain_deed_id_fk_deed_id FOREIGN KEY (deed_id) REFERENCES core.deed(id) ON UPDATE CASCADE;
 
-
---
--- Name: drain drain_entry_id_fk_entry_id; Type: FK CONSTRAINT; Schema: api; Owner: dots_owner
---
-
 ALTER TABLE ONLY core.drain
     ADD CONSTRAINT drain_entry_id_fk_entry_id FOREIGN KEY (entry_id) REFERENCES core.entry(id);
-
-
---
--- Name: drain drain_tid_fk_user_id; Type: FK CONSTRAINT; Schema: api; Owner: dots_owner
---
 
 ALTER TABLE ONLY core.drain
     ADD CONSTRAINT drain_tid_fk_user_id FOREIGN KEY (tid) REFERENCES core."user"(id);
 
-
---
--- Name: entry entry_company_id_fk_company_id; Type: FK CONSTRAINT; Schema: api; Owner: dots_owner
---
-
 ALTER TABLE ONLY core.entry
     ADD CONSTRAINT entry_company_id_fk_company_id FOREIGN KEY (company_id) REFERENCES core.company(id);
-
-
---
--- Name: entry entry_entry_type_id_fk_entry_type_id; Type: FK CONSTRAINT; Schema: api; Owner: dots_owner
---
 
 ALTER TABLE ONLY core.entry
     ADD CONSTRAINT entry_entry_type_id_fk_entry_type_id FOREIGN KEY (entry_type_id) REFERENCES core.entry_type(id);
 
-
---
--- Name: entry entry_tid_fk_user_id; Type: FK CONSTRAINT; Schema: api; Owner: dots_owner
---
-
 ALTER TABLE ONLY core.entry
     ADD CONSTRAINT entry_tid_fk_user_id FOREIGN KEY (tid) REFERENCES core."user"(id);
-
-
---
--- Name: entry_type entry_type_tid_fk_user_id; Type: FK CONSTRAINT; Schema: api; Owner: dots_owner
---
 
 ALTER TABLE ONLY core.entry_type
     ADD CONSTRAINT entry_type_tid_fk_user_id FOREIGN KEY (tid) REFERENCES core."user"(id);
 
-
---
--- Name: user_restriction user_num_record_user_id_fkey; Type: FK CONSTRAINT; Schema: api; Owner: dots_owner
---
-
 ALTER TABLE ONLY core.user_restriction
     ADD CONSTRAINT user_num_record_user_id_fkey FOREIGN KEY (user_id) REFERENCES core."user"(id) DEFERRABLE;
-
-
---
--- Name: user user_package_kind_fkey; Type: FK CONSTRAINT; Schema: api; Owner: dots_owner
---
 
 ALTER TABLE ONLY core."user"
     ADD CONSTRAINT user_package_kind_fkey FOREIGN KEY (package_kind) REFERENCES core.package(name);
 
-
---
--- Name: company; Type: ROW SECURITY; Schema: api; Owner: dots_owner
---
-
 ALTER TABLE core.company ENABLE ROW LEVEL SECURITY;
-
---
--- Name: company company_tent; Type: POLICY; Schema: api; Owner: dots_owner
---
 
 CREATE POLICY company_tent ON core.company TO dots_api_user USING (((tid)::text = (core.get_tenent())::text));
 
-
---
--- Name: deed; Type: ROW SECURITY; Schema: api; Owner: dots_owner
---
-
 ALTER TABLE core.deed ENABLE ROW LEVEL SECURITY;
-
---
--- Name: deed deed_tent; Type: POLICY; Schema: api; Owner: dots_owner
---
 
 CREATE POLICY deed_tent ON core.deed TO dots_api_user USING (((tid)::text = (core.get_tenent())::text));
 
-
---
--- Name: drain; Type: ROW SECURITY; Schema: api; Owner: dots_owner
---
-
 ALTER TABLE core.drain ENABLE ROW LEVEL SECURITY;
-
---
--- Name: drain drain_tent; Type: POLICY; Schema: api; Owner: dots_owner
---
 
 CREATE POLICY drain_tent ON core.drain TO dots_api_user USING (((tid)::text = (core.get_tenent())::text));
 
-
---
--- Name: entry; Type: ROW SECURITY; Schema: api; Owner: dots_owner
---
-
 ALTER TABLE core.entry ENABLE ROW LEVEL SECURITY;
-
---
--- Name: entry entry_tent; Type: POLICY; Schema: api; Owner: dots_owner
---
 
 CREATE POLICY entry_tent ON core.entry TO dots_api_user USING (((tid)::text = (core.get_tenent())::text));
 
-
---
--- Name: entry_type; Type: ROW SECURITY; Schema: api; Owner: dots_owner
---
-
 ALTER TABLE core.entry_type ENABLE ROW LEVEL SECURITY;
-
---
--- Name: entry_type entry_type_tent; Type: POLICY; Schema: api; Owner: dots_owner
---
 
 CREATE POLICY entry_type_tent ON core.entry_type TO dots_api_user USING (((tid)::text = (core.get_tenent())::text));
