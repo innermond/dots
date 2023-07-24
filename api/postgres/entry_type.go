@@ -81,20 +81,19 @@ func (s *EntryTypeService) UpdateEntryType(ctx context.Context, id int, upd dots
 	}
 	defer tx.Rollback()
 
-	ee, n, err := s.FindEntryType(ctx, dots.EntryTypeFilter{ID: &id, Limit: 1})
+	_, n, err := s.FindEntryType(ctx, dots.EntryTypeFilter{ID: &id, Limit: 1})
 	if err != nil {
 		return nil, err
 	}
 	if n == 0 {
 		return nil, dots.Errorf(dots.ENOTFOUND, "entry type not found")
 	}
-	tid := ee[0].TID
 
 	if canerr := dots.CanDoAnything(ctx); canerr == nil {
 		return updateEntryType(ctx, tx, id, upd)
 	}
 
-	if canerr := dots.CanWriteOwn(ctx, tid); canerr != nil {
+	if canerr := dots.CanWriteOwn(ctx); canerr != nil {
 		return nil, canerr
 	}
 

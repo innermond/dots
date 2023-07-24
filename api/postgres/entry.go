@@ -124,7 +124,7 @@ func (s *EntryService) UpdateEntry(ctx context.Context, id int, upd dots.EntryUp
 		}
 	}
 
-	if canerr := dots.CanWriteOwn(ctx, uid); canerr != nil {
+	if canerr := dots.CanWriteOwn(ctx); canerr != nil {
 		return nil, canerr
 	}
 

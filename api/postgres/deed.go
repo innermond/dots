@@ -195,7 +195,7 @@ func (s *DeedService) UpdateDeed(ctx context.Context, id int, upd dots.DeedUpdat
 	if deedUserID == nil {
 		return nil, dots.Errorf(dots.ECONFLICT, "deed user conflict")
 	}
-	if canerr := dots.CanWriteOwn(ctx, *deedUserID); canerr != nil {
+	if canerr := dots.CanWriteOwn(ctx); canerr != nil {
 		return nil, canerr
 	}
 

@@ -29,20 +29,6 @@ func (s *CompanyService) CreateCompany(ctx context.Context, c *dots.Company) err
 	}
 	defer tx.Rollback()
 
-	if canerr := dots.CanDoAnything(ctx); canerr == nil {
-		// owner company can be different than current user (assumed to be a super-user)
-		// but not missing
-		if c.TID.IsNil() {
-			return dots.Errorf(dots.EINVALID, "missing owner identificator")
-		}
-		err := companyCheckDeleted(ctx, tx, *c)
-		if err != nil {
-			return err
-		}
-
-		return createCompany(ctx, tx, c)
-	}
-
 	if canerr := dots.CanCreateOwn(ctx); canerr != nil {
 		return canerr
 	}
@@ -94,18 +80,6 @@ func (s *CompanyService) UpdateCompany(ctx context.Context, id int, upd dots.Com
 	}
 	defer tx.Rollback()
 
-	if canerr := dots.CanDoAnything(ctx); canerr == nil {
-
-		if upd.TID == nil {
-			return nil, dots.Errorf(dots.EINVALID, "missing owner identificator")
-		}
-		// TODO changing company tid may divert from the tids of records referenced by this company
-		// semanticly updating tid means you hand over the company to other tid/user
-		// all records tied to the company must have change their tid to the new one
-		// currentlyupdateCompany do not alows to change tid
-		return updateCompany(ctx, tx, id, upd)
-	}
-
 	if err := tx.setUserIDPerConnection(ctx); err != nil {
 		return nil, err
 	}
@@ -115,7 +89,7 @@ func (s *CompanyService) UpdateCompany(ctx context.Context, id int, upd dots.Com
 		ID:        &id,
 		IsDeleted: &isDeleted,
 	}
-	cc, n, err := findCompany(ctx, tx, find)
+	_, n, err := findCompany(ctx, tx, find)
 	if err != nil {
 		return nil, err
 	}
@@ -123,7 +97,7 @@ func (s *CompanyService) UpdateCompany(ctx context.Context, id int, upd dots.Com
 		return &dots.Company{}, dots.Errorf(dots.ENOTFOUND, "company not found")
 	}
 
-	if canerr := dots.CanWriteOwn(ctx, cc[0].TID); canerr != nil {
+	if canerr := dots.CanWriteOwn(ctx); canerr != nil {
 		return nil, canerr
 	}
 
@@ -171,12 +145,6 @@ func (s *CompanyService) DeleteCompany(ctx context.Context, id int, filter dots.
 	}
 
 	var n int
-	uid := dots.UserFromContext(ctx).ID
-
-	err = companyBelongsToUser(ctx, tx, uid, id)
-	if err != nil {
-		return 0, err
-	}
 
 	if filter.Hard {
 		n, err = deleteCompanyPermanently(ctx, tx, id)
@@ -206,23 +174,25 @@ func findCompany(ctx context.Context, tx *Tx, filter dots.CompanyFilter) (_ []*d
 	if v := filter.RN; v != nil {
 		where, args = append(where, "rn = ?"), append(args, *v)
 	}
-	if v := filter.TID; v != nil {
-		where, args = append(where, "tid = ?"), append(args, *v)
-	}
-	replaceQuestionMark(where, args)
 
-	v := filter.IsDeleted
-	if v != nil && *v {
-		where = append(where, "deleted_at is not null")
-	} else if v != nil && !*v {
-		where = append(where, "deleted_at is null")
-	} else if v == nil {
-		where = append(where, "deleted_at is null")
+	// TODO deal with isDeleted
+	/*	v := filter.IsDeleted
+		if v != nil && *v {
+			where = append(where, "deleted_at is not null")
+		} else if v != nil && !*v {
+			where = append(where, "deleted_at is null")
+		} else if v == nil {
+			where = append(where, "deleted_at is null")
+		}
+	*/
+	wherestr := ""
+	if len(where) > 0 {
+		replaceQuestionMark(where, args)
+		wherestr = "where " + strings.Join(where, " and ")
 	}
-
 	sqlstr := `
-		select id, longname, tin, rn, tid, count(*) over() from company
-		where ` + strings.Join(where, " and ") + ` ` + formatLimitOffset(filter.Limit, filter.Offset)
+		select id, longname, tin, rn, count(*) over() from company
+		` + wherestr + ` ` + formatLimitOffset(filter.Limit, filter.Offset)
 	rows, err := tx.QueryContext(
 		ctx,
 		sqlstr,
@@ -239,7 +209,7 @@ func findCompany(ctx context.Context, tx *Tx, filter dots.CompanyFilter) (_ []*d
 	companies := []*dots.Company{}
 	for rows.Next() {
 		var e dots.Company
-		err := rows.Scan(&e.ID, &e.Longname, &e.TIN, &e.RN, &e.TID, &n)
+		err := rows.Scan(&e.ID, &e.Longname, &e.TIN, &e.RN, &n)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -284,11 +254,7 @@ func updateCompany(ctx context.Context, tx *Tx, id int, updata dots.CompanyUpdat
 	ct := cc[0]
 
 	set, args := []string{}, []interface{}{}
-	// TODO changing tid is a compplicated case
-	/*if v := updata.TID; v != nil {
-		ct.TID = *v
-		set, args = append(set, "tid = ?"), append(args, *v)
-	}*/
+
 	if v := updata.Longname; v != nil {
 		ct.Longname = *v
 		set, args = append(set, "longname = ?"), append(args, *v)
@@ -322,37 +288,33 @@ func updateCompany(ctx context.Context, tx *Tx, id int, updata dots.CompanyUpdat
 }
 
 func deleteCompany(ctx context.Context, tx *Tx, id int, resurect bool) (n int, err error) {
-	where, args := []string{}, []interface{}{}
-	where, args = append(where, "c.id = ?"), append(args, id)
-	replaceQuestionMark(where, args)
+	where := []string{"core.company.id = $1"}
 
 	kind := "date_trunc('minute', now())::timestamptz"
 	if resurect {
 		kind = "null"
-		where = append(where, "c.deleted_at is not null")
+		where = append(where, "core.company.deleted_at is not null")
 	} else {
-		where = append(where, "c.deleted_at is null")
+		where = append(where, "core.company.deleted_at is null")
 	}
 
-	whereEntries, whereDeeds := make([]string, len(where)), make([]string, len(where))
-	copy(whereEntries, where)
-	copy(whereDeeds, where)
-	whereEntries = append(whereEntries, "e.company_id is null")
-	whereDeeds = append(whereDeeds, "d.company_id is null")
+	wherestr := "where " + strings.Join(where, " and ")
 
-	sqlstr := `
-		update company set deleted_at = %s where id = %d and id = any(
-		select c.id from company c left join entry e on(c.id = e.company_id)
-		where %s) or id = any(
-		select c.id from company c left join deed d on(c.id = d.company_id)
-		where %s)`
-	conditionEntries := strings.Join(whereEntries, " and ")
-	conditionDeeds := strings.Join(whereDeeds, " and ")
-	sqlstr = fmt.Sprintf(sqlstr, kind, id, conditionEntries, conditionDeeds)
+	bareCompany := `
+	and not exists(
+		select c.id from core.company c join core.entry e on(c.id = e.company_id)
+		where e.company_id = $1 limit 1) 
+	and not exists(
+		select c.id from core.company c join core.deed d on(c.id = d.company_id)
+		where d.company_id = $1 limit 1)`
+
+	sqlstr := `update core.company set deleted_at = %s ` + wherestr + bareCompany
+	sqlstr = fmt.Sprintf(sqlstr, kind)
+
 	result, err := tx.ExecContext(
 		ctx,
 		sqlstr,
-		args...,
+		id,
 	)
 	if err != nil {
 		return 0, fmt.Errorf("postgres.company: cannot soft delete %w", err)
@@ -367,29 +329,23 @@ func deleteCompany(ctx context.Context, tx *Tx, id int, resurect bool) (n int, e
 }
 
 func deleteCompanyPermanently(ctx context.Context, tx *Tx, id int) (n int, err error) {
-	where, args := []string{}, []interface{}{}
-	where, args = append(where, "c.id = ?"), append(args, id)
-	replaceQuestionMark(where, args)
+	where := []string{"core.company.id = $1"}
+	wherestr := "where " + strings.Join(where, " and ")
 
-	whereEntries, whereDeeds := make([]string, len(where)), make([]string, len(where))
-	copy(whereEntries, where)
-	copy(whereDeeds, where)
-	whereEntries = append(whereEntries, "e.company_id is null")
-	whereDeeds = append(whereDeeds, "d.company_id is null")
+	bareCompany := `
+	and not exists(
+		select c.id from core.company c join core.entry e on(c.id = e.company_id)
+		where e.company_id = $1 limit 1) 
+	and not exists(
+		select c.id from core.company c join core.deed d on(c.id = d.company_id)
+		where d.company_id = $1 limit 1)`
 
-	sqlstr := `
-		delete from company where id = %d and id = any(
-		select c.id from company c left join entry e on(c.id = e.company_id)
-		where %s) or id = any(
-		select c.id from company c left join deed d on(c.id = d.company_id)
-		where %s)`
-	conditionEntries := strings.Join(whereEntries, " and ")
-	conditionDeeds := strings.Join(whereDeeds, " and ")
-	sqlstr = fmt.Sprintf(sqlstr, id, conditionEntries, conditionDeeds)
+	sqlstr := `delete from core.company ` + wherestr + bareCompany
+
 	result, err := tx.ExecContext(
 		ctx,
 		sqlstr,
-		args...,
+		id,
 	)
 	if err != nil {
 		return 0, fmt.Errorf("postgres.company: cannot hard delete %w", err)
@@ -406,7 +362,7 @@ func deleteCompanyPermanently(ctx context.Context, tx *Tx, id int) (n int, err e
 func companyBelongsToUser(ctx context.Context, tx *Tx, u ksuid.KSUID, companyID int) error {
 	sqlstr := `select exists(
 select id
-from company c
+from core.company c
 where c.id = $1 and c.tid = $2
 );
 `
@@ -418,36 +374,6 @@ where c.id = $1 and c.tid = $2
 
 	if !exists {
 		return dots.Errorf(dots.ENOTFOUND, "company not found")
-	}
-
-	return nil
-}
-
-func companyCheckDeleted(ctx context.Context, tx *Tx, c dots.Company) error {
-	// new company should not be a soft deleted old one
-	IsDeleted := true
-	filterFind := dots.CompanyFilter{IsDeleted: &IsDeleted}
-	if c.ID != 0 {
-		filterFind.ID = &c.ID
-	}
-	if !c.TID.IsNil() {
-		filterFind.TID = &c.TID
-	}
-	if c.Longname != "" {
-		filterFind.Longname = &c.Longname
-	}
-	if c.TIN != "" {
-		filterFind.TIN = &c.TIN
-	}
-	if c.RN != "" {
-		filterFind.RN = &c.RN
-	}
-	_, n, err := findCompany(ctx, tx, filterFind)
-	if err != nil {
-		return err
-	}
-	if n == 1 {
-		return dots.Errorf(dots.EINVALID, "this company has been deleted")
 	}
 
 	return nil

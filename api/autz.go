@@ -2,8 +2,6 @@ package dots
 
 import (
 	"context"
-
-	"github.com/segmentio/ksuid"
 )
 
 func CanDoAnything(ctx context.Context) error {
@@ -34,13 +32,13 @@ func CanDeleteOwn(ctx context.Context) error {
 	return nil
 }
 
-func CanWriteOwn(ctx context.Context, tid ksuid.KSUID) error {
+func CanWriteOwn(ctx context.Context) error {
 	user := UserFromContext(ctx)
 	if user.ID.IsNil() {
 		return Errorf(EUNAUTHORIZED, "unauthorized user")
 	}
 
-	canWriteOwn := PowersContains(user.Powers, WriteOwn) && user.ID == tid
+	canWriteOwn := PowersContains(user.Powers, WriteOwn)
 	if !canWriteOwn {
 		return Errorf(EUNAUTHORIZED, "unauthorized operation")
 	}
