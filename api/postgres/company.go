@@ -224,7 +224,7 @@ func findCompany(ctx context.Context, tx *Tx, filter dots.CompanyFilter) (_ []*d
 
 func createCompany(ctx context.Context, tx *Tx, c *dots.Company) error {
 	sqlstr, args := `
-insert into core.company
+insert into company
 (longname, tin, rn)
 values
 ($1, $2, $3) returning id
