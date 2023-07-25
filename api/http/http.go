@@ -160,7 +160,7 @@ func queryInto[T any](qp url.Values, s *T) error {
 		case reflect.Ptr:
 			switch fv.Type().Elem().Kind() {
 			case reflect.String:
-				fv.Set(ValueOf(&pv))
+				fv.Set(reflect.ValueOf(&pv))
 			case reflect.Int:
 				iv, err := strconv.Atoi(pv)
 				if err != nil {
