@@ -8,13 +8,18 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"reflect"
+	"strconv"
 	"strings"
 
 	"github.com/innermond/dots"
 )
 
-var ErrInputMissing = errors.New("missing input")
+var (
+	ErrInputMissing   = errors.New("missing input")
+	ErrInputWrongInto = errors.New("wrong target to decode into")
+)
 
 func LogError(r *http.Request, err error) {
 	log.Printf("[http] %s %s %s", r.Method, r.URL.Path, err)
@@ -101,4 +106,69 @@ func outputJSON[T any](w http.ResponseWriter, r *http.Request, status int, respo
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		LogError(r, err)
 	}
+}
+
+// inputURL decodes query parameters to a struct pointed by s param
+func inputURLQuery[T any](w http.ResponseWriter, r *http.Request, s *T, prefix string) bool {
+	err := queryInto[T](r.URL.Query(), s)
+	if err == nil {
+		return true
+	}
+
+	LogError(r, err)
+	msg := fmt.Sprintf("%s: undecodable input", prefix)
+	Error(w, r, dots.Errorf(dots.EINVALID, msg))
+	return false
+}
+
+// queryInto map query params to pointed struct
+func queryInto[T any](qp url.Values, s *T) error {
+	if len(qp) == 0 {
+		return ErrInputMissing
+	}
+
+	t := reflect.TypeOf(s)
+	e := t.Elem()
+
+	if t.Kind() != reflect.Ptr && e.Kind() != reflect.Struct {
+		return ErrInputWrongInto
+	}
+
+	v := reflect.ValueOf(s).Elem()
+	for i := 0; i < e.NumField(); i++ {
+		f := e.Field(i)
+		fn := f.Tag.Get("json")
+		if fn == "" {
+			fn = f.Name
+		}
+
+		pv := qp.Get(fn)
+		if pv == "" {
+			continue
+		}
+
+		fv := v.Field(i)
+		switch fv.Kind() {
+		case reflect.String:
+			fv.SetString(pv)
+		case reflect.Int:
+			iv, err := strconv.Atoi(pv)
+			if err != nil {
+				return err
+			}
+			fv.SetInt(int64(iv))
+		case reflect.Ptr:
+			switch fv.Type().Elem().Kind() {
+			case reflect.String:
+				fv.Set(ValueOf(&pv))
+			case reflect.Int:
+				iv, err := strconv.Atoi(pv)
+				if err != nil {
+					return err
+				}
+				fv.Set(reflect.ValueOf(&iv))
+			}
+		}
+	}
+	return nil
 }
