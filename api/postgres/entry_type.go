@@ -52,16 +52,12 @@ func (s *EntryTypeService) FindEntryType(ctx context.Context, filter dots.EntryT
 		return nil, 0, err
 	}
 
-	if canerr := dots.CanDoAnything(ctx); canerr == nil {
-		return findEntryType(ctx, tx, filter)
+	if canerr := dots.CanReadOwn(ctx); canerr != nil {
+		return nil, 0, canerr
 	}
 
 	if err := tx.setUserIDPerConnection(ctx); err != nil {
 		return nil, 0, err
-	}
-
-	if canerr := dots.CanReadOwn(ctx); canerr != nil {
-		return nil, 0, canerr
 	}
 
 	return findEntryType(ctx, tx, filter)
@@ -116,23 +112,24 @@ func (s *EntryTypeService) DeleteEntryType(ctx context.Context, id int, filter d
 	}
 	defer tx.Rollback()
 
-	if canerr := dots.CanDoAnything(ctx); canerr == nil {
-		return deleteEntryType(ctx, tx, id, filter.Resurect)
-	}
-
 	if canerr := dots.CanDeleteOwn(ctx); canerr != nil {
 		return 0, canerr
 	}
 
-	var n int
-	// lock delete to own
-	uid := dots.UserFromContext(ctx).ID
-
-	err = entryTypeBelongsToUser(ctx, tx, uid, id)
-	if err != nil {
+	if err := tx.setUserIDPerConnection(ctx); err != nil {
 		return 0, err
 	}
-	n, err = deleteEntryType(ctx, tx, id, filter.Resurect)
+
+	var n int
+
+	if filter.Hard {
+		n, err = deleteEntryTypePermanently(ctx, tx, id)
+	} else {
+		n, err = deleteEntryType(ctx, tx, id, filter.Resurect)
+	}
+	if err != nil {
+		return n, err
+	}
 
 	tx.Commit()
 
@@ -170,11 +167,11 @@ func updateEntryType(ctx context.Context, tx *Tx, id int, updata dots.EntryTypeU
 
 	set, args := []string{}, []interface{}{}
 	if v := updata.Code; v != nil {
-		et.Code = *v
+		et.Code = v
 		set, args = append(set, "code = ?"), append(args, *v)
 	}
 	if v := updata.Unit; v != nil {
-		et.Unit = *v
+		et.Unit = v
 		set, args = append(set, "unit = ?"), append(args, *v)
 	}
 	if v := updata.Description; v != nil {
@@ -254,29 +251,58 @@ func findEntryType(ctx context.Context, tx *Tx, filter dots.EntryTypeFilter) (_ 
 }
 
 func deleteEntryType(ctx context.Context, tx *Tx, id int, resurect bool) (n int, err error) {
-	where, args := []string{}, []interface{}{}
-	where, args = append(where, "et.id = ?"), append(args, id)
-	replaceQuestionMark(where, args)
-	// entry_type must not have entries
-	where = append(where, "e.id is null")
+	where := []string{"core.entry_type.id = $1"}
 
 	kind := "date_trunc('minute', now())::timestamptz"
 	if resurect {
 		kind = "null"
-		where = append(where, "et.deleted_at is not null")
+		where = append(where, "core.entry_type.deleted_at is not null")
 	} else {
-		where = append(where, "et.deleted_at is null")
+		where = append(where, "core.entry_type.deleted_at is null")
 	}
 
-	sqlstr := `
-		update entry_type set deleted_at = %s where id = %d and id = any(
-		select et.id from entry_type et left join entry e on(et.id = e.entry_type_id)
-		where %s)`
-	sqlstr = fmt.Sprintf(sqlstr, kind, id, strings.Join(where, " and "))
+	wherestr := "where " + strings.Join(where, " and ")
+
+	bareEntryType := `
+		and not exists(
+		select et.id from entry_type et join entry e on(et.id = e.entry_type_id)
+		where e.entry_type_id = $1 limit 1)
+`
+	sqlstr := `update core.entry_type set deleted_at = %s  ` + wherestr + bareEntryType
+	sqlstr = fmt.Sprintf(sqlstr, kind)
+
 	result, err := tx.ExecContext(
 		ctx,
 		sqlstr,
-		args...,
+		id,
+	)
+	if err != nil {
+		return 0, fmt.Errorf("postgres.entry type: cannot soft delete %w", err)
+	}
+
+	n64, err := result.RowsAffected()
+	if err != nil {
+		return 0, err
+	}
+
+	return int(n64), nil
+}
+
+func deleteEntryTypePermanently(ctx context.Context, tx *Tx, id int) (n int, err error) {
+	where := []string{"core.entry_type.id = $1"}
+	wherestr := "where " + strings.Join(where, " and ")
+
+	bareEntryType := `
+		and not exists(
+		select et.id from entry_type et join entry e on(et.id = e.entry_type_id)
+		where e.entry_type_id = $1 limit 1)
+`
+	sqlstr := `delete from core.entry_type ` + wherestr + bareEntryType
+
+	result, err := tx.ExecContext(
+		ctx,
+		sqlstr,
+		id,
 	)
 	if err != nil {
 		return 0, fmt.Errorf("postgres.entry type: cannot soft delete %w", err)

@@ -17,8 +17,15 @@ func (c *Company) Validate() error {
 		return Errorf(EINVALID, "all name, tax identification number and  registration number are required")
 	}
 
-	suspects := []*string{&c.Longname, &c.TIN, &c.RN}
-	printable(suspects)
+	suspects := map[string]*string{
+		"longname": &c.Longname,
+		"tin":      &c.TIN,
+		"rn":       &c.RN,
+	}
+	err := printable(suspects)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }

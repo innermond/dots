@@ -12,6 +12,7 @@ func (s *Server) registerEntryTypeRoutes(router *mux.Router) {
 	router.HandleFunc("", s.handleEntryTypeCreate).Methods("POST")
 	router.HandleFunc("/{id}", s.handleEntryTypePatch).Methods("PATCH")
 	router.HandleFunc("", s.handleEntryTypeFind).Methods("GET")
+	router.HandleFunc("/{id}", s.handleEntryTypeHardDelete).Methods("DELETE")
 }
 
 func (s *Server) handleEntryTypeCreate(w http.ResponseWriter, r *http.Request) {
@@ -111,6 +112,31 @@ func (s *Server) handleEntryTypeDelete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	outputJSON(w, r, http.StatusFound, &deleteEntryTypeResponse{N: n})
+}
+
+func (s *Server) handleEntryTypeHardDelete(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(mux.Vars(r)["id"])
+	if err != nil {
+		Error(w, r, dots.Errorf(dots.EINVALID, "invalid ID format"))
+		return
+	}
+
+	var filter dots.EntryTypeDelete
+	if r.Body != http.NoBody {
+		ok := inputJSON(w, r, &filter, "hard delete entry type")
+		if !ok {
+			return
+		}
+	}
+	filter.Hard = true
+
+	n, err := s.EntryTypeService.DeleteEntryType(r.Context(), id, filter)
+	if err != nil {
+		Error(w, r, err)
+		return
+	}
+
+	outputJSON(w, r, http.StatusFound, &deleteCompanyResponse{N: n})
 }
 
 type findEntryTypeResponse struct {

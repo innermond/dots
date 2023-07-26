@@ -181,6 +181,8 @@ func perr(err error) error {
 	switch perr.Code {
 	case "23505":
 		return dots.Errorf(dots.EINVALID, "duplicate: %v", perr.ConstraintName)
+	case "23502":
+		return dots.Errorf(dots.EINVALID, "missing value: %v", perr.ColumnName)
 	default:
 		return errors.New(perr.Message)
 	}

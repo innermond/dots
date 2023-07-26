@@ -5,19 +5,26 @@ import (
 )
 
 type EntryType struct {
-	ID          int     `json:"id"`
-	Code        string  `json:"code"`
-	Description *string `json:"description"`
-	Unit        string  `json:"unit"`
+	ID          *int    `json:"id"`
+	Code        *string `json:"code"`
+	Description *string `json:"description,omitempty"`
+	Unit        *string `json:"unit"`
 }
 
 func (et *EntryType) Validate() error {
-	if len(et.Code) == 0 {
-		return Errorf(EINVALID, "entry type code must not be empty")
+	if et.Code == nil || et.Unit == nil {
+		return Errorf(EINVALID, "entry type code and unit must not be empty")
 	}
 
-	suspects := []*string{&et.Code, et.Description, &et.Unit}
-	printable(suspects)
+	suspects := map[string]*string{
+		"code":        et.Code,
+		"description": et.Description,
+		"unit":        et.Unit,
+	}
+	err := printable(suspects)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -45,6 +52,7 @@ type EntryTypeFilter struct {
 }
 
 type EntryTypeDelete struct {
+	Hard     bool
 	Resurect bool
 }
 
