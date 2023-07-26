@@ -18,7 +18,7 @@ func NewEntryTypeService(db *DB) *EntryTypeService {
 	return &EntryTypeService{db: db}
 }
 
-func (s *EntryTypeService) CreateEntryType(ctx context.Context, et *dots.EntryType) (err error) {
+func (s *EntryTypeService) CreateEntryType(ctx context.Context, et *dots.EntryType) error {
 	if err := et.Validate(); err != nil {
 		return err
 	}
@@ -27,16 +27,7 @@ func (s *EntryTypeService) CreateEntryType(ctx context.Context, et *dots.EntryTy
 	if err != nil {
 		return err
 	}
-	defer func() {
-		tx.RollbackOrCommit(err)
-	}()
-
-	if canerr := dots.CanDoAnything(ctx); canerr == nil {
-		if et.TID.IsNil() {
-			return dots.Errorf(dots.EINVALID, "missing owner identificator")
-		}
-		return createEntryType(ctx, tx, et)
-	}
+	defer tx.Rollback()
 
 	if canerr := dots.CanCreateOwn(ctx); canerr != nil {
 		return canerr
@@ -47,8 +38,10 @@ func (s *EntryTypeService) CreateEntryType(ctx context.Context, et *dots.EntryTy
 	}
 
 	if err := createEntryType(ctx, tx, et); err != nil {
-		return err
+		return perr(err)
 	}
+
+	tx.Commit()
 
 	return nil
 }
@@ -75,22 +68,31 @@ func (s *EntryTypeService) FindEntryType(ctx context.Context, filter dots.EntryT
 }
 
 func (s *EntryTypeService) UpdateEntryType(ctx context.Context, id int, upd dots.EntryTypeUpdate) (*dots.EntryType, error) {
+	if err := upd.Validate(); err != nil {
+		return nil, err
+	}
+
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
 	defer tx.Rollback()
 
-	_, n, err := s.FindEntryType(ctx, dots.EntryTypeFilter{ID: &id, Limit: 1})
+	if err := tx.setUserIDPerConnection(ctx); err != nil {
+		return nil, err
+	}
+
+	isDeleted := false
+	find := dots.EntryTypeFilter{
+		ID:        &id,
+		IsDeleted: &isDeleted,
+	}
+	_, n, err := s.FindEntryType(ctx, find)
 	if err != nil {
 		return nil, err
 	}
 	if n == 0 {
 		return nil, dots.Errorf(dots.ENOTFOUND, "entry type not found")
-	}
-
-	if canerr := dots.CanDoAnything(ctx); canerr == nil {
-		return updateEntryType(ctx, tx, id, upd)
 	}
 
 	if canerr := dots.CanWriteOwn(ctx); canerr != nil {
@@ -138,23 +140,18 @@ func (s *EntryTypeService) DeleteEntryType(ctx context.Context, id int, filter d
 }
 
 func createEntryType(ctx context.Context, tx *Tx, et *dots.EntryType) error {
-	user := dots.UserFromContext(ctx)
-	if user.ID == ksuid.Nil {
-		return dots.Errorf(dots.EUNAUTHORIZED, "unauthorized user")
-	}
-
-	sqlstr := `
+	sqlstr, args := `
 insert into entry_type
-(code, unit, description, tid)
+(code, unit, description)
 values
-($1, $2, $3, $4) returning id
-`
-	err := tx.QueryRowContext(
+($1, $2, $3) returning id
+`, []interface{}{et.Code, et.Unit, et.Description}
+
+	if err := tx.QueryRowContext(
 		ctx,
 		sqlstr,
-		et.Code, et.Unit, et.Description, et.TID,
-	).Scan(&et.ID)
-	if err != nil {
+		args...,
+	).Scan(&et.ID); err != nil {
 		return err
 	}
 
@@ -211,22 +208,23 @@ func findEntryType(ctx context.Context, tx *Tx, filter dots.EntryTypeFilter) (_ 
 	if v := filter.Unit; v != nil {
 		where, args = append(where, "unit = ?"), append(args, *v)
 	}
-	if v := filter.TID; v != nil {
-		where, args = append(where, "tid = ?"), append(args, *v)
-	}
-	replaceQuestionMark(where, args)
 
-	v := filter.IsDeleted
+	/*v := filter.IsDeleted
 	if v != nil && *v {
 		where = append(where, "deleted_at is not null")
 	} else if v != nil && !*v {
 		where = append(where, "deleted_at is null")
 	} else if v == nil {
 		where = append(where, "deleted_at is null")
-	}
+	}*/
 
-	sqlstr := "select id, code, description, unit, tid, count(*) over() from entry_type where " +
-		strings.Join(where, " and ") + " " + formatLimitOffset(filter.Limit, filter.Offset)
+	wherestr := ""
+	if len(where) > 0 {
+		replaceQuestionMark(where, args)
+		wherestr = "where " + strings.Join(where, " and ")
+	}
+	sqlstr := `select id, code, description, unit, count(*) over() from entry_type
+	` + wherestr + ` ` + formatLimitOffset(filter.Limit, filter.Offset)
 	rows, err := tx.QueryContext(ctx,
 		sqlstr,
 		args...,
@@ -242,7 +240,7 @@ func findEntryType(ctx context.Context, tx *Tx, filter dots.EntryTypeFilter) (_ 
 	entryTypes := []*dots.EntryType{}
 	for rows.Next() {
 		var et dots.EntryType
-		err := rows.Scan(&et.ID, &et.Code, &et.Description, &et.Unit, &et.TID, &n)
+		err := rows.Scan(&et.ID, &et.Code, &et.Description, &et.Unit, &n)
 		if err != nil {
 			return nil, 0, err
 		}

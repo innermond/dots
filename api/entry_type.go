@@ -2,16 +2,13 @@ package dots
 
 import (
 	"context"
-
-	"github.com/segmentio/ksuid"
 )
 
 type EntryType struct {
-	ID          int         `json:"id"`
-	Code        string      `json:"code"`
-	Description *string     `json:"description"`
-	Unit        string      `json:"unit"`
-	TID         ksuid.KSUID `json:"tid"`
+	ID          int     `json:"id"`
+	Code        string  `json:"code"`
+	Description *string `json:"description"`
+	Unit        string  `json:"unit"`
 }
 
 func (et *EntryType) Validate() error {
@@ -19,9 +16,8 @@ func (et *EntryType) Validate() error {
 		return Errorf(EINVALID, "entry type code must not be empty")
 	}
 
-	if hasNonPrintable(et.Code) {
-		return Errorf(EINVALID, "entry type code has non-printable characters")
-	}
+	suspects := []*string{&et.Code, et.Description, &et.Unit}
+	printable(suspects)
 
 	return nil
 }
@@ -34,11 +30,10 @@ type EntryTypeService interface {
 }
 
 type EntryTypeFilter struct {
-	ID          *int         `json:"id"`
-	Code        *string      `json:"code"`
-	Description *string      `json:"description"`
-	Unit        *string      `json:"unit"`
-	TID         *ksuid.KSUID `json:"tid"`
+	ID          *int    `json:"id"`
+	Code        *string `json:"code"`
+	Description *string `json:"description"`
+	Unit        *string `json:"unit"`
 
 	Offset int `json:"offset"`
 	Limit  int `json:"limit"`
@@ -54,18 +49,14 @@ type EntryTypeDelete struct {
 }
 
 type EntryTypeUpdate struct {
-	Code        *string      `json:"code"`
-	Description *string      `json:"description"`
-	Unit        *string      `json:"unit"`
-	TID         *ksuid.KSUID `json:"tid"`
+	Code        *string `json:"code"`
+	Description *string `json:"description"`
+	Unit        *string `json:"unit"`
 }
 
-func (etu *EntryTypeUpdate) Valid() error {
+func (etu *EntryTypeUpdate) Validate() error {
 	if etu.Code == nil && etu.Unit == nil && etu.Description == nil {
 		return Errorf(EINVALID, "entry type code or unit or description are required")
-	}
-	if etu.TID == nil {
-		return Errorf(EINVALID, "entry type owner missing")
 	}
 
 	return nil

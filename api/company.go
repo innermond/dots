@@ -2,7 +2,6 @@ package dots
 
 import (
 	"context"
-	"regexp"
 	"strings"
 )
 
@@ -18,36 +17,8 @@ func (c *Company) Validate() error {
 		return Errorf(EINVALID, "all name, tax identification number and  registration number are required")
 	}
 
-	suspects := []string{c.Longname, c.TIN, c.RN}
-	// all utf-8 except control charatcters
-	pattern := "^[[:^cntrl:]]+$"
-	re := regexp.MustCompile(pattern)
-	for _, suspect := range suspects {
-		match := re.MatchString(suspect)
-		if !match {
-			return Errorf(EINVALID, "input is not a text line")
-		}
-	}
-	// only white spaces
-	pattern = "^\\s+$"
-	re = regexp.MustCompile(pattern)
-	for _, suspect := range suspects {
-		match := re.MatchString(suspect)
-		if match {
-			return Errorf(EINVALID, "emptyness as input")
-		}
-	}
-
-	// trim white space
-	if c.Longname != "" {
-		c.Longname = strings.Trim(c.Longname, " ")
-	}
-	if c.TIN != "" {
-		c.TIN = strings.Trim(c.TIN, " ")
-	}
-	if c.RN != "" {
-		c.RN = strings.Trim(c.RN, " ")
-	}
+	suspects := []*string{&c.Longname, &c.TIN, &c.RN}
+	printable(suspects)
 
 	return nil
 }

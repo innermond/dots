@@ -1,6 +1,7 @@
 package dots
 
 import (
+	"regexp"
 	"strings"
 	"unicode"
 )
@@ -20,4 +21,29 @@ func filterNonPrintables(text string) string {
 func hasNonPrintable(text string) bool {
 	pp := filterNonPrintables(text)
 	return len(pp) != len(text)
+}
+
+func printable(suspects []*string) error {
+	// only white spaces
+	pattern := "^\\s+$"
+	re := regexp.MustCompile(pattern)
+
+	for _, suspect := range suspects {
+		if suspect == nil {
+			continue
+		}
+
+		match := re.MatchString(*suspect)
+		if match {
+			return Errorf(EINVALID, "input is empty")
+		}
+
+		if has := hasNonPrintable(*suspect); has {
+			return Errorf(EINVALID, "input is not a text line")
+		}
+
+		*suspect = strings.Trim(*suspect, " ")
+	}
+
+	return nil
 }

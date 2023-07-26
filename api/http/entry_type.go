@@ -51,14 +51,6 @@ func (s *Server) handleEntryTypeUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	u := dots.UserFromContext(r.Context())
-	updata.TID = &u.ID
-
-	if err := updata.Valid(); err != nil {
-		Error(w, r, err)
-		return
-	}
-
 	et, err := s.EntryTypeService.UpdateEntryType(r.Context(), id, updata)
 	if err != nil {
 		Error(w, r, err)
@@ -70,7 +62,13 @@ func (s *Server) handleEntryTypeUpdate(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleEntryTypeFind(w http.ResponseWriter, r *http.Request) {
 	// can accept missing r.Body
-	var filter dots.EntryTypeFilter
+	filter := dots.EntryTypeFilter{}
+	if len(r.URL.Query()) > 0 {
+		ok := inputURLQuery(w, r, &filter, "find entry type")
+		if !ok {
+			return
+		}
+	}
 
 	// ensure we have a input body to be sent to json
 	if r.Body != http.NoBody {

@@ -37,8 +37,7 @@ func (s *CompanyService) CreateCompany(ctx context.Context, c *dots.Company) err
 		return err
 	}
 
-	err = createCompany(ctx, tx, c)
-	if err != nil {
+	if err := createCompany(ctx, tx, c); err != nil {
 		return perr(err)
 	}
 
@@ -230,13 +229,11 @@ values
 ($1, $2, $3) returning id
 	`, []interface{}{c.Longname, c.TIN, c.RN}
 
-	err := tx.QueryRowContext(
+	if err := tx.QueryRowContext(
 		ctx,
 		sqlstr,
 		args...,
-	).Scan(&c.ID)
-
-	if err != nil {
+	).Scan(&c.ID); err != nil {
 		return err
 	}
 
