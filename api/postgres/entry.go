@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -56,16 +57,12 @@ func (s *EntryService) FindEntry(ctx context.Context, filter dots.EntryFilter) (
 	}
 	defer tx.Rollback()
 
-	if err := tx.setUserIDPerConnection(ctx); err != nil {
-		return nil, 0, err
-	}
-
-	if canerr := dots.CanDoAnything(ctx); canerr == nil {
-		return findEntry(ctx, tx, filter)
-	}
-
 	if canerr := dots.CanReadOwn(ctx); canerr != nil {
 		return nil, 0, canerr
+	}
+
+	if err := tx.setUserIDPerConnection(ctx); err != nil {
+		return nil, 0, err
 	}
 
 	// need company ID that belong to user
@@ -73,51 +70,23 @@ func (s *EntryService) FindEntry(ctx context.Context, filter dots.EntryFilter) (
 		return nil, 0, dots.Errorf(dots.EINVALID, "missing company")
 	}
 
-	/*	uid := dots.UserFromContext(ctx).ID
-		err = companyBelongsToUser(ctx, tx, uid, *filter.CompanyID)
-		if err != nil {
-			return nil, 0, err
-		}
-	*/
-
-	if us, err := tx.getUserIDSetting(ctx); err != nil {
-		fmt.Println("tenent id")
-		return nil, 0, err
-	} else {
-		fmt.Println(us)
-	}
-
 	return findEntry(ctx, tx, filter)
 }
 
 func (s *EntryService) UpdateEntry(ctx context.Context, id int, upd dots.EntryUpdate) (*dots.Entry, error) {
+	// TODO valiate?
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
 	defer tx.Rollback()
 
-	if canerr := dots.CanDoAnything(ctx); canerr == nil {
-		return updateEntry(ctx, tx, id, upd)
-	}
-
-	uid := dots.UserFromContext(ctx).ID
-	if upd.CompanyID != nil {
-		err := companyBelongsToUser(ctx, tx, uid, *upd.CompanyID)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if upd.EntryTypeID != nil {
-		err := entryTypeBelongsToUser(ctx, tx, uid, *upd.EntryTypeID)
-		if err != nil {
-			return nil, err
-		}
-	}
-
 	if canerr := dots.CanWriteOwn(ctx); canerr != nil {
 		return nil, canerr
+	}
+
+	if err := tx.setUserIDPerConnection(ctx); err != nil {
+		return nil, err
 	}
 
 	e, err := updateEntry(ctx, tx, id, upd)
@@ -183,11 +152,15 @@ returning id, date_added;
 		e.EntryTypeID, e.Quantity, e.CompanyID,
 	).Scan(&id, &date_added)
 	if err != nil {
+		// no rows are returned when insertion fail due to check
+		if err == sql.ErrNoRows {
+			return errors.New("company or entry type cannot be part of a new entry")
+		}
 		return err
 	}
 
 	// update fields of entry
-	e.ID = id
+	e.ID = &id
 	e.DateAdded = date_added
 
 	return nil
@@ -204,45 +177,60 @@ func updateEntry(ctx context.Context, tx *Tx, id int, updata dots.EntryUpdate) (
 	e := ee[0]
 
 	set, args := []string{}, []interface{}{}
+	checks := []string{}
 	if v := updata.EntryTypeID; v != nil {
-		e.EntryTypeID = *v
+		e.EntryTypeID = v
 		set, args = append(set, "entry_type_id = ?"), append(args, *v)
+		checks = append(checks, fmt.Sprintf("(select id is not null from entry_type where id = $%d)", len(args)))
 	}
 	if v := updata.DateAdded; v != nil {
 		e.DateAdded = *v
 		set, args = append(set, "date_added = ?"), append(args, *v)
 	}
 	if v := updata.Quantity; v != nil {
-		e.Quantity = *v
+		e.Quantity = v
 		set, args = append(set, "quantity = ?"), append(args, *v)
 	}
 	if v := updata.CompanyID; v != nil {
-		e.CompanyID = *v
+		e.CompanyID = v
 		set, args = append(set, "company_id = ?"), append(args, *v)
+		checks = append(checks, fmt.Sprintf("(select id is not null from company where id = $%d)", len(args)))
 	}
-	replaceQuestionMark(set, args)
+	if len(args) > 0 {
+		replaceQuestionMark(set, args)
+	}
 
 	args = append(args, id)
-	sqlstr := `
-		update entry
-		set ` + strings.Join(set, ", ") + `
-		where	id = ` + fmt.Sprintf("$%d", len(args))
+	check := ""
+	wherestr := fmt.Sprintf("where entry.id = $%d", len(args))
+	if len(checks) > 0 {
+		wherestr += " and data_entry.ok = true"
+		checkstr := strings.Join(checks, " and ")
+		check = fmt.Sprintf("with data_entry as ( select (%s) as ok)", checkstr)
+	}
 
-	_, err = tx.ExecContext(ctx, sqlstr, args...)
+	sqlstr := check + `
+		update entry
+		set ` + strings.Join(set, ", ") + " from data_entry " + wherestr
+
+	result, err := tx.ExecContext(ctx, sqlstr, args...)
 	if err != nil {
 		return nil, fmt.Errorf("postgres.entry: cannot update %w", err)
+	}
+
+	n64, err := result.RowsAffected()
+	if err != nil {
+		return nil, err
+	}
+	if n64 == 0 {
+		return nil, errors.New("company or entry type cannot be part of entry")
+
 	}
 
 	return e, nil
 }
 
 func findEntry(ctx context.Context, tx *Tx, filter dots.EntryFilter) (_ []*dots.Entry, n int, err error) {
-	if us, err := tx.getUserIDSetting(ctx); err != nil {
-		return nil, 0, err
-	} else {
-		fmt.Println(us)
-	}
-
 	where, args := []string{}, []interface{}{}
 	if v := filter.ID; v != nil {
 		where, args = append(where, "id = ?"), append(args, *v)
@@ -260,7 +248,8 @@ func findEntry(ctx context.Context, tx *Tx, filter dots.EntryFilter) (_ []*dots.
 		where, args = append(where, "company_id = ?"), append(args, *v)
 	}
 
-	if filter.IsDeleted {
+	// TODO deal with isDeleted
+	/*if filter.IsDeleted {
 		if v := filter.DeletedAtFrom; v != nil {
 			// >= ? is intentional
 			where, args = append(where, "deleted_at >= ?"), append(args, *v)
@@ -270,18 +259,21 @@ func findEntry(ctx context.Context, tx *Tx, filter dots.EntryFilter) (_ []*dots.
 			// avoid double counting exact midnight values
 			where, args = append(where, "deleted_at < ?"), append(args, *v)
 		}
+	}*/
+
+	wherestr := ""
+	if len(where) > 0 {
+		replaceQuestionMark(where, args)
+		wherestr = "where " + strings.Join(where, " and ")
 	}
 
-	replaceQuestionMark(where, args)
-
-	if !filter.IsDeleted {
+	/*if !filter.IsDeleted {
 		where = append(where, "deleted_at is null")
 	} else if filter.DeletedAtTo == nil && filter.DeletedAtFrom == nil {
 		where = append(where, "deleted_at is not null")
-	}
+	}*/
 
-	sqlstr := "select id, entry_type_id, date_added, quantity, company_id, count(*) over() from entry where "
-	sqlstr = sqlstr + strings.Join(where, " and ") + ` ` + formatLimitOffset(filter.Limit, filter.Offset)
+	sqlstr := "select id, entry_type_id, date_added, quantity, company_id, count(*) over() from entry " + wherestr + ` ` + formatLimitOffset(filter.Limit, filter.Offset)
 	rows, err := tx.QueryContext(
 		ctx,
 		sqlstr,
@@ -296,20 +288,20 @@ func findEntry(ctx context.Context, tx *Tx, filter dots.EntryFilter) (_ []*dots.
 	}
 	defer rows.Close()
 
-	entries := []*dots.Entry{}
+	ee := []*dots.Entry{}
 	for rows.Next() {
 		var e dots.Entry
 		err := rows.Scan(&e.ID, &e.EntryTypeID, &e.DateAdded, &e.Quantity, &e.CompanyID, &n)
 		if err != nil {
 			return nil, 0, err
 		}
-		entries = append(entries, &e)
+		ee = append(ee, &e)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, 0, err
 	}
 
-	return entries, n, nil
+	return ee, n, nil
 }
 
 func deleteEntry(ctx context.Context, tx *Tx, id int, filter dots.EntryDelete, lockOwnID *ksuid.KSUID) (n int, err error) {

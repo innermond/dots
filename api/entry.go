@@ -6,16 +6,16 @@ import (
 )
 
 type Entry struct {
-	ID          int       `json:"id"`
-	EntryTypeID int       `json:"entry_type_id"`
+	ID          *int      `json:"id"`
+	EntryTypeID *int      `json:"entry_type_id"`
 	DateAdded   time.Time `json:"date_added"`
-	Quantity    float64   `json:"quantity"`
-	CompanyID   int       `json:"company_id"`
+	Quantity    *float64  `json:"quantity"`
+	CompanyID   *int      `json:"company_id"`
 }
 
 func (e *Entry) Validate() error {
-	if e.EntryTypeID <= 0 || int(e.Quantity) <= 0 || e.CompanyID <= 0 {
-		return Errorf(EINVALID, "zero or bellow is not accepted")
+	if e.EntryTypeID == nil || e.Quantity == nil || e.CompanyID == nil {
+		return Errorf(EINVALID, "entry type, company and quantity are required")
 	}
 	return nil
 }

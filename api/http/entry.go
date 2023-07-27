@@ -1,7 +1,6 @@
 package http
 
 import (
-	"encoding/json"
 	"net/http"
 	"strconv"
 
@@ -48,15 +47,7 @@ func (s *Server) handleEntryUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var updata dots.EntryUpdate
-	if err := json.NewDecoder(r.Body).Decode(&updata); err != nil {
-		Error(w, r, dots.Errorf(dots.EINVALID, "edit entry: invalid json body"))
-		return
-	}
-
-	//u := dots.UserFromContext(r.Context())
-
-	if err := updata.Valid(); err != nil {
-		Error(w, r, err)
+	if ok := inputJSON(w, r, &updata, "update entry"); !ok {
 		return
 	}
 
@@ -70,9 +61,17 @@ func (s *Server) handleEntryUpdate(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleEntryFind(w http.ResponseWriter, r *http.Request) {
-	var filter dots.EntryFilter
-	if ok := inputJSON(w, r, &filter, "find entry"); !ok {
-		return
+	filter := dots.EntryFilter{}
+	if len(r.URL.Query()) > 0 {
+		ok := inputURLQuery(w, r, &filter, "find entry")
+		if !ok {
+			return
+		}
+	}
+	if r.Body != http.NoBody {
+		if ok := inputJSON(w, r, &filter, "find entry"); !ok {
+			return
+		}
 	}
 
 	ee, n, err := s.EntryService.FindEntry(r.Context(), filter)
@@ -81,7 +80,11 @@ func (s *Server) handleEntryFind(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	outputJSON(w, r, http.StatusFound, &findEntryResponse{Entries: ee, N: n})
+	status := http.StatusFound
+	if n == 0 {
+		status = http.StatusNotFound
+	}
+	outputJSON(w, r, status, &findEntryResponse{Entries: ee, N: n})
 }
 
 func (s *Server) handleEntryDelete(w http.ResponseWriter, r *http.Request) {

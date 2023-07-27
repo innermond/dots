@@ -75,25 +75,12 @@ func (s *CompanyService) UpdateCompany(ctx context.Context, id int, upd dots.Com
 	}
 	defer tx.Rollback()
 
-	if err := tx.setUserIDPerConnection(ctx); err != nil {
-		return nil, err
-	}
-
-	isDeleted := false
-	find := dots.CompanyFilter{
-		ID:        &id,
-		IsDeleted: &isDeleted,
-	}
-	_, n, err := findCompany(ctx, tx, find)
-	if err != nil {
-		return nil, err
-	}
-	if n == 0 {
-		return &dots.Company{}, dots.Errorf(dots.ENOTFOUND, "company not found")
-	}
-
 	if canerr := dots.CanWriteOwn(ctx); canerr != nil {
 		return nil, canerr
+	}
+
+	if err := tx.setUserIDPerConnection(ctx); err != nil {
+		return nil, err
 	}
 
 	c, err := updateCompany(ctx, tx, id, upd)
