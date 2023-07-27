@@ -173,6 +173,10 @@ func perr(err error) error {
 		return nil
 	}
 
+	if errors.Is(err, sql.ErrNoRows) {
+		return dots.Errorf(dots.ENOTFOUND, "%s no records", err)
+	}
+
 	var perr *pgconn.PgError
 	if !errors.As(err, &perr) {
 		return err

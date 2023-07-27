@@ -21,35 +21,27 @@ func NewEntryService(db *DB) *EntryService {
 }
 
 func (s *EntryService) CreateEntry(ctx context.Context, e *dots.Entry) error {
+	if err := e.Validate(); err != nil {
+		return err
+	}
+
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 
-	user := dots.UserFromContext(ctx)
-	if user.ID == ksuid.Nil {
-		return dots.Errorf(dots.EUNAUTHORIZED, "unauthorized user")
-	}
-
-	if canerr := dots.CanDoAnything(ctx); canerr == nil {
-		return createEntry(ctx, tx, e)
-	}
-
 	if canerr := dots.CanCreateOwn(ctx); canerr != nil {
 		return canerr
 	}
 
-	uid := dots.UserFromContext(ctx).ID
-	if err := companyBelongsToUser(ctx, tx, uid, e.CompanyID); err != nil {
-		return err
-	}
-	if err := entryTypeBelongsToUser(ctx, tx, uid, e.EntryTypeID); err != nil {
+	if err := tx.setUserIDPerConnection(ctx); err != nil {
 		return err
 	}
 
 	if err := createEntry(ctx, tx, e); err != nil {
-		return err
+		err = fmt.Errorf("create entry: %w", err)
+		return perr(err)
 	}
 
 	tx.Commit()
@@ -154,7 +146,7 @@ func (s *EntryService) DeleteEntry(ctx context.Context, id int, filter dots.Entr
 	}
 
 	var n int
-	// check search to own
+	// check search to
 	uid := dots.UserFromContext(ctx).ID
 	// lock delete to own
 	n, err = deleteEntry(ctx, tx, id, filter, &uid)
@@ -165,15 +157,21 @@ func (s *EntryService) DeleteEntry(ctx context.Context, id int, filter dots.Entr
 }
 
 func createEntry(ctx context.Context, tx *Tx, e *dots.Entry) error {
-	if err := e.Validate(); err != nil {
-		return err
-	}
-
-	sqlstr := `
-insert into entry
-(entry_type_id, quantity, company_id, date_added)
-values
-($1, $2, $3, date_trunc('minute', now())::timestamptz) returning id, date_added;
+	// fk checks only the remove row's existence in table
+	// check if remote rows has not been deleted (enforced by the view)
+	// and has same tid (enforced by row level security)
+	// in short we check if company and entry type belongs to user
+	check := `
+with data_entry as (
+  select
+    ((select id is not null from company where id = $3) and
+     (select id is not null from entry_type where id = $1)) as ok
+)`
+	sqlstr := check + `
+insert into entry (entry_type_id, quantity, company_id, date_added)
+select $1, $2, $3, date_trunc('minute', now())::timestamptz from data_entry
+where data_entry.ok = true -- apply check here
+returning id, date_added;
 		`
 	var (
 		id         int
