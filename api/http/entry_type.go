@@ -140,7 +140,7 @@ func (s *Server) handleEntryTypeHardDelete(w http.ResponseWriter, r *http.Reques
 }
 
 type findEntryTypeResponse struct {
-	EntryTypes []*dots.EntryType `json:"entrY_types"`
+	EntryTypes []*dots.EntryType `json:"entry_types"`
 	N          int               `json:"n"`
 }
 

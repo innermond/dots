@@ -106,19 +106,24 @@ func (s *EntryService) DeleteEntry(ctx context.Context, id int, filter dots.Entr
 	}
 	defer tx.Rollback()
 
-	if canerr := dots.CanDoAnything(ctx); canerr == nil {
-		return deleteEntry(ctx, tx, id, filter, nil)
-	}
-
 	if canerr := dots.CanDeleteOwn(ctx); canerr != nil {
 		return 0, canerr
 	}
 
+	if err := tx.setUserIDPerConnection(ctx); err != nil {
+		return 0, err
+	}
+
 	var n int
-	// check search to
-	uid := dots.UserFromContext(ctx).ID
-	// lock delete to own
-	n, err = deleteEntry(ctx, tx, id, filter, &uid)
+
+	if filter.Hard {
+		n, err = deleteEntryPermanently(ctx, tx, id)
+	} else {
+		n, err = deleteEntry(ctx, tx, id, filter.Resurect)
+	}
+	if err != nil {
+		return n, err
+	}
 
 	tx.Commit()
 
@@ -302,34 +307,54 @@ func findEntry(ctx context.Context, tx *Tx, filter dots.EntryFilter) (_ []*dots.
 	return ee, n, nil
 }
 
-func deleteEntry(ctx context.Context, tx *Tx, id int, filter dots.EntryDelete, lockOwnID *ksuid.KSUID) (n int, err error) {
-	where, args := []string{}, []interface{}{}
-	where, args = append(where, "id = ?"), append(args, id)
-	if lockOwnID != nil {
-		where, args = append(where, "company_id = any(select id from company where tid = ?)"), append(args, *lockOwnID)
-	}
-	replaceQuestionMark(where, args)
-	// "delete" only entries that are not used on drain table
-	where = append(where, "d.entry_id is null")
+func deleteEntry(ctx context.Context, tx *Tx, id int, resurect bool) (n int, err error) {
+	where := []string{"core.entry.id = $1"}
 
 	kind := "date_trunc('minute', now())::timestamptz"
-	if filter.Resurect {
+	if resurect {
 		kind = "null"
-		where = append(where, "e.deleted_at is not null")
+		where = append(where, "core.entry.deleted_at is not null")
 	} else {
-		where = append(where, "e.deleted_at is null")
+		where = append(where, "core.entry.deleted_at is null")
 	}
 
-	sqlstr := `update entry set deleted_at = %s where id = any(
-		select id
-		from entry e left join drain d on(e.id = d.entry_id)
-		where %s)`
-	sqlstr = fmt.Sprintf(sqlstr, kind, strings.Join(where, " and "))
+	wherestr := "where " + strings.Join(where, " and ")
+
+	bareEntry := "and not exists(select id from core.drain where drain.entry_id = $1 limit 1)"
+
+	sqlstr := `update core.entry set deleted_at = %s ` + wherestr + " " + bareEntry
+	sqlstr = fmt.Sprintf(sqlstr, kind)
 
 	result, err := tx.ExecContext(
 		ctx,
 		sqlstr,
-		args...,
+		id,
+	)
+	if err != nil {
+		return 0, fmt.Errorf("postgres.entry: cannot soft delete %w", err)
+	}
+
+	n64, err := result.RowsAffected()
+	if err != nil {
+		return 0, err
+	}
+
+	return int(n64), nil
+}
+
+func deleteEntryPermanently(ctx context.Context, tx *Tx, id int) (n int, err error) {
+	where := []string{"core.entry.id = $1"}
+
+	wherestr := "where " + strings.Join(where, " and ")
+
+	bareEntry := "and not exists(select id from core.drain where drain.entry_id = $1 limit 1)"
+
+	sqlstr := `delete from core.entry ` + wherestr + " " + bareEntry
+
+	result, err := tx.ExecContext(
+		ctx,
+		sqlstr,
+		id,
 	)
 	if err != nil {
 		return 0, fmt.Errorf("postgres.entry: cannot soft delete %w", err)

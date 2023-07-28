@@ -100,24 +100,6 @@ func (s *CompanyService) DeleteCompany(ctx context.Context, id int, filter dots.
 	}
 	defer tx.Rollback()
 
-	if canerr := dots.CanDoAnything(ctx); canerr == nil {
-		var n int
-		var err error
-
-		if filter.Hard {
-			n, err = deleteCompanyPermanently(ctx, tx, id)
-		} else {
-			n, err = deleteCompany(ctx, tx, id, filter.Resurect)
-		}
-		if err != nil {
-			return n, err
-		}
-
-		tx.Commit()
-
-		return n, err
-	}
-
 	if canerr := dots.CanDeleteOwn(ctx); canerr != nil {
 		return 0, canerr
 	}

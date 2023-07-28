@@ -44,6 +44,7 @@ type EntryFilter struct {
 
 type EntryDelete struct {
 	Resurect bool
+	Hard     bool
 }
 
 type EntryUpdate struct {
