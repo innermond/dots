@@ -85,7 +85,7 @@ func createOrUpdateDrain(ctx context.Context, tx *Tx, d dots.Drain) error {
 	}
 
 	sqlstr := `
-insert into drain
+insert into core.drain
 (deed_id, entry_id, quantity, is_deleted)
 values
 ($1, $2, $3, $4)
@@ -107,7 +107,7 @@ on conflict (deed_id, entry_id) do update set deed_id = EXCLUDED.deed_id, entry_
 func deleteDrainsOfDeed(ctx context.Context, tx *Tx, id int) error {
 	_, err := tx.ExecContext(
 		ctx,
-		"update drain set is_deleted = true where deed_id = $1",
+		"update core.drain set is_deleted = true where deed_id = $1",
 		id,
 	)
 	if err != nil {
@@ -120,7 +120,7 @@ func deleteDrainsOfDeed(ctx context.Context, tx *Tx, id int) error {
 func undrainDrainsOfDeed(ctx context.Context, tx *Tx, id int) error {
 	_, err := tx.ExecContext(
 		ctx,
-		"update drain set is_deleted = not is_deleted where deed_id = $1",
+		"update core.drain set is_deleted = not is_deleted where deed_id = $1",
 		id,
 	)
 	if err != nil {
@@ -132,7 +132,7 @@ func undrainDrainsOfDeed(ctx context.Context, tx *Tx, id int) error {
 }
 
 func hardDeleteDrainsOfDeed(ctx context.Context, tx *Tx, did int) error {
-	sqlstr := `delete from drain d where d.deed_id = $1`
+	sqlstr := `delete from core.drain d where d.deed_id = $1`
 
 	_, err := tx.ExecContext(ctx, sqlstr, did)
 	if err != nil {
@@ -143,7 +143,7 @@ func hardDeleteDrainsOfDeed(ctx context.Context, tx *Tx, did int) error {
 }
 
 func hardDeleteDrainsOfDeedAlreadyDeleted(ctx context.Context, tx *Tx, did int) error {
-	sqlstr := `delete from drain d where d.deed_id = $1 and d.is_deleted = true`
+	sqlstr := `delete from core.drain d where d.deed_id = $1 and d.is_deleted = true`
 
 	_, err := tx.ExecContext(ctx, sqlstr, did)
 	if err != nil {
@@ -154,7 +154,7 @@ func hardDeleteDrainsOfDeedAlreadyDeleted(ctx context.Context, tx *Tx, did int) 
 }
 
 func deleteDrainsOfDeedPrevCompany(ctx context.Context, tx *Tx, did, cid int) error {
-	sqlstr := `delete from drain d where d.deed_id = $1 and d.entry_id = any(select e.id from entry e where e.company_id = $2)`
+	sqlstr := `delete from core.drain d where d.deed_id = $1 and d.entry_id = any(select e.id from entry e where e.company_id = $2)`
 
 	_, err := tx.ExecContext(ctx, sqlstr, did, cid)
 	if err != nil {
@@ -192,7 +192,7 @@ where c.tid = ?))`)
 	}
 
 	sqlstr := `
-		select d.deed_id, d.entry_id, d.quantity, d.is_deleted, count(*) over() from drain d
+		select d.deed_id, d.entry_id, d.quantity, d.is_deleted, count(*) over() from core.drain d
 		where ` + strings.Join(where, " and ") + ` ` + formatLimitOffset(filter.Limit, filter.Offset)
 
 	rows, err := tx.QueryContext(

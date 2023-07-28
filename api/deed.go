@@ -7,12 +7,12 @@ import (
 )
 
 type Deed struct {
-	ID        int             `json:"id"`
-	CompanyID int             `json:"company_id"`
-	Title     string          `json:"title"`
-	Quantity  float64         `json:"quantity"`
-	Unit      string          `json:"unit"`
-	UnitPrice decimal.Decimal `json:"unitprice"`
+	ID        *int             `json:"id"`
+	CompanyID *int             `json:"company_id"`
+	Title     *string          `json:"title"`
+	Quantity  *float64         `json:"quantity"`
+	Unit      *string          `json:"unit"`
+	UnitPrice *decimal.Decimal `json:"unitprice"`
 
 	Distribute map[int]float64 `json:"distribute,omitempty"`
 

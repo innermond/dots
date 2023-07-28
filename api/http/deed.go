@@ -15,8 +15,8 @@ func (s *Server) registerDeedRoutes(router *mux.Router) {
 }
 
 func (s *Server) handleDeedCreate(w http.ResponseWriter, r *http.Request) {
-
 	var d dots.Deed
+
 	if ok := inputJSON(w, r, &d, "create deed"); !ok {
 		return
 	}

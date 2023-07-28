@@ -20,25 +20,31 @@ func NewDeedService(db *DB) *DeedService {
 }
 
 func (s *DeedService) CreateDeed(ctx context.Context, d *dots.Deed) error {
+	if err := d.Validate(); err != nil {
+		return err
+	}
+
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 
-	errNotFoundCompany := dots.Errorf(dots.ENOTFOUND, "company not found %v", d.CompanyID)
-
-	if d.CompanyID == 0 {
-		return errNotFoundCompany
+	if d.CompanyID == nil {
+		return dots.Errorf(dots.ENOTFOUND, "company is required")
 	}
 
-	filterFind := dots.CompanyFilter{ID: &d.CompanyID}
+	if err := tx.setUserIDPerConnection(ctx); err != nil {
+		return err
+	}
+
+	filterFind := dots.CompanyFilter{ID: d.CompanyID}
 	_, n, err := findCompany(ctx, tx, filterFind)
 	if err != nil {
 		return err
 	}
 	if n == 0 {
-		return errNotFoundCompany
+		return dots.Errorf(dots.ENOTFOUND, "company not found %v", *d.CompanyID)
 	}
 
 	// try first automatic distribute
@@ -49,7 +55,7 @@ func (s *DeedService) CreateDeed(ctx context.Context, d *dots.Deed) error {
 			strategy = string(*d.DistributeStrategy)
 		}
 
-		distribute, err := tryDistributeOverEntryType(ctx, tx, d.EntryTypeDistribute, d.CompanyID, strategy)
+		distribute, err := tryDistributeOverEntryType(ctx, tx, d.EntryTypeDistribute, *d.CompanyID, strategy)
 		if err != nil {
 			return err
 		}
@@ -61,34 +67,24 @@ func (s *DeedService) CreateDeed(ctx context.Context, d *dots.Deed) error {
 	if len(d.Distribute) > 0 && !enoughChecked {
 		// check entries are owned and enough
 		// this doesn't check user ownership over entries
-		_, err := entriesOfCompanyAreEnough(ctx, tx, d.Distribute, d.CompanyID)
+		_, err := entriesOfCompanyAreEnough(ctx, tx, d.Distribute, *d.CompanyID)
 		if err != nil {
 			if err == sql.ErrNoRows {
-				err0 := dots.Errorf(dots.ENOTFOUND, "entries not found for company %v", d.CompanyID)
+				err0 := dots.Errorf(dots.ENOTFOUND, "entries not found for company %v", *d.CompanyID)
 				return err0
 			}
 			return err
 		}
 	}
 
-	if canerr := dots.CanDoAnything(ctx); canerr == nil {
-		return createDeed(ctx, tx, d)
-	}
-
 	if canerr := dots.CanCreateOwn(ctx); canerr != nil {
 		return canerr
-	}
-
-	uid := dots.UserFromContext(ctx).ID
-
-	if err := companyBelongsToUser(ctx, tx, uid, d.CompanyID); err != nil {
-		return err
 	}
 
 	if len(d.Distribute) > 0 {
 		ee := keysOf(d.Distribute)
 		// need deed ID and entry ID that belong to companies of user
-		err = entriesBelongsToUser(ctx, tx, uid, ee)
+		err = entriesBelongsToUser(ctx, tx, ee)
 		if err != nil {
 			return err
 		}
@@ -246,10 +242,6 @@ func createDeed(ctx context.Context, tx *Tx, d *dots.Deed) error {
 		return dots.Errorf(dots.EUNAUTHORIZED, "unauthorized user")
 	}
 
-	if err := d.Validate(); err != nil {
-		return err
-	}
-
 	err := tx.QueryRowContext(
 		ctx,
 		`
@@ -271,7 +263,7 @@ values
 	// manage distribute
 	for eid, qty := range d.Distribute {
 		d := dots.Drain{
-			DeedID:    d.ID,
+			DeedID:    *d.ID,
 			EntryID:   eid,
 			Quantity:  qty,
 			IsDeleted: false,
@@ -300,30 +292,30 @@ func updateDeed(ctx context.Context, tx *Tx, id int, upd dots.DeedUpdate) (*dots
 
 	set, args := []string{}, []interface{}{}
 	if v := upd.Title; v != nil {
-		e.Title = *v
+		e.Title = v
 		set, args = append(set, "title = ?"), append(args, *v)
 	}
 	if v := upd.Quantity; v != nil {
-		e.Quantity = *v
+		e.Quantity = v
 		set, args = append(set, "quantity = ?"), append(args, *v)
 	}
 	if v := upd.Unit; v != nil {
-		e.Unit = *v
+		e.Unit = v
 		set, args = append(set, "unit = ?"), append(args, *v)
 	}
 	if v := upd.UnitPrice; v != nil {
-		e.UnitPrice = *v
+		e.UnitPrice = v
 		set, args = append(set, "unitprice = ?"), append(args, *v)
 	}
 	if v := upd.CompanyID; v != nil {
-		if e.CompanyID != *v {
+		if e.CompanyID != v {
 			// start from fresh
-			err = hardDeleteDrainsOfDeed(ctx, tx, e.ID)
+			err = hardDeleteDrainsOfDeed(ctx, tx, *e.ID)
 			if err != nil {
 				return nil, err
 			}
 		}
-		e.CompanyID = *v
+		e.CompanyID = v
 		set, args = append(set, "company_id = ?"), append(args, *v)
 	}
 
@@ -351,14 +343,14 @@ func updateDeed(ctx context.Context, tx *Tx, id int, upd dots.DeedUpdate) (*dots
 		}
 	}
 	// delete all distribute
-	err = deleteDrainsOfDeed(ctx, tx, e.ID)
+	err = deleteDrainsOfDeed(ctx, tx, *e.ID)
 	if err != nil {
 		return nil, err
 	}
 
 	for eid, qty := range upd.Distribute {
 		d := dots.Drain{
-			DeedID:    e.ID,
+			DeedID:    *e.ID,
 			EntryID:   eid,
 			Quantity:  qty,
 			IsDeleted: false,
@@ -373,7 +365,7 @@ func updateDeed(ctx context.Context, tx *Tx, id int, upd dots.DeedUpdate) (*dots
 
 	e.Distribute = upd.Distribute
 
-	err = hardDeleteDrainsOfDeedAlreadyDeleted(ctx, tx, e.ID)
+	err = hardDeleteDrainsOfDeedAlreadyDeleted(ctx, tx, *e.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -571,7 +563,7 @@ func entriesOfCompanyAreEnough(ctx context.Context, tx *Tx, eq map[int]float64, 
 	}
 
 	notenough := map[int]float64{}
-	for k, wanted := range eidqty {
+	for k, wanted := range eq {
 		if existent, found := eidqty[k]; !found {
 			return nil, dots.Errorf(dots.ENOTFOUND, "not found entry %v", k)
 		} else if wanted > existent {
@@ -610,7 +602,7 @@ type entryRow struct {
 func entriesOfEntryTypeForCompanyID(ctx context.Context, tx *Tx, etids []int, cid int) ([]entryRow, error) {
 	sqlstr := `with s as (
   select e.id, e.entry_type_id, (e.quantity - coalesce((select sum(case when d.is_deleted = true then -d.quantity else d.quantity end)
-from drain d
+from core.drain d
 where d.entry_id = e.id), 0)
 ) quantity
 from entry e

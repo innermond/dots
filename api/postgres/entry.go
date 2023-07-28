@@ -416,7 +416,7 @@ func entriesBelongsToCompany(ctx context.Context, tx *Tx, eids []int, cid int) (
 	return ee, nil
 }
 
-func entriesBelongsToUser(ctx context.Context, tx *Tx, u ksuid.KSUID, ee []int) error {
+func entriesBelongsToUser(ctx context.Context, tx *Tx, ee []int) error {
 	if len(ee) == 0 {
 		return dots.Errorf(dots.EINVALID, "no entries")
 	}
@@ -434,13 +434,11 @@ func entriesBelongsToUser(ctx context.Context, tx *Tx, u ksuid.KSUID, ee []int) 
 
 	sqlstr := `select json_agg(e.id) as exists
 from entry e
-where e.company_id = any(select id
-from company c
-where c.tid = $1)
-  and e.id = any($2);
+where e.company_id = any(select id from company c)
+  and e.id = any($1);
 `
 	var bb []byte
-	err := tx.QueryRowContext(ctx, sqlstr, u, ee).Scan(&bb)
+	err := tx.QueryRowContext(ctx, sqlstr, ee).Scan(&bb)
 	if err != nil {
 		return err
 	}

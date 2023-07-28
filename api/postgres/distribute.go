@@ -76,7 +76,7 @@ func DistributeFrom(dd map[int]map[int]float64, etd map[int]float64) (map[int]fl
 func quantityByEntryTypes(ctx context.Context, tx *Tx, etids []int, cid int) (map[int]float64, error) {
 	sqlstr := `select entry_type_id, sum(quantity) from (
 select e.date_added, e.id, e.entry_type_id, (e.quantity - coalesce((select sum(case when d.is_deleted = true then -d.quantity else d.quantity end)
-from drain d
+from core.drain d
 where d.entry_id = e.id), 0)
 ) quantity
 from entry e
@@ -113,7 +113,7 @@ where e.entry_type_id = any($1) and e.company_id = $2
 
 func quantityByEntries(ctx context.Context, tx *Tx, eids []int, cid int) (map[int]float64, error) {
 	sqlstr := `select e.id, sum(e.quantity - coalesce((select sum(case when d.is_deleted = true then -d.quantity else d.quantity end)
-from drain d
+from core.drain d
 where d.entry_id = e.id), 0)
 ) quantity
 from entry e
@@ -166,7 +166,7 @@ func distributeOverEntryType(ctx context.Context, tx *Tx, etqty map[int]float64,
 	var sqlb strings.Builder
 	sqlb.WriteString(`with entrysync as (
  select e.date_added, e.id, e.entry_type_id, (e.quantity - coalesce((select sum(case when d.is_deleted = true then -d.quantity else d.quantity end)
-from drain d
+from core.drain d
 where d.entry_id = e.id), 0)
 ) quantity
 from entry e
