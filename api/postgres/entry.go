@@ -204,14 +204,12 @@ func updateEntry(ctx context.Context, tx *Tx, id int, updata dots.EntryUpdate) (
 	check := ""
 	wherestr := fmt.Sprintf("where entry.id = $%d", len(args))
 	if len(checks) > 0 {
-		wherestr += " and data_entry.ok = true"
-		checkstr := strings.Join(checks, " and ")
-		check = fmt.Sprintf("with data_entry as ( select (%s) as ok)", checkstr)
+		check = " and " + strings.Join(checks, " and ")
 	}
 
-	sqlstr := check + `
+	sqlstr := `
 		update entry
-		set ` + strings.Join(set, ", ") + " from data_entry " + wherestr
+		set ` + strings.Join(set, ", ") + " " + wherestr + check
 
 	result, err := tx.ExecContext(ctx, sqlstr, args...)
 	if err != nil {
