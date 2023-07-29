@@ -106,26 +106,22 @@ func (s *DeedService) FindDeed(ctx context.Context, filter dots.DeedFilter) ([]*
 	}
 	defer tx.Rollback()
 
-	if canerr := dots.CanDoAnything(ctx); canerr == nil {
-		return findDeed(ctx, tx, filter, nil)
-	}
-
 	if canerr := dots.CanReadOwn(ctx); canerr != nil {
 		return nil, 0, canerr
 	}
 
-	// check search to own
-	uid := dots.UserFromContext(ctx).ID
+	if err := tx.setUserIDPerConnection(ctx); err != nil {
+		return nil, 0, err
+	}
+
 	if filter.CompanyID != nil {
-		err := companyBelongsToUser(ctx, tx, uid, *filter.CompanyID)
+		err := companyBelongsToUser(ctx, tx, *filter.CompanyID)
 		if err != nil {
 			return nil, 0, err
 		}
-		return findDeed(ctx, tx, filter, nil)
-	} else {
-		// lock search to own
-		return findDeed(ctx, tx, filter, &uid)
 	}
+
+	return findDeed(ctx, tx, filter)
 }
 
 func (s *DeedService) UpdateDeed(ctx context.Context, id int, upd dots.DeedUpdate) (*dots.Deed, error) {
@@ -177,7 +173,7 @@ func (s *DeedService) UpdateDeed(ctx context.Context, id int, upd dots.DeedUpdat
 	uid := dots.UserFromContext(ctx).ID
 
 	if upd.CompanyID != nil {
-		err = companyBelongsToUser(ctx, tx, uid, *upd.CompanyID)
+		err = companyBelongsToUser(ctx, tx, *upd.CompanyID)
 		if err != nil {
 			return nil, err
 		}
@@ -281,7 +277,7 @@ values
 }
 
 func updateDeed(ctx context.Context, tx *Tx, id int, upd dots.DeedUpdate) (*dots.Deed, error) {
-	dd, _, err := findDeed(ctx, tx, dots.DeedFilter{ID: &id, Limit: 1}, nil)
+	dd, _, err := findDeed(ctx, tx, dots.DeedFilter{ID: &id, Limit: 1})
 	if err != nil {
 		return nil, fmt.Errorf("postgres.deed: cannot retrieve deed %w", err)
 	}
@@ -372,7 +368,7 @@ func updateDeed(ctx context.Context, tx *Tx, id int, upd dots.DeedUpdate) (*dots
 	return e, nil
 }
 
-func findDeed(ctx context.Context, tx *Tx, filter dots.DeedFilter, lockOwnID *ksuid.KSUID) (_ []*dots.Deed, n int, err error) {
+func findDeed(ctx context.Context, tx *Tx, filter dots.DeedFilter) (_ []*dots.Deed, n int, err error) {
 	where, args := []string{}, []interface{}{}
 	if v := filter.ID; v != nil {
 		where, args = append(where, "id = ?"), append(args, *v)
@@ -389,20 +385,18 @@ func findDeed(ctx context.Context, tx *Tx, filter dots.DeedFilter, lockOwnID *ks
 	if v := filter.UnitPrice; v != nil {
 		where, args = append(where, "unitprice = ?"), append(args, *v)
 	}
+	/*	if v := filter.DeletedAtFrom; v != nil {
+			// >= ? is intentional
+			where, args = append(where, "deleted_at >= ?"), append(args, *v)
+		}
+		if v := filter.DeletedAtTo; v != nil {
+			// < ? is intentional
+			// avoid double counting exact midnight values
+			where, args = append(where, "deleted_at < ?"), append(args, *v)
+		}
+	*/
 	if v := filter.CompanyID; v != nil {
 		where, args = append(where, "company_id = ?"), append(args, *v)
-	}
-	if v := filter.DeletedAtFrom; v != nil {
-		// >= ? is intentional
-		where, args = append(where, "deleted_at >= ?"), append(args, *v)
-	}
-	if v := filter.DeletedAtTo; v != nil {
-		// < ? is intentional
-		// avoid double counting exact midnight values
-		where, args = append(where, "deleted_at < ?"), append(args, *v)
-	}
-	if lockOwnID != nil {
-		where, args = append(where, "company_id = any(select id from company where tid = ?)"), append(args, *lockOwnID)
 	}
 	replaceQuestionMark(where, args)
 
@@ -410,11 +404,8 @@ func findDeed(ctx context.Context, tx *Tx, filter dots.DeedFilter, lockOwnID *ks
 	// so any unrelated with position (read replacement $n)
 	// MUST be added AFTER the "for" cycle
 	// that binds value with placeholder
-
-	// the presence of deleted key with empty value
-	// signals to find ONLY deleted records
-	if filter.DeletedAtTo == nil && filter.DeletedAtFrom == nil {
-		where = append(where, "deleted_at is null")
+	if filter.CompanyID == nil {
+		where = append(where, "company_id = any(select id from company)")
 	}
 
 	sqlstr := `select id, title, unit, unitprice, quantity, company_id, count(*) over() from deed

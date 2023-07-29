@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/innermond/dots"
-	"github.com/segmentio/ksuid"
 )
 
 type CompanyService struct {
@@ -321,15 +320,15 @@ func deleteCompanyPermanently(ctx context.Context, tx *Tx, id int) (n int, err e
 	return int(n64), nil
 }
 
-func companyBelongsToUser(ctx context.Context, tx *Tx, u ksuid.KSUID, companyID int) error {
+func companyBelongsToUser(ctx context.Context, tx *Tx, companyID int) error {
 	sqlstr := `select exists(
 select id
 from core.company c
-where c.id = $1 and c.tid = $2
+where c.id = $1
 );
 `
 	var exists bool
-	err := tx.QueryRowContext(ctx, sqlstr, companyID, u).Scan(&exists)
+	err := tx.QueryRowContext(ctx, sqlstr, companyID).Scan(&exists)
 	if err != nil {
 		return err
 	}
