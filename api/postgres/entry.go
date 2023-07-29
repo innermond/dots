@@ -147,6 +147,7 @@ select $1, $2, $3, date_trunc('minute', now())::timestamptz from data_entry
 where data_entry.ok = true -- apply check here
 returning id, date_added;
 		`
+
 	var (
 		id         int
 		date_added time.Time
