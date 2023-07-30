@@ -323,7 +323,7 @@ func deleteCompanyPermanently(ctx context.Context, tx *Tx, id int) (n int, err e
 func companyBelongsToUser(ctx context.Context, tx *Tx, companyID int) error {
 	sqlstr := `select exists(
 select id
-from core.company c
+from company c
 where c.id = $1
 );
 `

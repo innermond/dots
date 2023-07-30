@@ -52,11 +52,6 @@ func (s *Server) handleDeedUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := updata.Valid(); err != nil {
-		Error(w, r, err)
-		return
-	}
-
 	d, err := s.DeedService.UpdateDeed(r.Context(), id, updata)
 	if err != nil {
 		Error(w, r, err)
@@ -68,6 +63,12 @@ func (s *Server) handleDeedUpdate(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleDeedFind(w http.ResponseWriter, r *http.Request) {
 	filter := dots.DeedFilter{}
+	if len(r.URL.Query()) > 0 {
+		ok := inputURLQuery(w, r, &filter, "find deed")
+		if !ok {
+			return
+		}
+	}
 	if r.Body != http.NoBody {
 		ok := inputJSON(w, r, &filter, "find deed")
 		if !ok {
