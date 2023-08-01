@@ -75,7 +75,7 @@ func DistributeFrom(dd map[int]map[int]float64, etd map[int]float64) (map[int]fl
 
 func quantityByEntryTypes(ctx context.Context, tx *Tx, etids []int, cid int) (map[int]float64, error) {
 	sqlstr := `select entry_type_id, sum(quantity) from (
-select e.date_added, e.id, e.entry_type_id, (e.quantity - coalesce((select sum(case when d.is_deleted = true then -d.quantity else d.quantity end)
+select e.date_added, e.id, e.entry_type_id, (e.quantity - coalesce((select sum(case when d.is_deleted = true then 0 else d.quantity end)
 from core.drain d
 where d.entry_id = e.id), 0)
 ) quantity
@@ -112,7 +112,7 @@ where e.entry_type_id = any($1) and e.company_id = $2
 }
 
 func quantityByEntries(ctx context.Context, tx *Tx, eids []int, cid int) (map[int]float64, error) {
-	sqlstr := `select e.id, sum(e.quantity - coalesce((select sum(case when d.is_deleted = true then -d.quantity else d.quantity end)
+	sqlstr := `select e.id, sum(e.quantity - coalesce((select sum(case when d.is_deleted = true then 0 else d.quantity end)
 from core.drain d
 where d.entry_id = e.id), 0)
 ) quantity
@@ -164,39 +164,50 @@ func distributeOverEntryType(ctx context.Context, tx *Tx, etqty map[int]float64,
 	}
 	// check if have enough quantities?
 	var sqlb strings.Builder
-	sqlb.WriteString(`with entrysync as (
- select e.date_added, e.id, e.entry_type_id, (e.quantity - coalesce((select sum(case when d.is_deleted = true then -d.quantity else d.quantity end)
-from core.drain d
-where d.entry_id = e.id), 0)
-) quantity
-from entry e
-where e.entry_type_id = any($1) and e.company_id = $2
-), cumulative_sum as (
-  select id, quantity, date_added, entry_type_id, SUM(quantity) over (partition by entry_type_id order by ` + strategy + `, id) as running_sum
-from entrysync where quantity > 0
-)`)
-
-	etids := []int{}
-	inx := 0
-
+	sqlb.WriteString(`select id, subtracted_quantity from (
+with
+wanted (etid, qty) as (
+	values `)
+	tpl := "(%d,%f)"
+	values := []string{}
 	for etid, qty := range etqty {
-		if inx > 0 {
-			sqlb.WriteString("union all")
-		}
-		sqlb.WriteString(fmt.Sprintf(`
-select id, case
-  when running_sum <= %f then quantity
-else quantity - (running_sum - %f)
-  end as subtracted_quantity
-from cumulative_sum
-where entry_type_id = %d and quantity - (running_sum - %f) >= 0
-`, qty, qty, etid, qty))
-		inx++
-		etids = append(etids, etid)
+		values = append(values, fmt.Sprintf(tpl, etid, qty))
 	}
+	sqlb.WriteString(strings.Join(values, ","))
+	sqlb.WriteString(`
+),
+`)
+	sqlb.WriteString(`entrysync as (
+select
+	e.*,
+	(e.quantity_initial - coalesce(quantity_drained, 0)) quantity
+from entry_with_quantity_drained e
+where e.entry_type_id = any($1)
+and e.company_id = $2),
+`)
+	sqlb.WriteString(`cumulative_sum as (
+   select
+   (select sum(qty) from wanted where etid = es.entry_type_id group by etid) wqty,
+   id, quantity, date_added, entry_type_id,
+   SUM(quantity) over (partition by entry_type_id order by ` + strategy + `, id) as running_sum
+from entrysync es
+where quantity > 0
+)
+`)
+	sqlb.WriteString(`select
+	id,
+	case
+			when running_sum <= cs.wqty then quantity
+		else quantity - (running_sum - cs.wqty)
+	end as subtracted_quantity
+from cumulative_sum cs
+) dist
+where dist.subtracted_quantity >= 0;`)
 
 	sqlstr := sqlb.String()
 	fmt.Println(sqlstr)
+
+	etids := keysOf(etqty)
 
 	rows, err := tx.QueryContext(ctx, sqlstr, etids, cid)
 	if err != nil {
@@ -228,14 +239,14 @@ where entry_type_id = %d and quantity - (running_sum - %f) >= 0
 
 func tryDistributeOverEntryType(ctx context.Context, tx *Tx, etqty map[int]float64, cid int, strategy string) (map[int]float64, error) {
 	etids := keysOf(etqty)
-	etqty, err := quantityByEntryTypes(ctx, tx, etids, cid)
+	etqtyExistent, err := quantityByEntryTypes(ctx, tx, etids, cid)
 	if err != nil {
 		return nil, err
 	}
 
 	notenough := map[int]float64{}
 	for k, wanted := range etqty {
-		if existent, found := etqty[k]; !found {
+		if existent, found := etqtyExistent[k]; !found {
 			return nil, dots.Errorf(dots.ENOTFOUND, "not found entry type %v", k)
 		} else if wanted > existent {
 			notenough[k] = wanted - existent
