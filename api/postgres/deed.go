@@ -208,22 +208,15 @@ func (s *DeedService) DeleteDeed(ctx context.Context, id int, filter dots.DeedDe
 	}
 	defer tx.Rollback()
 
-	if canerr := dots.CanDoAnything(ctx); canerr == nil {
-		return deleteDeed(ctx, tx, id, filter)
-	}
-
 	if canerr := dots.CanDeleteOwn(ctx); canerr != nil {
 		return 0, canerr
 	}
 
-	var n int
-	// check search to own
-	uid := dots.UserFromContext(ctx).ID
-
-	err = deedBelongsToUser(ctx, tx, uid, id)
-	if err != nil {
+	if err := tx.setUserIDPerConnection(ctx); err != nil {
 		return 0, err
 	}
+
+	var n int
 
 	n, err = deleteDeed(ctx, tx, id, filter)
 
@@ -453,7 +446,7 @@ func deleteDeed(ctx context.Context, tx *Tx, id int, filter dots.DeedDelete) (n 
 	} else {
 		where = append(where, "deleted_at is null")
 	}
-	sqlstr := "update deed set deleted_at = " + kind + " where "
+	sqlstr := "update core.deed set deleted_at = " + kind + " where "
 	sqlstr = sqlstr + strings.Join(where, " and ")
 
 	result, err := tx.ExecContext(
