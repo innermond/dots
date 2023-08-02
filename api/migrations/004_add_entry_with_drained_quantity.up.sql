@@ -4,7 +4,7 @@ select
   e.quantity quantity_initial,
   (
     select
-      sum(case when d.is_deleted = true then 0 else d.quantity end)
+      coalesce(sum(case when d.is_deleted = true then 0 else d.quantity end), 0)
     from core.drain d
     where d.entry_id = e.id
   ) quantity_drained
