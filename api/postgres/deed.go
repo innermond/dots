@@ -34,6 +34,10 @@ func (s *DeedService) CreateDeed(ctx context.Context, d *dots.Deed) error {
 		return dots.Errorf(dots.ENOTFOUND, "company is required")
 	}
 
+	if canerr := dots.CanCreateOwn(ctx); canerr != nil {
+		return canerr
+	}
+
 	if err := tx.setUserIDPerConnection(ctx); err != nil {
 		return err
 	}
@@ -63,29 +67,34 @@ func (s *DeedService) CreateDeed(ctx context.Context, d *dots.Deed) error {
 		enoughChecked = true
 	}
 
-	// ensures to have something to process
-	if len(d.Distribute) > 0 && !enoughChecked {
-		// check entries are owned and enough
-		// this doesn't check user ownership over entries
-		_, err := entriesOfCompanyAreEnough(ctx, tx, d.Distribute, *d.CompanyID)
-		if err != nil {
-			if err == sql.ErrNoRows {
-				err0 := dots.Errorf(dots.ENOTFOUND, "entries not found for company %v", *d.CompanyID)
-				return err0
-			}
-			return err
-		}
-	}
-
-	if canerr := dots.CanCreateOwn(ctx); canerr != nil {
-		return canerr
-	}
-
 	if len(d.Distribute) > 0 {
-		ee := keysOf(d.Distribute)
-		// need deed ID and entry ID that belong to companies of user
-		err = entriesBelongsToUser(ctx, tx, ee)
-		if err != nil {
+		check := map[int]float64{}
+		if !enoughChecked {
+			// check entries are owned and enough
+			// this doesn't check user ownership over entries
+			check, err = entriesOfCompanyAreEnough(ctx, tx, d.Distribute, *d.CompanyID)
+			if err != nil {
+				if err == sql.ErrNoRows {
+					err0 := dots.Errorf(dots.ENOTFOUND, "entries not found for company %v", *d.CompanyID)
+					return err0
+				}
+				return err
+			}
+		}
+		// need to check check
+		needmore := map[int]float64{}
+		for eid, diff := range check {
+			if diff < 0 {
+				needmore[eid] = diff
+			}
+		}
+		// not enough
+		if len(needmore) > 0 {
+			err := &dots.Error{
+				Code:    dots.ECONFLICT,
+				Message: "not enough entries",
+				Data:    map[string]interface{}{"needmore": needmore, "company_id": *d.CompanyID},
+			}
 			return err
 		}
 	}
@@ -125,70 +134,87 @@ func (s *DeedService) FindDeed(ctx context.Context, filter dots.DeedFilter) ([]*
 }
 
 func (s *DeedService) UpdateDeed(ctx context.Context, id int, upd dots.DeedUpdate) (*dots.Deed, error) {
+	// validation
+	if upd.CompanyID == nil {
+		return nil, dots.Errorf(dots.ENOTFOUND, "company is required")
+	}
+
+	if len(upd.Distribute) > 0 {
+		for eid, qty := range upd.Distribute {
+			if qty <= 0 {
+				return nil, dots.Errorf(dots.EINVALID, "quantity for entry %d must be greater than zero", eid)
+			}
+		}
+	}
+
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
 	defer tx.Rollback()
 
-	// TODO: is CompanyID required for all update operations?
-	if len(upd.Distribute) > 0 {
-		if upd.CompanyID == nil {
-			return nil, &dots.Error{
-				Code:    dots.EINVALID,
-				Message: "company id is required",
-			}
-		}
-
-		// check entries are owned and enough
-		check, err := entriesOfCompanyAreEnough(ctx, tx, upd.Distribute, *upd.CompanyID)
-		if err != nil {
-			if err == sql.ErrNoRows {
-				return nil, dots.Errorf(dots.ENOTFOUND, "entries owned and enough not found")
-			}
-			return nil, err
-		}
-		// need to check check
-		notenough := map[int]float64{}
-		for eid, diff := range check {
-			if diff < 0 {
-				notenough[eid] = diff
-			}
-		}
-		// not enough
-		if len(notenough) > 0 {
-			err := &dots.Error{
-				Code:    dots.ECONFLICT,
-				Message: "not enough entries",
-				Data:    map[string]interface{}{"notenough": notenough, "company_id": *upd.CompanyID},
-			}
-			return nil, err
-		}
+	if canerr := dots.CanWriteOwn(ctx); canerr != nil {
+		return nil, canerr
 	}
 
-	if canerr := dots.CanDoAnything(ctx); canerr == nil {
-		return updateDeed(ctx, tx, id, upd)
-	}
-
-	uid := dots.UserFromContext(ctx).ID
-
-	if upd.CompanyID != nil {
-		err = companyBelongsToUser(ctx, tx, *upd.CompanyID)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if err := deedBelongsToUser(ctx, tx, uid, id); err != nil {
+	if err := tx.setUserIDPerConnection(ctx); err != nil {
 		return nil, err
 	}
 
-	deedUserID := deedGetUser(ctx, tx, id)
-	if deedUserID == nil {
-		return nil, dots.Errorf(dots.ECONFLICT, "deed user conflict")
+	filterFind := dots.CompanyFilter{ID: upd.CompanyID}
+	_, n, err := findCompany(ctx, tx, filterFind)
+	if err != nil {
+		return nil, err
 	}
-	if canerr := dots.CanWriteOwn(ctx); canerr != nil {
-		return nil, canerr
+	if n == 0 {
+		return nil, dots.Errorf(dots.ENOTFOUND, "company not found %v", *upd.CompanyID)
+	}
+
+	// try first automatic distribute
+	enoughChecked := false
+	if len(upd.EntryTypeDistribute) > 0 {
+		strategy := ""
+		if upd.DistributeStrategy != nil {
+			strategy = string(*upd.DistributeStrategy)
+		}
+
+		distribute, err := tryDistributeOverEntryType(ctx, tx, upd.EntryTypeDistribute, *upd.CompanyID, strategy)
+		if err != nil {
+			return nil, err
+		}
+		upd.Distribute = distribute
+		enoughChecked = true
+	}
+
+	// accept only to distribute by entry IDs
+	if len(upd.Distribute) > 0 {
+		check := map[int]float64{}
+		if !enoughChecked {
+			// check entries are owned and enough
+			check, err = entriesOfCompanyAreEnough(ctx, tx, upd.Distribute, *upd.CompanyID)
+			if err != nil {
+				if err == sql.ErrNoRows {
+					return nil, dots.Errorf(dots.ENOTFOUND, "entries owned and enough not found")
+				}
+				return nil, err
+			}
+		}
+		// need to check check
+		needmore := map[int]float64{}
+		for eid, diff := range check {
+			if diff < 0 {
+				needmore[eid] = diff
+			}
+		}
+		// not enough
+		if len(needmore) > 0 {
+			err := &dots.Error{
+				Code:    dots.ECONFLICT,
+				Message: "not enough entries",
+				Data:    map[string]interface{}{"needmore": needmore, "company_id": *upd.CompanyID},
+			}
+			return nil, err
+		}
 	}
 
 	d, err := updateDeed(ctx, tx, id, upd)
@@ -546,18 +572,18 @@ func entriesOfCompanyAreEnough(ctx context.Context, tx *Tx, eq map[int]float64, 
 		return nil, err
 	}
 
-	notenough := map[int]float64{}
+	needmore := map[int]float64{}
 	for k, wanted := range eq {
 		if existent, found := eidqty[k]; !found {
 			return nil, dots.Errorf(dots.ENOTFOUND, "not found entry %v", k)
 		} else if wanted > existent {
-			notenough[k] = wanted - existent
+			needmore[k] = wanted - existent
 		}
 	}
 
-	if len(notenough) > 0 {
+	if len(needmore) > 0 {
 		err := dots.Errorf(dots.EINVALID, "not enough quantity")
-		err.Data = map[string]interface{}{"notenough": notenough}
+		err.Data = map[string]interface{}{"needmore": needmore}
 		return nil, err
 	}
 

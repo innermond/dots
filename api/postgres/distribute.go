@@ -189,7 +189,7 @@ where quantity > 0
 	sqlb.WriteString(`select
 	id,
 	case
-			when running_sum <= cs.wqty then quantity
+		when running_sum <= cs.wqty then quantity
 		else quantity - (running_sum - cs.wqty)
 	end as subtracted_quantity
 from cumulative_sum cs
@@ -236,18 +236,18 @@ func tryDistributeOverEntryType(ctx context.Context, tx *Tx, etqty map[int]float
 		return nil, err
 	}
 
-	notenough := map[int]float64{}
+	needmore := map[int]float64{}
 	for k, wanted := range etqty {
 		if existent, found := etqtyExistent[k]; !found {
 			return nil, dots.Errorf(dots.ENOTFOUND, "not found entry type %v", k)
 		} else if wanted > existent {
-			notenough[k] = wanted - existent
+			needmore[k] = wanted - existent
 		}
 	}
 
-	if len(notenough) > 0 {
+	if len(needmore) > 0 {
 		err := dots.Errorf(dots.EINVALID, "not enough quantity")
-		err.Data = map[string]interface{}{"notenough": notenough}
+		err.Data = map[string]interface{}{"needmore": needmore}
 		return nil, err
 	}
 

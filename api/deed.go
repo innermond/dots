@@ -69,8 +69,8 @@ type DeedUpdate struct {
 
 	Distribute map[int]float64 `json:"distribute"`
 
-	EntryID         *int     `json:"entry_id"`
-	DrainedQuantity *float64 `json:"drained_quantity"`
+	EntryTypeDistribute map[int]float64  `json:"entry_type_distribute,omitempty"`
+	DistributeStrategy  *DistributeDrain `json:"distribute_strategy,omitempty"`
 }
 
 func (du *DeedUpdate) Valid() error {
