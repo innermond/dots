@@ -12,6 +12,7 @@ const (
 	ENOTFOUND       = "not_found"
 	ENOTIMPLEMENTED = "not_implemented"
 	EUNAUTHORIZED   = "unauthorized"
+	ENOTAFFECTED    = "not_affected"
 )
 
 type Error struct {

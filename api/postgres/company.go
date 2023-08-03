@@ -107,15 +107,24 @@ func (s *CompanyService) DeleteCompany(ctx context.Context, id int, filter dots.
 		return 0, err
 	}
 
-	var n int
-
+	n := 0
+	tpl := "company %d not deleted"
 	if filter.Hard {
 		n, err = deleteCompanyPermanently(ctx, tx, id)
+		tpl += " (hard)"
 	} else {
 		n, err = deleteCompany(ctx, tx, id, filter.Resurect)
+		if filter.Resurect {
+			tpl += " (resurect)"
+		} else {
+			tpl += " (soft)"
+		}
 	}
 	if err != nil {
 		return n, err
+	}
+	if n == 0 {
+		return 0, dots.Errorf(dots.ENOTAFFECTED, tpl, id)
 	}
 
 	tx.Commit()
