@@ -76,10 +76,12 @@ func unknownFieldsJSON(s interface{}, r io.Reader) ([]string, error) {
 	v := reflect.ValueOf(s).Elem()
 	t := v.Type()
 	var unknownFields []string
+	rCopy := io.TeeReader(r, new(bytes.Buffer))
 	for k := range m {
 		found := false
 		for i := 0; i < t.NumField(); i++ {
 			fieldName := t.Field(i).Name
+			fmt.Println(fieldName)
 			tagValue := t.Field(i).Tag.Get("json")
 			if tagValue != "" {
 				tagParts := strings.Split(tagValue, ",")
@@ -91,6 +93,16 @@ func unknownFieldsJSON(s interface{}, r io.Reader) ([]string, error) {
 			if fieldName == k {
 				found = true
 				break
+			}
+
+			// Check if the field is a nested struct
+			if t.Field(i).Type.Kind() == reflect.Struct {
+				nestedField := v.Field(i)
+				nestedUnknownFields, err := unknownFieldsJSON(nestedField.Addr().Interface(), rCopy)
+				if err != nil {
+					return nil, err
+				}
+				unknownFields = append(unknownFields, nestedUnknownFields...)
 			}
 		}
 		if !found {

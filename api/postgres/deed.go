@@ -11,6 +11,10 @@ import (
 	"github.com/segmentio/ksuid"
 )
 
+var (
+	ErrNotFound = dots.Errorf(dots.ENOTFOUND, "deed not found")
+)
+
 type DeedService struct {
 	db *DB
 }
@@ -51,52 +55,8 @@ func (s *DeedService) CreateDeed(ctx context.Context, d *dots.Deed) error {
 		return dots.Errorf(dots.ENOTFOUND, "company not found %v", *d.CompanyID)
 	}
 
-	// try first automatic distribute
-	enoughChecked := false
-	if len(d.EntryTypeDistribute) > 0 {
-		strategy := ""
-		if d.DistributeStrategy != nil {
-			strategy = string(*d.DistributeStrategy)
-		}
-
-		distribute, err := tryDistributeOverEntryType(ctx, tx, d.EntryTypeDistribute, *d.CompanyID, strategy)
-		if err != nil {
-			return err
-		}
-		d.Distribute = distribute
-		enoughChecked = true
-	}
-
-	if len(d.Distribute) > 0 {
-		check := map[int]float64{}
-		if !enoughChecked {
-			// check entries are owned and enough
-			// this doesn't check user ownership over entries
-			check, err = entriesOfCompanyAreEnough(ctx, tx, d.Distribute, *d.CompanyID)
-			if err != nil {
-				if err == sql.ErrNoRows {
-					err0 := dots.Errorf(dots.ENOTFOUND, "entries not found for company %v", *d.CompanyID)
-					return err0
-				}
-				return err
-			}
-		}
-		// need to check check
-		needmore := map[int]float64{}
-		for eid, diff := range check {
-			if diff < 0 {
-				needmore[eid] = diff
-			}
-		}
-		// not enough
-		if len(needmore) > 0 {
-			err := &dots.Error{
-				Code:    dots.ECONFLICT,
-				Message: "not enough entries",
-				Data:    map[string]interface{}{"needmore": needmore, "company_id": *d.CompanyID},
-			}
-			return err
-		}
+	if err := doDistribute(ctx, tx, &d.DeedUpdate); err != nil {
+		return err
 	}
 
 	if err := createDeed(ctx, tx, d); err != nil {
@@ -170,51 +130,20 @@ func (s *DeedService) UpdateDeed(ctx context.Context, id int, upd dots.DeedUpdat
 		return nil, dots.Errorf(dots.ENOTFOUND, "company not found %v", *upd.CompanyID)
 	}
 
-	// try first automatic distribute
-	enoughChecked := false
-	if len(upd.EntryTypeDistribute) > 0 {
-		strategy := ""
-		if upd.DistributeStrategy != nil {
-			strategy = string(*upd.DistributeStrategy)
-		}
-
-		distribute, err := tryDistributeOverEntryType(ctx, tx, upd.EntryTypeDistribute, *upd.CompanyID, strategy)
+	// we will do some distribution
+	if len(upd.Distribute) > 0 || len(upd.EntryTypeDistribute) > 0 {
+		// soft delete all drains of this deed
+		// to allow corect calculation of distribution
+		// as update assumes we invalidate previous distribution
+		// all quantities drained are "returned"
+		err = deleteDrainsOfDeed(ctx, tx, id)
 		if err != nil {
 			return nil, err
 		}
-		upd.Distribute = distribute
-		enoughChecked = true
 	}
 
-	// accept only to distribute by entry IDs
-	if len(upd.Distribute) > 0 {
-		check := map[int]float64{}
-		if !enoughChecked {
-			// check entries are owned and enough
-			check, err = entriesOfCompanyAreEnough(ctx, tx, upd.Distribute, *upd.CompanyID)
-			if err != nil {
-				if err == sql.ErrNoRows {
-					return nil, dots.Errorf(dots.ENOTFOUND, "entries owned and enough not found")
-				}
-				return nil, err
-			}
-		}
-		// need to check check
-		needmore := map[int]float64{}
-		for eid, diff := range check {
-			if diff < 0 {
-				needmore[eid] = diff
-			}
-		}
-		// not enough
-		if len(needmore) > 0 {
-			err := &dots.Error{
-				Code:    dots.ECONFLICT,
-				Message: "not enough entries",
-				Data:    map[string]interface{}{"needmore": needmore, "company_id": *upd.CompanyID},
-			}
-			return nil, err
-		}
+	if err := doDistribute(ctx, tx, &upd); err != nil {
+		return nil, err
 	}
 
 	d, err := updateDeed(ctx, tx, id, upd)
@@ -298,10 +227,10 @@ values
 func updateDeed(ctx context.Context, tx *Tx, id int, upd dots.DeedUpdate) (*dots.Deed, error) {
 	dd, _, err := findDeed(ctx, tx, dots.DeedFilter{ID: &id, Limit: 1})
 	if err != nil {
-		return nil, fmt.Errorf("postgres.deed: cannot retrieve deed %w", err)
+		return nil, err
 	}
 	if len(dd) == 0 {
-		return nil, dots.Errorf(dots.ENOTFOUND, "deed not found")
+		return nil, ErrNotFound
 	}
 	e := dd[0]
 
@@ -323,13 +252,7 @@ func updateDeed(ctx context.Context, tx *Tx, id int, upd dots.DeedUpdate) (*dots
 		set, args = append(set, "unitprice = ?"), append(args, *v)
 	}
 	if v := upd.CompanyID; v != nil {
-		if e.CompanyID != v {
-			// start from fresh
-			err = hardDeleteDrainsOfDeed(ctx, tx, *e.ID)
-			if err != nil {
-				return nil, err
-			}
-		}
+		// assumed that drains's issue has been addresed by caller
 		e.CompanyID = v
 		set, args = append(set, "company_id = ?"), append(args, *v)
 	}
@@ -357,7 +280,8 @@ func updateDeed(ctx context.Context, tx *Tx, id int, upd dots.DeedUpdate) (*dots
 			return nil, errors.New("company id is required")
 		}
 	}
-	// delete all distribute
+
+	// soft delete all distribute
 	err = deleteDrainsOfDeed(ctx, tx, *e.ID)
 	if err != nil {
 		return nil, err
@@ -380,10 +304,6 @@ func updateDeed(ctx context.Context, tx *Tx, id int, upd dots.DeedUpdate) (*dots
 
 	e.Distribute = upd.Distribute
 
-	err = hardDeleteDrainsOfDeedAlreadyDeleted(ctx, tx, *e.ID)
-	if err != nil {
-		return nil, err
-	}
 	return e, nil
 }
 
@@ -659,4 +579,55 @@ order by e.date_added  DESC
 	}
 
 	return lines, nil
+}
+
+func doDistribute(ctx context.Context, tx *Tx, upd *dots.DeedUpdate) error {
+	// try first automatic distribute
+	enoughChecked := false
+	if len(upd.EntryTypeDistribute) > 0 {
+		strategy := ""
+		if upd.DistributeStrategy != nil {
+			strategy = string(*upd.DistributeStrategy)
+		}
+
+		distribute, err := tryDistributeOverEntryType(ctx, tx, upd.EntryTypeDistribute, *upd.CompanyID, strategy)
+		if err != nil {
+			return err
+		}
+		upd.Distribute = distribute
+		enoughChecked = true
+	}
+
+	// accept only to distribute by entry IDs
+	if len(upd.Distribute) > 0 {
+		var err error
+		check := map[int]float64{}
+		if !enoughChecked {
+			// check entries are owned and enough
+			check, err = entriesOfCompanyAreEnough(ctx, tx, upd.Distribute, *upd.CompanyID)
+			if err != nil {
+				if err == sql.ErrNoRows {
+					return dots.Errorf(dots.ENOTFOUND, "entries owned and enough not found")
+				}
+				return err
+			}
+		}
+		// need to check check
+		needmore := map[int]float64{}
+		for eid, diff := range check {
+			if diff < 0 {
+				needmore[eid] = diff
+			}
+		}
+		// not enough
+		if len(needmore) > 0 {
+			err := &dots.Error{
+				Code:    dots.ECONFLICT,
+				Message: "not enough entries",
+				Data:    map[string]interface{}{"needmore": needmore, "company_id": *upd.CompanyID},
+			}
+			return err
+		}
+	}
+	return nil
 }

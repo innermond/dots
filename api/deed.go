@@ -7,17 +7,8 @@ import (
 )
 
 type Deed struct {
-	ID        *int             `json:"id"`
-	CompanyID *int             `json:"company_id"`
-	Title     *string          `json:"title"`
-	Quantity  *float64         `json:"quantity"`
-	Unit      *string          `json:"unit"`
-	UnitPrice *decimal.Decimal `json:"unitprice"`
-
-	Distribute map[int]float64 `json:"distribute,omitempty"`
-
-	EntryTypeDistribute map[int]float64  `json:"entry_type_distribute,omitempty"`
-	DistributeStrategy  *DistributeDrain `json:"distribute_strategy,omitempty"`
+	ID *int `json:"id"`
+	DeedUpdate
 }
 
 type DistributeDrain string
@@ -72,6 +63,16 @@ type DeedUpdate struct {
 	EntryTypeDistribute map[int]float64  `json:"entry_type_distribute,omitempty"`
 	DistributeStrategy  *DistributeDrain `json:"distribute_strategy,omitempty"`
 }
+
+// TODO it panics violently!!!
+/*func (du *DeedUpdate) UnmarshalJSON(b []byte) (err error) {
+	d := DeedUpdate{}
+	if err := json.Unmarshal(b, &d); err != nil {
+		return err
+	}
+	*du = DeedUpdate(d)
+	return
+}*/
 
 func (du *DeedUpdate) Valid() error {
 	if du.Title == nil && du.Quantity == nil && du.Unit == nil {

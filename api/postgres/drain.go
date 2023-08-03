@@ -132,7 +132,7 @@ func undrainDrainsOfDeed(ctx context.Context, tx *Tx, id int) error {
 }
 
 func hardDeleteDrainsOfDeed(ctx context.Context, tx *Tx, did int) error {
-	sqlstr := `delete from core.drain d where d.deed_id = $1`
+	sqlstr := `delete from core.drain where deed_id = $1`
 
 	_, err := tx.ExecContext(ctx, sqlstr, did)
 	if err != nil {
