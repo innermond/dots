@@ -63,19 +63,7 @@ func (s *Server) handleCompanyUpdate(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleCompanyFind(w http.ResponseWriter, r *http.Request) {
 	filter := dots.CompanyFilter{}
-	if len(r.URL.Query()) > 0 {
-		ok := inputURLQuery(w, r, &filter, "find company")
-		if !ok {
-			return
-		}
-	}
-
-	if r.Body != http.NoBody {
-		ok := inputJSON(w, r, &filter, "find company")
-		if !ok {
-			return
-		}
-	}
+	input(w, r, &filter, "find company")
 
 	ee, n, err := s.CompanyService.FindCompany(r.Context(), filter)
 	if err != nil {

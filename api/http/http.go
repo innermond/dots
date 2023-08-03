@@ -172,3 +172,23 @@ func queryInto[T any](qp url.Values, s *T) error {
 	}
 	return nil
 }
+
+type Filter interface {
+	dots.CompanyFilter | dots.EntryTypeFilter | dots.EntryFilter | dots.DeedFilter
+}
+
+func input[T Filter](w http.ResponseWriter, r *http.Request, filterPtr *T, msg string) {
+	if len(r.URL.Query()) > 0 {
+		ok := inputURLQuery(w, r, filterPtr, msg)
+		if !ok {
+			return
+		}
+	}
+
+	if r.Body != http.NoBody {
+		ok := inputJSON(w, r, filterPtr, msg)
+		if !ok {
+			return
+		}
+	}
+}

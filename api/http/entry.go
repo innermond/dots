@@ -63,17 +63,7 @@ func (s *Server) handleEntryUpdate(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleEntryFind(w http.ResponseWriter, r *http.Request) {
 	filter := dots.EntryFilter{}
-	if len(r.URL.Query()) > 0 {
-		ok := inputURLQuery(w, r, &filter, "find entry")
-		if !ok {
-			return
-		}
-	}
-	if r.Body != http.NoBody {
-		if ok := inputJSON(w, r, &filter, "find entry"); !ok {
-			return
-		}
-	}
+	input(w, r, &filter, "find entry")
 
 	ee, n, err := s.EntryService.FindEntry(r.Context(), filter)
 	if err != nil {

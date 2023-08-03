@@ -64,19 +64,7 @@ func (s *Server) handleEntryTypeUpdate(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleEntryTypeFind(w http.ResponseWriter, r *http.Request) {
 	// can accept missing r.Body
 	filter := dots.EntryTypeFilter{}
-	if len(r.URL.Query()) > 0 {
-		ok := inputURLQuery(w, r, &filter, "find entry type")
-		if !ok {
-			return
-		}
-	}
-
-	// ensure we have a input body to be sent to json
-	if r.Body != http.NoBody {
-		if ok := inputJSON(w, r, &filter, "find entry type"); !ok {
-			return
-		}
-	}
+	input(w, r, &filter, "find entry type")
 
 	ee, n, err := s.EntryTypeService.FindEntryType(r.Context(), filter)
 	if err != nil {
