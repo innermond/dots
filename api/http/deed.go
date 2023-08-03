@@ -71,7 +71,7 @@ func (s *Server) handleDeedFind(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	outputJSON(w, r, http.StatusFound, &findDeedResponse{Deeds: dd, N: n})
+	outputJSON(w, r, http.StatusFound, &foundResponse[dots.Deed]{dd, affected{n}})
 }
 
 func (s *Server) handleDeedDelete(w http.ResponseWriter, r *http.Request) {
@@ -102,14 +102,5 @@ func (s *Server) handleDeedDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	outputJSON(w, r, http.StatusFound, &deleteDeedResponse{N: n})
-}
-
-type findDeedResponse struct {
-	Deeds []*dots.Deed `json:"deeds"`
-	N     int          `json:"n"`
-}
-
-type deleteDeedResponse struct {
-	N int `json:"n"`
+	outputJSON(w, r, http.StatusFound, &affected{n})
 }

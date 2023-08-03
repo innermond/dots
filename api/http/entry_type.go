@@ -72,7 +72,7 @@ func (s *Server) handleEntryTypeFind(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	outputJSON(w, r, http.StatusFound, &findEntryTypeResponse{EntryTypes: ee, N: n})
+	outputJSON(w, r, http.StatusFound, &foundResponse[dots.EntryType]{ee, affected{n}})
 }
 
 func (s *Server) handleEntryTypeDelete(w http.ResponseWriter, r *http.Request) {
@@ -99,7 +99,7 @@ func (s *Server) handleEntryTypeDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	outputJSON(w, r, http.StatusFound, &deleteEntryTypeResponse{N: n})
+	outputJSON(w, r, http.StatusFound, &affected{n})
 }
 
 func (s *Server) handleEntryTypeHardDelete(w http.ResponseWriter, r *http.Request) {
@@ -124,14 +124,5 @@ func (s *Server) handleEntryTypeHardDelete(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	outputJSON(w, r, http.StatusFound, &deleteCompanyResponse{N: n})
-}
-
-type findEntryTypeResponse struct {
-	EntryTypes []*dots.EntryType `json:"entry_types"`
-	N          int               `json:"n"`
-}
-
-type deleteEntryTypeResponse struct {
-	N int `json:"n"`
+	outputJSON(w, r, http.StatusFound, &affected{n})
 }

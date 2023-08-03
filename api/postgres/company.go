@@ -108,7 +108,7 @@ func (s *CompanyService) DeleteCompany(ctx context.Context, id int, filter dots.
 	}
 
 	n := 0
-	tpl := "company %d not deleted"
+	tpl := "company %d not affected"
 	if filter.Hard {
 		n, err = deleteCompanyPermanently(ctx, tx, id)
 		tpl += " (hard)"

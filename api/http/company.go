@@ -75,7 +75,7 @@ func (s *Server) handleCompanyFind(w http.ResponseWriter, r *http.Request) {
 	if n == 0 {
 		status = http.StatusNotFound
 	}
-	outputJSON(w, r, status, &findCompanyResponse{Companys: ee, N: n})
+	outputJSON(w, r, status, &foundResponse[dots.Company]{ee, affected{n}})
 }
 
 func (s *Server) handleCompanyDelete(w http.ResponseWriter, r *http.Request) {
@@ -103,7 +103,7 @@ func (s *Server) handleCompanyDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	outputJSON(w, r, http.StatusFound, &deleteCompanyResponse{N: n})
+	outputJSON(w, r, http.StatusFound, &affected{n})
 }
 
 func (s *Server) handleCompanyHardDelete(w http.ResponseWriter, r *http.Request) {
@@ -128,14 +128,5 @@ func (s *Server) handleCompanyHardDelete(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	outputJSON(w, r, http.StatusFound, &deleteCompanyResponse{N: n})
-}
-
-type findCompanyResponse struct {
-	Companys []*dots.Company `json:"companies"`
-	N        int             `json:"n"`
-}
-
-type deleteCompanyResponse struct {
-	N int `json:"n"`
+	outputJSON(w, r, http.StatusFound, &affected{n})
 }
