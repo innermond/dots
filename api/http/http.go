@@ -46,7 +46,13 @@ func inputJSON[T any](w http.ResponseWriter, r *http.Request, e *T, prefix strin
 		return false
 	}
 
-	xx, err := unknownFieldsJSON(e, &buf)
+	var m map[string]interface{}
+	err := json.NewDecoder(&buf).Decode(&m)
+	if err != nil {
+		return false
+	}
+
+	xx, err := unknownFieldsJSON(e, m)
 	if err != nil {
 		Error(w, r, err)
 		return false
@@ -66,22 +72,17 @@ func inputJSON[T any](w http.ResponseWriter, r *http.Request, e *T, prefix strin
 	return true
 }
 
-func unknownFieldsJSON(s interface{}, r io.Reader) ([]string, error) {
-	var m map[string]interface{}
-	err := json.NewDecoder(r).Decode(&m)
-	if err != nil {
-		return nil, err
-	}
-
+func unknownFieldsJSON(s interface{}, m map[string]interface{}) ([]string, error) {
 	v := reflect.ValueOf(s).Elem()
 	t := v.Type()
 	var unknownFields []string
-	rCopy := io.TeeReader(r, new(bytes.Buffer))
+
+	// m holds wanted field value pairs
 	for k := range m {
 		found := false
+		// iterate over existent fields
 		for i := 0; i < t.NumField(); i++ {
-			fieldName := t.Field(i).Name
-			fmt.Println(fieldName)
+			// check earlier if wanted exists
 			tagValue := t.Field(i).Tag.Get("json")
 			if tagValue != "" {
 				tagParts := strings.Split(tagValue, ",")
@@ -90,21 +91,27 @@ func unknownFieldsJSON(s interface{}, r io.Reader) ([]string, error) {
 					break
 				}
 			}
-			if fieldName == k {
-				found = true
-				break
-			}
 
-			// Check if the field is a nested struct
+			// check if wanted is in a nested struct
 			if t.Field(i).Type.Kind() == reflect.Struct {
+				// "slice" the map of wanted to get only the interested part and prepared it as a map
+				mpart := map[string]interface{}{k: m[k]}
 				nestedField := v.Field(i)
-				nestedUnknownFields, err := unknownFieldsJSON(nestedField.Addr().Interface(), rCopy)
+				// check specified wanted field
+				nestedUnknownFields, err := unknownFieldsJSON(nestedField.Addr().Interface(), mpart)
 				if err != nil {
 					return nil, err
 				}
-				unknownFields = append(unknownFields, nestedUnknownFields...)
+				if len(nestedUnknownFields) > 0 {
+					unknownFields = append(unknownFields, nestedUnknownFields...)
+				} else {
+					// no unknown fields means we found the wanted in this struct
+					found = true
+					break
+				}
 			}
 		}
+
 		if !found {
 			unknownFields = append(unknownFields, k)
 		}
@@ -191,15 +198,13 @@ type Filter interface {
 
 func input[T Filter](w http.ResponseWriter, r *http.Request, filterPtr *T, msg string) {
 	if len(r.URL.Query()) > 0 {
-		ok := inputURLQuery(w, r, filterPtr, msg)
-		if !ok {
+		if ok := inputURLQuery(w, r, filterPtr, msg); !ok {
 			return
 		}
 	}
 
 	if r.Body != http.NoBody {
-		ok := inputJSON(w, r, filterPtr, msg)
-		if !ok {
+		if ok := inputJSON(w, r, filterPtr, msg); !ok {
 			return
 		}
 	}
