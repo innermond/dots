@@ -47,8 +47,8 @@ type DeedFilter struct {
 }
 
 type DeedDelete struct {
-	Undrain  bool
-	Resurect bool
+	Undrain  bool `json:"undrain" presence_is:"true"`
+	Resurect bool `json:"resurect" presence_is:"true"`
 }
 
 type DeedUpdate struct {

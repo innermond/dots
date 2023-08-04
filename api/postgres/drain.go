@@ -117,6 +117,19 @@ func deleteDrainsOfDeed(ctx context.Context, tx *Tx, id int) error {
 	return nil
 }
 
+func changeDrainsOfDeed(ctx context.Context, tx *Tx, id int, del bool) error {
+	_, err := tx.ExecContext(
+		ctx,
+		"update core.drain set is_deleted = $2 where deed_id = $1",
+		id, del,
+	)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func undrainDrainsOfDeed(ctx context.Context, tx *Tx, id int) error {
 	_, err := tx.ExecContext(
 		ctx,

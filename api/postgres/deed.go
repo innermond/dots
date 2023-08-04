@@ -181,11 +181,6 @@ func (s *DeedService) DeleteDeed(ctx context.Context, id int, filter dots.DeedDe
 }
 
 func createDeed(ctx context.Context, tx *Tx, d *dots.Deed) error {
-	user := dots.UserFromContext(ctx)
-	if user.ID == ksuid.Nil {
-		return dots.Errorf(dots.EUNAUTHORIZED, "unauthorized user")
-	}
-
 	err := tx.QueryRowContext(
 		ctx,
 		`
@@ -405,7 +400,7 @@ func deleteDeed(ctx context.Context, tx *Tx, id int, filter dots.DeedDelete) (n 
 	}
 
 	if filter.Undrain {
-		err := undrainDrainsOfDeed(ctx, tx, id)
+		err := changeDrainsOfDeed(ctx, tx, id, !filter.Resurect)
 		if err != nil {
 			return 0, fmt.Errorf("postgres.deed: cannot undrain %w", err)
 		}

@@ -161,13 +161,28 @@ func queryInto[T any](qp url.Values, s *T) error {
 			fn = f.Name
 		}
 
-		pv := qp.Get(fn)
-		if pv == "" {
+		presenceIsTrue := f.Tag.Get("presence_is") == "true"
+
+		pvv, found := qp[fn]
+		pv := ""
+		if len(pvv) > 0 {
+			pv = pvv[0]
+		}
+		if !(presenceIsTrue && found) && pv == "" {
 			continue
 		}
-
 		fv := v.Field(i)
 		switch fv.Kind() {
+		case reflect.Bool:
+			if presenceIsTrue {
+				fv.SetBool(true)
+			} else {
+				bv, err := strconv.ParseBool(pv)
+				if err != nil {
+					return err
+				}
+				fv.SetBool(bv)
+			}
 		case reflect.String:
 			fv.SetString(pv)
 		case reflect.Int:
@@ -193,7 +208,7 @@ func queryInto[T any](qp url.Values, s *T) error {
 }
 
 type Filter interface {
-	dots.CompanyFilter | dots.EntryTypeFilter | dots.EntryFilter | dots.DeedFilter
+	dots.CompanyFilter | dots.EntryTypeFilter | dots.EntryFilter | dots.DeedFilter | dots.DeedDelete
 }
 
 func input[T Filter](w http.ResponseWriter, r *http.Request, filterPtr *T, msg string) {
