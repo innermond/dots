@@ -105,16 +105,7 @@ on conflict (deed_id, entry_id) do update set deed_id = EXCLUDED.deed_id, entry_
 }
 
 func deleteDrainsOfDeed(ctx context.Context, tx *Tx, id int) error {
-	_, err := tx.ExecContext(
-		ctx,
-		"update core.drain set is_deleted = true where deed_id = $1",
-		id,
-	)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return changeDrainsOfDeed(ctx, tx, id, true)
 }
 
 func changeDrainsOfDeed(ctx context.Context, tx *Tx, id int, del bool) error {
