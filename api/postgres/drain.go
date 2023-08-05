@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"strconv"
 	"strings"
 
 	"github.com/innermond/dots"
@@ -177,22 +178,13 @@ func findDrain(ctx context.Context, tx *Tx, filter dots.DrainFilter) (_ []*dots.
 		where, args = append(where, "entry_id = ?"), append(args, *v)
 	}
 
-	if v := filter.TID; !v.IsNil() {
-		where = append(where, `d.deed_id = any(select de.id
-from deed de
-where de.id = d.deed_id and de.company_id = any(select c.id
-from company c
-where c.tid = ?))`)
-		args = append(args, *v)
-	}
-
 	replaceQuestionMark(where, args)
 
 	v := filter.IsDeleted
-	if v != nil && *v == true {
-		where = append(where, "deleted_at is not null")
-	} else if v != nil && *v == false {
-		where = append(where, "deleted_at is null")
+	if v != nil {
+		where = append(where, "is_deleted = "+strconv.FormatBool(*filter.IsDeleted))
+	} else {
+		where = append(where, "is_deleted = false")
 	}
 
 	sqlstr := `

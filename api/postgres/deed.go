@@ -140,10 +140,10 @@ func (s *DeedService) UpdateDeed(ctx context.Context, id int, upd dots.DeedUpdat
 		if err != nil {
 			return nil, err
 		}
-	}
 
-	if err := doDistribute(ctx, tx, &upd); err != nil {
-		return nil, err
+		if err := doDistribute(ctx, tx, &upd); err != nil {
+			return nil, err
+		}
 	}
 
 	d, err := updateDeed(ctx, tx, id, upd)
@@ -266,6 +266,19 @@ func updateDeed(ctx context.Context, tx *Tx, id int, upd dots.DeedUpdate) (*dots
 	}
 
 	if len(upd.Distribute) == 0 {
+		// find undeleted drains
+		filter := dots.DrainFilter{DeedID: &id}
+		drains, n, err := findDrain(ctx, tx, filter)
+		if err != nil {
+			return nil, err
+		}
+		if n > 0 {
+			distribute := map[int]float64{}
+			for _, drain := range drains {
+				distribute[drain.EntryID] = drain.Quantity
+			}
+			e.Distribute = distribute
+		}
 		return e, nil
 	}
 
@@ -276,8 +289,12 @@ func updateDeed(ctx context.Context, tx *Tx, id int, upd dots.DeedUpdate) (*dots
 		}
 	}
 
-	// soft delete all distribute
-	err = deleteDrainsOfDeed(ctx, tx, *e.ID)
+	// update means a new start so
+	// hard delete all distribute
+	// in order to not interact with soft deletion (which is an update op)
+	// when mode is resurect - all soft deleted are switched back en-masse
+	// na matter how relevant they are, so, we really delete the irelevant here
+	err = hardDeleteDrainsOfDeedAlreadyDeleted(ctx, tx, *e.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -434,22 +451,6 @@ and d.id = $2);
 	return nil
 }
 
-func deedGetUser(ctx context.Context, tx *Tx, d int) *ksuid.KSUID {
-	sqlstr := `select c.tid
-from company c
-where c.id = (select d.company_id 
-from deed d
-where d.id = $1)
-`
-	var uid ksuid.KSUID
-	err := tx.QueryRowContext(ctx, sqlstr, d).Scan(&uid)
-	if err != nil {
-		return nil
-	}
-
-	return &uid
-}
-
 func entriesOfCompanyAreEnough(ctx context.Context, tx *Tx, eq map[int]float64, cid int) (map[int]float64, error) {
 	eids := keysOf(eq)
 
@@ -522,58 +523,6 @@ type entryRow struct {
 	eid  int
 	etid int
 	qty  float64
-}
-
-func entriesOfEntryTypeForCompanyID(ctx context.Context, tx *Tx, etids []int, cid int) ([]entryRow, error) {
-	sqlstr := `with s as (
-  select e.id, e.entry_type_id, (e.quantity - coalesce((select sum(case when d.is_deleted = true then -d.quantity else d.quantity end)
-from core.drain d
-where d.entry_id = e.id), 0)
-) quantity
-from entry e
-where e.entry_type_id = any(
-		select et.id
-from entry_type et
-where et.id = any($1))
-and
-e.company_id = (
-		select c.id
-from company c
-where c.id = $2 limit 1)
-order by e.date_added  DESC
-  ) select s.id, s.entry_type_id, s.quantity from s;`
-
-	rows, err := tx.QueryContext(
-		ctx,
-		sqlstr,
-		etids, cid,
-	)
-	if err == sql.ErrNoRows {
-		return nil, dots.Errorf(dots.ENOTFOUND, "entries of entry not found")
-	}
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var (
-		eid, etid int
-		eqty      float64
-		lines     []entryRow
-	)
-	for rows.Next() {
-		err := rows.Scan(&eid, &etid, &eqty)
-		if err != nil {
-			return nil, err
-		}
-		line := entryRow{eid, etid, eqty}
-		lines = append(lines, line)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-
-	return lines, nil
 }
 
 func doDistribute(ctx context.Context, tx *Tx, upd *dots.DeedUpdate) error {

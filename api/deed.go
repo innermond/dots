@@ -58,7 +58,7 @@ type DeedUpdate struct {
 	Unit      *string          `json:"unit"`
 	UnitPrice *decimal.Decimal `json:"unitprice"`
 
-	Distribute map[int]float64 `json:"distribute"`
+	Distribute map[int]float64 `json:"distribute,omitempty"`
 
 	EntryTypeDistribute map[int]float64  `json:"entry_type_distribute,omitempty"`
 	DistributeStrategy  *DistributeDrain `json:"distribute_strategy,omitempty"`
