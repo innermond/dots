@@ -151,6 +151,14 @@ func distributeOverEntryType(ctx context.Context, tx *Tx, etqty map[int]float64,
 		strategy = "date_added asc, quantity desc"
 	case "old_few":
 		strategy = "date_added asc, quantity asc"
+	case "many_new":
+		strategy = "quantity desc, date_added desc"
+	case "few_new":
+		strategy = "quantity asc, date_added desc"
+	case "many_old":
+		strategy = "quantity desc, date_added asc"
+	case "few_old":
+		strategy = "quantity asc, date_added asc"
 	default:
 		strategy = "date_added desc, quantity desc"
 	}
@@ -236,13 +244,20 @@ func tryDistributeOverEntryType(ctx context.Context, tx *Tx, etqty map[int]float
 		return nil, err
 	}
 
+	notexistent := []string{}
 	needmore := map[int]float64{}
 	for k, wanted := range etqty {
 		if existent, found := etqtyExistent[k]; !found {
-			return nil, dots.Errorf(dots.ENOTFOUND, "not found entry type %v", k)
+			notexistent = append(notexistent, fmt.Sprintf("%v", k))
 		} else if wanted > existent {
 			needmore[k] = wanted - existent
 		}
+	}
+
+	numNotfound := len(notexistent)
+	if numNotfound > 0 {
+		d := map[string]interface{}{"notfound": notexistent}
+		return nil, dots.Errorf(dots.ENOTFOUND, "not found entry type %d", numNotfound).WithData(d)
 	}
 
 	if len(needmore) > 0 {

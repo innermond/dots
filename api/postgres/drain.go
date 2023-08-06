@@ -158,7 +158,7 @@ func hardDeleteDrainsOfDeedAlreadyDeleted(ctx context.Context, tx *Tx, did int) 
 	return nil
 }
 
-func deleteDrainsOfDeedPrevCompany(ctx context.Context, tx *Tx, did, cid int) error {
+func hardDeleteDrainsOfDeedPrevCompany(ctx context.Context, tx *Tx, did, cid int) error {
 	sqlstr := `delete from core.drain d where d.deed_id = $1 and d.entry_id = any(select e.id from entry e where e.company_id = $2)`
 
 	_, err := tx.ExecContext(ctx, sqlstr, did, cid)

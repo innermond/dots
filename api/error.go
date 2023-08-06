@@ -35,6 +35,11 @@ func (e *Error) Unwrap() error {
 	return e.err
 }
 
+func (e *Error) WithData(d map[string]interface{}) *Error {
+	e.Data = d
+	return e
+}
+
 func ErrorCode(err error) string {
 	if err == nil {
 		return ""

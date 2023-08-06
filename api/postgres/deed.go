@@ -3,7 +3,6 @@ package postgres
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"strings"
 
@@ -130,22 +129,6 @@ func (s *DeedService) UpdateDeed(ctx context.Context, id int, upd dots.DeedUpdat
 		return nil, dots.Errorf(dots.ENOTFOUND, "company not found %v", *upd.CompanyID)
 	}
 
-	// we will do some distribution
-	if len(upd.Distribute) > 0 || len(upd.EntryTypeDistribute) > 0 {
-		// soft delete all drains of this deed
-		// to allow corect calculation of distribution
-		// as update assumes we invalidate previous distribution
-		// all quantities drained are "returned"
-		err = deleteDrainsOfDeed(ctx, tx, id)
-		if err != nil {
-			return nil, err
-		}
-
-		if err := doDistribute(ctx, tx, &upd); err != nil {
-			return nil, err
-		}
-	}
-
 	d, err := updateDeed(ctx, tx, id, upd)
 	if err != nil {
 		return nil, err
@@ -195,8 +178,12 @@ values
 		return err
 	}
 
-	if len(d.Distribute) == 0 {
+	if len(d.Distribute) == 0 && len(d.EntryTypeDistribute) == 0 {
 		return nil
+	}
+
+	if err := doDistribute(ctx, tx, &d.DeedUpdate); err != nil {
+		return err
 	}
 
 	// manage distribute
@@ -228,6 +215,7 @@ func updateDeed(ctx context.Context, tx *Tx, id int, upd dots.DeedUpdate) (*dots
 		return nil, ErrNotFound
 	}
 	e := dd[0]
+	oldCompanyID := *e.CompanyID
 
 	set, args := []string{}, []interface{}{}
 	if v := upd.Title; v != nil {
@@ -260,9 +248,46 @@ func updateDeed(ctx context.Context, tx *Tx, id int, upd dots.DeedUpdate) (*dots
 		set ` + strings.Join(set, ", ") + `
 		where	id = ` + fmt.Sprintf("$%d", len(args))
 
-	_, err = tx.ExecContext(ctx, sqlstr, args...)
+	result, err := tx.ExecContext(ctx, sqlstr, args...)
 	if err != nil {
 		return nil, fmt.Errorf("postgres.deed: cannot update %w", err)
+	}
+	n64, err := result.RowsAffected()
+	if err != nil {
+		return nil, err
+	}
+	if n64 == 0 {
+		return nil, dots.Errorf(dots.ENOTAFFECTED, "deed %d not affected", *e.ID)
+	}
+
+	// we will do some distribution
+	if len(upd.Distribute) > 0 || len(upd.EntryTypeDistribute) > 0 {
+		// soft delete all drains of this deed
+		// to allow corect calculation of distribution
+		// as update assumes we invalidate previous distribution
+		// all quantities drained are "returned"
+		if oldCompanyID == *e.CompanyID {
+			// hard delete the "deleted" drains
+			err = hardDeleteDrainsOfDeedAlreadyDeleted(ctx, tx, *e.ID)
+			if err != nil {
+				return nil, err
+			}
+			// and "delete" all active drains
+			err = deleteDrainsOfDeed(ctx, tx, id)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			// remove all drains of deed
+			err = hardDeleteDrainsOfDeed(ctx, tx, *e.ID)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		if err := doDistribute(ctx, tx, &upd); err != nil {
+			return nil, err
+		}
 	}
 
 	if len(upd.Distribute) == 0 {
@@ -280,23 +305,6 @@ func updateDeed(ctx context.Context, tx *Tx, id int, upd dots.DeedUpdate) (*dots
 			e.Distribute = distribute
 		}
 		return e, nil
-	}
-
-	// manage distribute need CompanyID
-	if upd.Distribute != nil {
-		if upd.CompanyID == nil {
-			return nil, errors.New("company id is required")
-		}
-	}
-
-	// update means a new start so
-	// hard delete all distribute
-	// in order to not interact with soft deletion (which is an update op)
-	// when mode is resurect - all soft deleted are switched back en-masse
-	// na matter how relevant they are, so, we really delete the irelevant here
-	err = hardDeleteDrainsOfDeedAlreadyDeleted(ctx, tx, *e.ID)
-	if err != nil {
-		return nil, err
 	}
 
 	for eid, qty := range upd.Distribute {
