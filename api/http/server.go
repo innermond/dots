@@ -47,9 +47,12 @@ func NewServer() *Server {
 	// because it uses defer it must be called first
 	// so its defer function will be the last in the stack, like a safety net
 	s.router.Use(reportPanic)
+	s.router.Use(s.allowRequestsFromApp)
 	s.server.Handler = http.HandlerFunc(s.serveHTTP)
 	s.router.NotFoundHandler = http.HandlerFunc(s.handleNotFound)
 	s.router.Use(s.authenticate)
+
+	s.router.Methods("OPTIONS")
 
 	s.router.HandleFunc("/", s.handleIndex).Methods("GET")
 
@@ -260,6 +263,20 @@ func (s *Server) noAuthenticate(next http.Handler) http.Handler {
 		isLogout := r.URL.Path == "/logout"
 		if u.ID != ksuid.Nil && !isLogout {
 			http.Redirect(w, r, "/", http.StatusFound)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func (s *Server) allowRequestsFromApp(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "http://www.dots.volt.com")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		fmt.Println(r.Method)
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
 			return
 		}
 		next.ServeHTTP(w, r)
