@@ -71,7 +71,7 @@ func (s *Server) handleCompanyFind(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	status := http.StatusFound
+	status := http.StatusOK
 	if n == 0 {
 		status = http.StatusNotFound
 	}
