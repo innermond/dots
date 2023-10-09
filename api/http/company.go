@@ -75,6 +75,16 @@ func (s *Server) handleCompanyFind(w http.ResponseWriter, r *http.Request) {
 	if n == 0 {
 		status = http.StatusNotFound
 	}
+
+	// TODO generalise it as a middleware
+	devstatus := r.URL.Query().Get("devstatus")
+	if devstatus != "" {
+		status, err = strconv.Atoi(devstatus)
+		if err != nil {
+			status = http.StatusInternalServerError
+		}
+	}
+
 	outputJSON(w, r, status, &foundResponse[dots.Company]{ee, affected{n}})
 }
 

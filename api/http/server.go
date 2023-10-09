@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/securecookie"
@@ -88,7 +89,7 @@ func NewServer() *Server {
 
 	{
 		router := s.router.PathPrefix("/companies").Subrouter()
-		router.Use(s.yesAuthenticate)
+		router.Use(s.yesAuthenticate, s.sleep(2*time.Second))
 		s.registerCompanyRoutes(router)
 	}
 
@@ -164,7 +165,8 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
+	status := http.StatusOK
+	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(&ses)
 }
 
@@ -281,4 +283,14 @@ func (s *Server) allowRequestsFromApp(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+// only for development
+func (s *Server) sleep(duration time.Duration) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			time.Sleep(duration)
+			next.ServeHTTP(w, r)
+		})
+	}
 }
