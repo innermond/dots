@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -51,7 +52,7 @@ func NewServer() *Server {
 	s.router.Use(s.allowRequestsFromApp)
 	s.server.Handler = http.HandlerFunc(s.serveHTTP)
 	s.router.NotFoundHandler = http.HandlerFunc(s.handleNotFound)
-	s.router.Use(s.authenticate)
+	s.router.Use(s.devine, s.authenticate)
 
 	s.router.Methods("OPTIONS")
 
@@ -89,7 +90,7 @@ func NewServer() *Server {
 
 	{
 		router := s.router.PathPrefix("/companies").Subrouter()
-		router.Use(s.yesAuthenticate, s.sleep(2*time.Second))
+		router.Use(s.yesAuthenticate)
 		s.registerCompanyRoutes(router)
 	}
 
@@ -286,11 +287,25 @@ func (s *Server) allowRequestsFromApp(next http.Handler) http.Handler {
 }
 
 // only for development
-func (s *Server) sleep(duration time.Duration) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			time.Sleep(duration)
-			next.ServeHTTP(w, r)
-		})
-	}
+func (s *Server) devine(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		devstatus := r.URL.Query().Get("devstatus")
+		if devstatus != "" {
+			status, err := strconv.Atoi(devstatus)
+			if err != nil {
+				status = http.StatusInternalServerError
+			}
+			w.WriteHeader(status)
+		}
+
+		devsleep := r.URL.Query().Get("devsleep")
+		if devsleep != "" {
+			sleep, err := strconv.Atoi(devsleep)
+			if err == nil {
+				time.Sleep(time.Duration(sleep) * time.Second)
+			}
+		}
+
+		next.ServeHTTP(w, r)
+	})
 }
