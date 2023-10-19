@@ -274,10 +274,25 @@ func (s *Server) noAuthenticate(next http.Handler) http.Handler {
 
 func (s *Server) allowRequestsFromApp(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "http://www.dots.volt.com")
-		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		// Allow multiple origins
+		allowedOrigins := []string{"http://www.dots.volt.com", "http://localhost:3000"}
+		origin := r.Header.Get("Origin")
+
+		allowed := false
+		for _, o := range allowedOrigins {
+			if o == origin {
+				allowed = true
+				break
+			}
+		}
+
+		if allowed {
+			// Set the appropriate headers to allow the requested origin
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		}
+
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
 			return
