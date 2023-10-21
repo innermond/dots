@@ -71,7 +71,7 @@ func (s *Server) handleDeedFind(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	outputJSON(w, r, http.StatusFound, &foundResponse[dots.Deed]{dd, affected{n}})
+	outputJSON(w, r, http.StatusFound, &foundResponse[[]*dots.Deed]{dd, affected{n}})
 }
 
 func (s *Server) handleDeedDelete(w http.ResponseWriter, r *http.Request) {

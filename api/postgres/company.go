@@ -132,6 +132,24 @@ func (s *CompanyService) DeleteCompany(ctx context.Context, id int, filter dots.
 	return n, err
 }
 
+func (s *CompanyService) StatsCompany(ctx context.Context, filter dots.CompanyFilter) (*dots.CompanyStats, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	if canerr := dots.CanReadOwn(ctx); canerr != nil {
+		return nil, canerr
+	}
+
+	if err := tx.setUserIDPerConnection(ctx); err != nil {
+		return nil, err
+	}
+
+	return statsCompany(ctx, tx, filter)
+}
+
 func findCompany(ctx context.Context, tx *Tx, filter dots.CompanyFilter) (_ []*dots.Company, n int, err error) {
 	where, args := []string{}, []interface{}{}
 	if v := filter.ID; v != nil {
@@ -347,4 +365,55 @@ where c.id = $1
 	}
 
 	return nil
+}
+
+func statsCompany(ctx context.Context, tx *Tx, filter dots.CompanyFilter) (_ *dots.CompanyStats, err error) {
+	where, args := []string{}, []interface{}{}
+	if v := filter.ID; v != nil {
+		where, args = append(where, "id = ?"), append(args, *v)
+	}
+	if v := filter.Longname; v != nil {
+		where, args = append(where, "longname = ?"), append(args, *v)
+	}
+	if v := filter.TIN; v != nil {
+		where, args = append(where, "tin = ?"), append(args, *v)
+	}
+	if v := filter.RN; v != nil {
+		where, args = append(where, "rn = ?"), append(args, *v)
+	}
+
+	wherestr := ""
+	if len(where) > 0 {
+		replaceQuestionMark(where, args)
+		wherestr = "where " + strings.Join(where, " and ")
+	}
+	sqlstr := `WITH c AS
+(SELECT id FROM api.company ` + wherestr + `)
+SELECT
+  count_companies,
+  count_deeds,
+  count_entries,
+  count_entry_type
+FROM (
+  SELECT
+    (SELECT count(*) FROM c) AS count_companies,
+    (SELECT count(*) FROM api.deed WHERE company_id = any(SELECT id FROM c)) AS count_deeds,
+    (SELECT count(*) FROM api.entry WHERE company_id IN (SELECT id FROM c)) AS count_entries,
+    (SELECT count(*) FROM api.entry_type) AS count_entry_type
+) counts;`
+
+	stats := &dots.CompanyStats{}
+	err = tx.QueryRowContext(
+		ctx,
+		sqlstr,
+		args...,
+	).Scan(&stats.CountCompanies, &stats.CountDeeds, &stats.CountEntries, &stats.CountEntryTypes)
+	if err == sql.ErrNoRows {
+		return nil, dots.Errorf(dots.ENOTFOUND, "company not found")
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return stats, nil
 }

@@ -13,6 +13,7 @@ func (s *Server) registerCompanyRoutes(router *mux.Router) {
 	router.HandleFunc("/{id}", s.handleCompanyPatch).Methods("PATCH")
 	router.HandleFunc("", s.handleCompanyFind).Methods("GET")
 	router.HandleFunc("/{id}", s.handleCompanyHardDelete).Methods("DELETE")
+	router.HandleFunc("/stats", s.handleCompanyStats).Methods("GET")
 }
 
 func (s *Server) handleCompanyCreate(w http.ResponseWriter, r *http.Request) {
@@ -76,16 +77,7 @@ func (s *Server) handleCompanyFind(w http.ResponseWriter, r *http.Request) {
 		status = http.StatusNotFound
 	}
 
-	// TODO generalise it as a middleware
-	devstatus := r.URL.Query().Get("devstatus")
-	if devstatus != "" {
-		status, err = strconv.Atoi(devstatus)
-		if err != nil {
-			status = http.StatusInternalServerError
-		}
-	}
-
-	outputJSON(w, r, status, &foundResponse[dots.Company]{ee, affected{n}})
+	outputJSON(w, r, status, &foundResponse[[]*dots.Company]{ee, affected{n}})
 }
 
 func (s *Server) handleCompanyDelete(w http.ResponseWriter, r *http.Request) {
@@ -139,4 +131,19 @@ func (s *Server) handleCompanyHardDelete(w http.ResponseWriter, r *http.Request)
 	}
 
 	outputJSON(w, r, http.StatusFound, &affected{n})
+}
+
+func (s *Server) handleCompanyStats(w http.ResponseWriter, r *http.Request) {
+	filter := dots.CompanyFilter{}
+	input(w, r, &filter, "stats company")
+
+	ee, err := s.CompanyService.StatsCompany(r.Context(), filter)
+	if err != nil {
+		Error(w, r, err)
+		return
+	}
+
+	status := http.StatusOK
+
+	outputJSON(w, r, status, &foundResponse[*dots.CompanyStats]{ee, affected{1}})
 }

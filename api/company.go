@@ -60,6 +60,7 @@ type CompanyService interface {
 	UpdateCompany(context.Context, int, CompanyUpdate) (*Company, error)
 	FindCompany(context.Context, CompanyFilter) ([]*Company, int, error)
 	DeleteCompany(context.Context, int, CompanyDelete) (int, error)
+	StatsCompany(context.Context, CompanyFilter) (*CompanyStats, error)
 }
 
 type CompanyUpdate struct {
@@ -95,4 +96,11 @@ func (cu *CompanyUpdate) Validate() error {
 	}
 
 	return nil
+}
+
+type CompanyStats struct {
+	CountCompanies  int `json:"count_companies"`
+	CountDeeds      int `json:"count_deeds"`
+	CountEntries    int `json:"count_entries"`
+	CountEntryTypes int `json:"count_entry_types"`
 }

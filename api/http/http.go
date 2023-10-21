@@ -226,14 +226,14 @@ func input[T Filter](w http.ResponseWriter, r *http.Request, filterPtr *T, msg s
 }
 
 type affected struct {
-	N int `json:"n"`
+	N int `json:"n,omitempty"`
 }
 
 type data interface {
-	dots.Company | dots.EntryType | dots.Entry | dots.Deed
+	[]*dots.Company | *dots.CompanyStats | []*dots.EntryType | []*dots.Entry | []*dots.Deed
 }
 
 type foundResponse[T data] struct {
-	Data []*T `json:"data"`
+	Data T `json:"data"`
 	affected
 }
