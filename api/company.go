@@ -61,6 +61,7 @@ type CompanyService interface {
 	FindCompany(context.Context, CompanyFilter) ([]*Company, int, error)
 	DeleteCompany(context.Context, int, CompanyDelete) (int, error)
 	StatsCompany(context.Context, CompanyFilter) (*CompanyStats, error)
+	DepletionCompany(context.Context, CompanyFilter) ([]*CompanyDepletion, int, error)
 }
 
 type CompanyUpdate struct {
@@ -103,4 +104,12 @@ type CompanyStats struct {
 	CountDeeds      int `json:"count_deeds"`
 	CountEntries    int `json:"count_entries"`
 	CountEntryTypes int `json:"count_entry_types"`
+}
+
+type CompanyDepletion struct {
+	EntryTypeID     *int     `json:"entry_type_id"`
+	Code            *string  `json:"code"`
+	Description     *string  `json:"description,omitempty"`
+	QuantityInitial *float64 `json:"quantity_initial"`
+	QuantityDrained *float64 `json:"quantity_drained"`
 }

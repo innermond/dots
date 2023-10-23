@@ -14,6 +14,7 @@ func (s *Server) registerCompanyRoutes(router *mux.Router) {
 	router.HandleFunc("", s.handleCompanyFind).Methods("GET")
 	router.HandleFunc("/{id}", s.handleCompanyHardDelete).Methods("DELETE")
 	router.HandleFunc("/stats", s.handleCompanyStats).Methods("GET")
+	router.HandleFunc("/depletion", s.handleCompanyDepletion).Methods("GET")
 }
 
 func (s *Server) handleCompanyCreate(w http.ResponseWriter, r *http.Request) {
@@ -146,4 +147,23 @@ func (s *Server) handleCompanyStats(w http.ResponseWriter, r *http.Request) {
 	status := http.StatusOK
 
 	outputJSON(w, r, status, &foundResponse[*dots.CompanyStats]{ee, affected{1}})
+}
+
+func (s *Server) handleCompanyDepletion(w http.ResponseWriter, r *http.Request) {
+	filter := dots.CompanyFilter{}
+	input(w, r, &filter, "depletion company")
+
+	ee, n, err := s.CompanyService.DepletionCompany(r.Context(), filter)
+
+	if err != nil {
+		Error(w, r, err)
+		return
+	}
+
+	status := http.StatusOK
+	if n == 0 {
+		status = http.StatusNotFound
+	}
+
+	outputJSON(w, r, status, &foundResponse[[]*dots.CompanyDepletion]{ee, affected{1}})
 }

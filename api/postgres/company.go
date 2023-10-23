@@ -150,6 +150,24 @@ func (s *CompanyService) StatsCompany(ctx context.Context, filter dots.CompanyFi
 	return statsCompany(ctx, tx, filter)
 }
 
+func (s *CompanyService) DepletionCompany(ctx context.Context, filter dots.CompanyFilter) ([]*dots.CompanyDepletion, int, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer tx.Rollback()
+
+	if canerr := dots.CanReadOwn(ctx); canerr != nil {
+		return nil, 0, canerr
+	}
+
+	if err := tx.setUserIDPerConnection(ctx); err != nil {
+		return nil, 0, err
+	}
+
+	return depletionCompany(ctx, tx, filter)
+}
+
 func findCompany(ctx context.Context, tx *Tx, filter dots.CompanyFilter) (_ []*dots.Company, n int, err error) {
 	where, args := []string{}, []interface{}{}
 	if v := filter.ID; v != nil {
@@ -416,4 +434,79 @@ FROM (
 	}
 
 	return stats, nil
+}
+
+func depletionCompany(ctx context.Context, tx *Tx, filter dots.CompanyFilter) (_ []*dots.CompanyDepletion, n int, err error) {
+	where, args := []string{}, []interface{}{}
+	if v := filter.ID; v != nil {
+		where, args = append(where, "ed.id = ?"), append(args, *v)
+	}
+	if v := filter.Longname; v != nil {
+		where, args = append(where, "ed.longname = ?"), append(args, *v)
+	}
+	if v := filter.TIN; v != nil {
+		where, args = append(where, "ed.tin = ?"), append(args, *v)
+	}
+	if v := filter.RN; v != nil {
+		where, args = append(where, "ed.rn = ?"), append(args, *v)
+	}
+
+	wherestr := ""
+	if len(where) > 0 {
+		replaceQuestionMark(where, args)
+		wherestr = "where " + strings.Join(where, " and ")
+	}
+	sqlstr := `with er as (
+	select
+		ed.id,
+		ed.entry_type_id,
+		et.code,
+		et.description,
+		ed.quantity_initial,
+		ed.quantity_drained,
+		(ed.quantity_initial - ed.quantity_drained) as remained
+	from
+		api.entry_with_quantity_drained ed
+	join api.entry_type et on
+		ed.entry_type_id = et.id
+		` + wherestr + `
+)
+select
+	er.entry_type_id,
+	er.code, er.description,
+	Sum(quantity_initial) quantity_initial,
+	sum(quantity_drained) quantity_drained
+from er
+where
+	er.remained > 0
+	group by er.entry_type_id, er.code, er.description
+	limit 3;`
+	rows, err := tx.QueryContext(
+		ctx,
+		sqlstr,
+		args...,
+	)
+	if err == sql.ErrNoRows {
+		return nil, 0, dots.Errorf(dots.ENOTFOUND, "depletion for company not found")
+	}
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	cd := []*dots.CompanyDepletion{}
+	for rows.Next() {
+		var e dots.CompanyDepletion
+		err := rows.Scan(&e.EntryTypeID, &e.Code, &e.Description, &e.QuantityInitial, &e.QuantityDrained)
+		if err != nil {
+			return nil, 0, err
+		}
+		cd = append(cd, &e)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
+
+	n = len(cd)
+	return cd, n, nil
 }
