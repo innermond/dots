@@ -481,6 +481,7 @@ where
 	er.remained > 0
 	group by er.entry_type_id, er.code, er.description
 	limit 3;`
+	fmt.Println(sqlstr)
 	rows, err := tx.QueryContext(
 		ctx,
 		sqlstr,
