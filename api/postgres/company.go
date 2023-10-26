@@ -437,25 +437,18 @@ FROM (
 }
 
 func depletionCompany(ctx context.Context, tx *Tx, filter dots.CompanyFilter) (_ []*dots.CompanyDepletion, n int, err error) {
-	where, args := []string{}, []interface{}{}
-	if v := filter.ID; v != nil {
-		where, args = append(where, "ed.id = ?"), append(args, *v)
-	}
-	if v := filter.Longname; v != nil {
-		where, args = append(where, "ed.longname = ?"), append(args, *v)
-	}
-	if v := filter.TIN; v != nil {
-		where, args = append(where, "ed.tin = ?"), append(args, *v)
-	}
-	if v := filter.RN; v != nil {
-		where, args = append(where, "ed.rn = ?"), append(args, *v)
+	cc, n, err := findCompany(ctx, tx, filter)
+	if err != nil {
+		return nil, 0, err
 	}
 
-	wherestr := ""
-	if len(where) > 0 {
-		replaceQuestionMark(where, args)
-		wherestr = "where " + strings.Join(where, " and ")
+	cids := []int{}
+	for _, c := range cc {
+		cids = append(cids, c.ID)
 	}
+
+	wherestr := "where ed.company_id = any($1)"
+
 	sqlstr := `with er as (
 	select
 		ed.id,
@@ -485,7 +478,7 @@ where
 	rows, err := tx.QueryContext(
 		ctx,
 		sqlstr,
-		args...,
+		cids,
 	)
 	if err == sql.ErrNoRows {
 		return nil, 0, dots.Errorf(dots.ENOTFOUND, "depletion for company not found")
