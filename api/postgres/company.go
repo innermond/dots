@@ -463,6 +463,7 @@ func depletionCompany(ctx context.Context, tx *Tx, filter dots.CompanyFilter) (_
 	join api.entry_type et on
 		ed.entry_type_id = et.id
 		` + wherestr + `
+  order by remained
 )
 select
 	er.entry_type_id,
@@ -474,7 +475,7 @@ where
 	er.remained > 0
 	group by er.entry_type_id, er.code, er.description
 	limit 3;`
-	fmt.Println(sqlstr)
+	fmt.Println(sqlstr, cids)
 	rows, err := tx.QueryContext(
 		ctx,
 		sqlstr,
