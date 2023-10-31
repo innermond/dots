@@ -72,7 +72,7 @@ func (s *Server) handleEntryTypeFind(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	outputJSON(w, r, http.StatusFound, &foundResponse[[]*dots.EntryType]{ee, affected{n}})
+	outputJSON(w, r, http.StatusOK, &foundResponse[[]*dots.EntryType]{ee, affected{n}})
 }
 
 func (s *Server) handleEntryTypeDelete(w http.ResponseWriter, r *http.Request) {
