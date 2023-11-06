@@ -11,6 +11,7 @@ import (
 func (s *Server) registerEntryTypeRoutes(router *mux.Router) {
 	router.HandleFunc("", s.handleEntryTypeCreate).Methods("POST")
 	router.HandleFunc("/{id}", s.handleEntryTypePatch).Methods("PATCH")
+	router.HandleFunc("", s.handleEntryTypeUnitFind).Methods("GET").Queries("units", "{^$}")
 	router.HandleFunc("", s.handleEntryTypeFind).Methods("GET")
 	router.HandleFunc("/{id}", s.handleEntryTypeHardDelete).Methods("DELETE")
 }
@@ -73,6 +74,20 @@ func (s *Server) handleEntryTypeFind(w http.ResponseWriter, r *http.Request) {
 	}
 
 	outputJSON(w, r, http.StatusOK, &foundResponse[[]*dots.EntryType]{ee, affected{n}})
+}
+
+func (s *Server) handleEntryTypeUnitFind(w http.ResponseWriter, r *http.Request) {
+	// can accept missing r.Body
+	filter := dots.EntryTypeFilter{}
+	input(w, r, &filter, "find entry type")
+
+	ee, n, err := s.EntryTypeService.FindEntryTypeUnit(r.Context())
+	if err != nil {
+		Error(w, r, err)
+		return
+	}
+
+	outputJSON(w, r, http.StatusOK, &foundResponse[[]string]{ee, affected{n}})
 }
 
 func (s *Server) handleEntryTypeDelete(w http.ResponseWriter, r *http.Request) {

@@ -230,7 +230,7 @@ type affected struct {
 }
 
 type data interface {
-	[]*dots.Company | *dots.CompanyStats | []*dots.CompanyDepletion | []*dots.EntryType | []*dots.Entry | []*dots.Deed
+	[]*dots.Company | *dots.CompanyStats | []*dots.CompanyDepletion | []*dots.EntryType | []*dots.Entry | []*dots.Deed | []string
 }
 
 type foundResponse[T data] struct {

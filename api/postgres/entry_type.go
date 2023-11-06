@@ -63,6 +63,23 @@ func (s *EntryTypeService) FindEntryType(ctx context.Context, filter dots.EntryT
 	return findEntryType(ctx, tx, filter)
 }
 
+func (s *EntryTypeService) FindEntryTypeUnit(ctx context.Context) ([]string, int, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	if canerr := dots.CanReadOwn(ctx); canerr != nil {
+		return nil, 0, canerr
+	}
+
+	if err := tx.setUserIDPerConnection(ctx); err != nil {
+		return nil, 0, err
+	}
+
+	return findEntryTypeUnit(ctx, tx)
+}
+
 func (s *EntryTypeService) UpdateEntryType(ctx context.Context, id int, upd dots.EntryTypeUpdate) (*dots.EntryType, error) {
 	if err := upd.Validate(); err != nil {
 		return nil, err
@@ -248,6 +265,43 @@ func findEntryType(ctx context.Context, tx *Tx, filter dots.EntryTypeFilter) (_ 
 	}
 
 	return entryTypes, n, nil
+}
+
+func findEntryTypeUnit(ctx context.Context, tx *Tx) (_ []string, n int, err error) {
+	/*v := filter.IsDeleted
+	if v != nil && *v {
+		where = append(where, "deleted_at is not null")
+	} else if v != nil && !*v {
+		where = append(where, "deleted_at is null")
+	} else if v == nil {
+		where = append(where, "deleted_at is null")
+	}*/
+
+	sqlstr := "select entry_type.unit from entry_type group by unit"
+	rows, err := tx.QueryContext(ctx, sqlstr)
+	if err == sql.ErrNoRows {
+		return nil, 0, dots.Errorf(dots.ENOTFOUND, "entry type unit not found")
+	}
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	entryTypeUnits := []string{}
+	for rows.Next() {
+		var u string
+		err := rows.Scan(&u)
+		if err != nil {
+			return nil, 0, err
+		}
+		entryTypeUnits = append(entryTypeUnits, u)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
+	n = len(entryTypeUnits)
+
+	return entryTypeUnits, n, nil
 }
 
 func deleteEntryType(ctx context.Context, tx *Tx, id int, resurect bool) (n int, err error) {

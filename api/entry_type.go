@@ -33,6 +33,7 @@ type EntryTypeService interface {
 	CreateEntryType(context.Context, *EntryType) error
 	UpdateEntryType(context.Context, int, EntryTypeUpdate) (*EntryType, error)
 	FindEntryType(context.Context, EntryTypeFilter) ([]*EntryType, int, error)
+	FindEntryTypeUnit(context.Context) ([]string, int, error)
 	DeleteEntryType(context.Context, int, EntryTypeDelete) (int, error)
 }
 
