@@ -289,7 +289,7 @@ func (s *Server) allowRequestsFromApp(next http.Handler) http.Handler {
 		if allowed {
 			// Set the appropriate headers to allow the requested origin
 			w.Header().Set("Access-Control-Allow-Origin", origin)
-			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS")
 			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 		}
 
