@@ -252,11 +252,16 @@ func findEntryType(ctx context.Context, tx *Tx, filter dots.EntryTypeFilter) (_ 
 	defer rows.Close()
 
 	entryTypes := []*dots.EntryType{}
+	empty := ""
 	for rows.Next() {
 		var et dots.EntryType
 		err := rows.Scan(&et.ID, &et.Code, &et.Description, &et.Unit, &n)
 		if err != nil {
 			return nil, 0, err
+		}
+		// TODO implementing default value "" at database level?
+		if et.Description == nil {
+			et.Description = &empty
 		}
 		entryTypes = append(entryTypes, &et)
 	}
