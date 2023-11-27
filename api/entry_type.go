@@ -34,6 +34,7 @@ type EntryTypeService interface {
 	UpdateEntryType(context.Context, int, EntryTypeUpdate) (*EntryType, error)
 	FindEntryType(context.Context, EntryTypeFilter) ([]*EntryType, int, error)
 	FindEntryTypeUnit(context.Context) ([]string, int, error)
+	FindEntryTypeStats(context.Context, StatsFilter) (map[string]string, error)
 	DeleteEntryType(context.Context, int, EntryTypeDelete) (int, error)
 }
 
@@ -50,6 +51,11 @@ type EntryTypeFilter struct {
 
 	DeletedAtFrom *PartialTime `json:"deleted_at_from,omitempty"`
 	DeletedAtTo   *PartialTime `json:"deleted_at_to,omitempty"`
+}
+
+type StatsFilter struct {
+	ID   *int    `json:"id"`
+	Kind *string `json:"kind"`
 }
 
 type EntryTypeDelete struct {

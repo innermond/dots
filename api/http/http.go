@@ -208,7 +208,7 @@ func queryInto[T any](qp url.Values, s *T) error {
 }
 
 type Filter interface {
-	dots.CompanyFilter | dots.EntryTypeFilter | dots.EntryFilter | dots.DeedFilter | dots.DeedDelete
+	dots.StatsFilter | dots.CompanyFilter | dots.EntryTypeFilter | dots.EntryFilter | dots.DeedFilter | dots.DeedDelete
 }
 
 func input[T Filter](w http.ResponseWriter, r *http.Request, filterPtr *T, msg string) {
@@ -230,7 +230,7 @@ type affected struct {
 }
 
 type data interface {
-	[]*dots.Company | *dots.CompanyStats | []*dots.CompanyDepletion | []*dots.EntryType | []*dots.Entry | []*dots.Deed | []string
+	[]*dots.Company | *dots.CompanyStats | []*dots.CompanyDepletion | []*dots.EntryType | []*dots.Entry | []*dots.Deed | []string | map[string]string
 }
 
 type foundResponse[T data] struct {

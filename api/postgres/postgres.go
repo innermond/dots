@@ -190,6 +190,4 @@ func perr(err error) error {
 	default:
 		return errors.New(perr.Message)
 	}
-
-	return err
 }

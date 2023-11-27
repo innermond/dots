@@ -63,6 +63,23 @@ func (s *EntryTypeService) FindEntryType(ctx context.Context, filter dots.EntryT
 	return findEntryType(ctx, tx, filter)
 }
 
+func (s *EntryTypeService) FindEntryTypeStats(ctx context.Context, filter dots.StatsFilter) (map[string]string, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if canerr := dots.CanReadOwn(ctx); canerr != nil {
+		return nil, canerr
+	}
+
+	if err := tx.setUserIDPerConnection(ctx); err != nil {
+		return nil, err
+	}
+
+	return findEntryTypeStats(ctx, tx, filter)
+}
+
 func (s *EntryTypeService) FindEntryTypeUnit(ctx context.Context) ([]string, int, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -223,15 +240,6 @@ func findEntryType(ctx context.Context, tx *Tx, filter dots.EntryTypeFilter) (_ 
 		where, args = append(where, "unit = ?"), append(args, *v)
 	}
 
-	/*v := filter.IsDeleted
-	if v != nil && *v {
-		where = append(where, "deleted_at is not null")
-	} else if v != nil && !*v {
-		where = append(where, "deleted_at is null")
-	} else if v == nil {
-		where = append(where, "deleted_at is null")
-	}*/
-
 	wherestr := ""
 	if len(where) > 0 {
 		replaceQuestionMark(where, args)
@@ -272,16 +280,70 @@ func findEntryType(ctx context.Context, tx *Tx, filter dots.EntryTypeFilter) (_ 
 	return entryTypes, n, nil
 }
 
-func findEntryTypeUnit(ctx context.Context, tx *Tx) (_ []string, n int, err error) {
-	/*v := filter.IsDeleted
-	if v != nil && *v {
-		where = append(where, "deleted_at is not null")
-	} else if v != nil && !*v {
-		where = append(where, "deleted_at is null")
-	} else if v == nil {
-		where = append(where, "deleted_at is null")
-	}*/
+func findEntryTypeStats(ctx context.Context, tx *Tx, filter dots.StatsFilter) (out map[string]string, err error) {
+	kind := "default"
+	if v := filter.Kind; v != nil {
+		kind = *v
+	}
 
+	where, args := []string{}, []interface{}{}
+	if v := filter.ID; v != nil {
+		where, args = append(where, "et.id = ?"), append(args, *v)
+	}
+
+	wherestr := ""
+	if len(where) > 0 {
+		replaceQuestionMark(where, args)
+		wherestr = "where " + strings.Join(where, " and ")
+	}
+	// default stats
+	if kind != "default" {
+		panic("not implemented")
+	}
+
+	sqlstr := `select
+	count(e.id) as entry_count,
+	c.longname as company_name
+from
+	api.entry e
+join
+    api.entry_type et on
+	e.entry_type_id = et.id
+join
+    api.company c on
+	c.id = e.company_id ` + wherestr + `
+group by
+    c.id, c.longname;`
+	rows, err := tx.QueryContext(ctx,
+		sqlstr,
+		args...,
+	)
+	if err == sql.ErrNoRows {
+		return nil, dots.Errorf(dots.ENOTFOUND, "entry type stats not found")
+	}
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	stats := make(map[string]string)
+	num := ""
+	name := ""
+	for rows.Next() {
+		err := rows.Scan(&num, &name)
+		if err != nil {
+			return nil, err
+		}
+		stats[name] = fmt.Sprint(num)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return stats, nil
+}
+
+func findEntryTypeUnit(ctx context.Context, tx *Tx) (_ []string, n int, err error) {
 	sqlstr := "select entry_type.unit from entry_type group by unit"
 	rows, err := tx.QueryContext(ctx, sqlstr)
 	if err == sql.ErrNoRows {
