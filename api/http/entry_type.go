@@ -88,7 +88,7 @@ func (s *Server) handleEntryTypeStats(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	outputJSON(w, r, http.StatusOK, &foundResponse[map[string]string]{ee, affected{1}})
+	outputJSON(w, r, http.StatusOK, &foundResponse[map[string]string]{ee, affected{len(ee)}})
 }
 
 func (s *Server) handleEntryTypeUnitFind(w http.ResponseWriter, r *http.Request) {
@@ -154,5 +154,5 @@ func (s *Server) handleEntryTypeHardDelete(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	outputJSON(w, r, http.StatusFound, &affected{n})
+	outputJSON(w, r, http.StatusOK, &affected{n})
 }
