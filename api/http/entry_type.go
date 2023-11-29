@@ -34,6 +34,10 @@ func (s *Server) handleEntryTypeCreate(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleEntryTypePatch(w http.ResponseWriter, r *http.Request) {
+
+	tourist := dots.TouristFromContext(r.Context())
+	tourist <- "handler"
+
 	if _, found := r.URL.Query()["del"]; found {
 		s.handleEntryTypeDelete(w, r)
 		return

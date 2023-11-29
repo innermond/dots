@@ -134,7 +134,16 @@ func (s *EntryTypeService) UpdateEntryType(ctx context.Context, id int, upd dots
 		return nil, err
 	}
 
-	tx.Commit()
+	tourist := dots.TouristFromContext(ctx)
+	select {
+	case <-ctx.Done():
+		tx.Rollback()
+		fmt.Println("store aborted")
+	default:
+		tx.Commit()
+		tourist <- "storer"
+		fmt.Println("store commited")
+	}
 
 	return et, nil
 }

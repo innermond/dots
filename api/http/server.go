@@ -48,11 +48,19 @@ func (s *Server) serveHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func NewServer() *Server {
-	s := &Server{
-		server: &http.Server{},
-		router: mux.NewRouter().PathPrefix("/v1").Subrouter(),
+	router := mux.NewRouter().PathPrefix("/v1").Subrouter()
+	httpsrv := http.Server{
+		ReadTimeout:       1 * time.Second,
+		WriteTimeout:      1 * time.Second,
+		IdleTimeout:       30 * time.Second,
+		ReadHeaderTimeout: 2 * time.Second,
+		Handler:           router,
 	}
-	s.server.Handler = s.router //http.HandlerFunc(s.serveHTTP)
+	s := &Server{
+		server: &httpsrv,
+		router: router,
+	}
+	//s.server.Handler = s.router //http.HandlerFunc(s.serveHTTP)
 
 	// because it uses defer it must be called first
 	// so its defer function will be the last in the stack, like a safety net
@@ -333,21 +341,35 @@ func (s *Server) interceptAbort(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Println(r.Method, r.URL)
 
+		cancel, ctx := dots.NewContextWithTourist(r.Context())
+		defer cancel()
+
+		visited := []string{}
+		tourist := dots.TouristFromContext(ctx)
+
+		r = r.WithContext(ctx)
+
 		c := make(chan struct{})
 		go func() {
 			next.ServeHTTP(w, r)
 			c <- struct{}{}
 		}()
 
+	outselect:
 		for {
 			select {
-			case <-r.Context().Done():
+			case v := <-tourist:
+				visited = append(visited, v)
+			case <-ctx.Done():
 				fmt.Println("request aborted")
-				return
+				break outselect
 			case <-c:
 				fmt.Println("request done")
-				return
+				break outselect
 			}
 		}
+
+		fmt.Println(visited)
+
 	})
 }
