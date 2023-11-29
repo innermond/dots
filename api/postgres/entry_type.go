@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/innermond/dots"
 	"github.com/segmentio/ksuid"
@@ -135,7 +134,6 @@ func (s *EntryTypeService) UpdateEntryType(ctx context.Context, id int, upd dots
 		return nil, err
 	}
 
-	fmt.Println("commit")
 	tx.Commit()
 
 	return et, nil
@@ -157,33 +155,19 @@ func (s *EntryTypeService) DeleteEntryType(ctx context.Context, id int, filter d
 	}
 
 	var n int
-	c := make(chan struct{})
-	go func() {
-		if filter.Hard {
-			n, err = deleteEntryTypePermanently(ctx, tx, id)
-		} else {
-			n, err = deleteEntryType(ctx, tx, id, filter.Resurect)
-		}
-		time.Sleep(2 * time.Second)
-		c <- struct{}{}
-	}()
-
-	for {
-		select {
-		case <-ctx.Done():
-			fmt.Println("abort")
-			tx.Rollback()
-			return 0, nil
-		case <-c:
-			if err != nil {
-				tx.Rollback()
-				return n, err
-			}
-			fmt.Println("commit")
-			tx.Commit()
-			return n, err
-		}
+	if filter.Hard {
+		n, err = deleteEntryTypePermanently(ctx, tx, id)
+	} else {
+		n, err = deleteEntryType(ctx, tx, id, filter.Resurect)
 	}
+	if err != nil {
+		return n, err
+	}
+
+	tx.Commit()
+
+	return n, err
+
 }
 
 func createEntryType(ctx context.Context, tx *Tx, et *dots.EntryType) error {

@@ -40,19 +40,26 @@ type Server struct {
 	DeedService      dots.DeedService
 }
 
+// TODO is this handler ever called?
+func (s *Server) serveHTTP(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("request serving")
+	s.router.ServeHTTP(w, r)
+	fmt.Println("request done")
+}
+
 func NewServer() *Server {
 	s := &Server{
 		server: &http.Server{},
 		router: mux.NewRouter().PathPrefix("/v1").Subrouter(),
 	}
+	s.server.Handler = s.router //http.HandlerFunc(s.serveHTTP)
 
 	// because it uses defer it must be called first
 	// so its defer function will be the last in the stack, like a safety net
 	s.router.Use(reportPanic)
 	s.router.Use(s.allowRequestsFromApp)
-	s.server.Handler = http.HandlerFunc(s.serveHTTP)
 	s.router.NotFoundHandler = http.HandlerFunc(s.handleNotFound)
-	s.router.Use(s.devine, s.authenticate)
+	s.router.Use(s.devine, s.interceptAbort, s.authenticate)
 
 	s.router.Methods("OPTIONS")
 
@@ -101,10 +108,6 @@ func NewServer() *Server {
 	}
 
 	return s
-}
-
-func (s *Server) serveHTTP(w http.ResponseWriter, r *http.Request) {
-	s.router.ServeHTTP(w, r)
 }
 
 func (s *Server) Close() error {
@@ -322,5 +325,29 @@ func (s *Server) devine(next http.Handler) http.Handler {
 		}
 
 		next.ServeHTTP(w, r)
+	})
+}
+
+// only for development
+func (s *Server) interceptAbort(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Println(r.Method, r.URL)
+
+		c := make(chan struct{})
+		go func() {
+			next.ServeHTTP(w, r)
+			c <- struct{}{}
+		}()
+
+		for {
+			select {
+			case <-r.Context().Done():
+				fmt.Println("request aborted")
+				return
+			case <-c:
+				fmt.Println("request done")
+				return
+			}
+		}
 	})
 }
