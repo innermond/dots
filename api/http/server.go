@@ -54,7 +54,7 @@ func NewServer() *Server {
 		WriteTimeout:      1 * time.Second,
 		IdleTimeout:       30 * time.Second,
 		ReadHeaderTimeout: 2 * time.Second,
-		Handler:           router,
+		Handler:           http.TimeoutHandler(router, 10*time.Second, "Overall timeout reached"),
 	}
 	s := &Server{
 		server: &httpsrv,
@@ -301,7 +301,7 @@ func (s *Server) allowRequestsFromApp(next http.Handler) http.Handler {
 			// Set the appropriate headers to allow the requested origin
 			w.Header().Set("Access-Control-Allow-Origin", origin)
 			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS")
-			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Request-Id")
 		}
 
 		if r.Method == "OPTIONS" {
