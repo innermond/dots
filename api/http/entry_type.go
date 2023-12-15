@@ -69,8 +69,8 @@ func (s *Server) handleEntryTypeUpdate(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleEntryTypeFind(w http.ResponseWriter, r *http.Request) {
 	// can accept missing r.Body
-	filter := dots.EntryTypeFilter{}
-	input(w, r, &filter, "find entry type")
+	//filter := dots.EntryTypeFilterOrdered{}
+	//input(w, r, &filter, "find entry type")
 
 	filterOrdered := dots.EntryTypeFilterOrdered{}
 	keys := []string{"id", "code", "description", "unit", "limit", "offset", "_mask_id", "_mask_code", "_mask_description", "_mask_unit"}
@@ -116,7 +116,7 @@ func (s *Server) handleEntryTypeFind(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	ee, n, err := s.EntryTypeService.FindEntryType(r.Context(), filter)
+	ee, n, err := s.EntryTypeService.FindEntryType(r.Context(), filterOrdered)
 	if err != nil {
 		Error(w, r, err)
 		return

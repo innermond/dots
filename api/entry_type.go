@@ -32,7 +32,7 @@ func (et *EntryType) Validate() error {
 type EntryTypeService interface {
 	CreateEntryType(context.Context, *EntryType) error
 	UpdateEntryType(context.Context, int, EntryTypeUpdate) (*EntryType, error)
-	FindEntryType(context.Context, EntryTypeFilter) ([]*EntryType, int, error)
+	FindEntryType(context.Context, EntryTypeFilterOrdered) ([]*EntryType, int, error)
 	FindEntryTypeUnit(context.Context) ([]string, int, error)
 	FindEntryTypeStats(context.Context, StatsFilter) (map[string]string, error)
 	DeleteEntryType(context.Context, int, EntryTypeDelete) (int, error)

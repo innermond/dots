@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/innermond/dots"
@@ -113,9 +114,9 @@ func (s *EntryTypeService) UpdateEntryType(ctx context.Context, id int, upd dots
 	}
 
 	isDeleted := false
-	find := dots.EntryTypeFilter{
-		ID:        &id,
-		IsDeleted: &isDeleted,
+	find := dots.EntryTypeFilterOrdered{
+		ID:              []string{strconv.Itoa(id)},
+		EntryTypeFilter: dots.EntryTypeFilter{IsDeleted: &isDeleted},
 	}
 	_, n, err := s.FindEntryType(ctx, find)
 	if err != nil {
@@ -199,7 +200,7 @@ values
 }
 
 func updateEntryType(ctx context.Context, tx *Tx, id int, updata dots.EntryTypeUpdate) (*dots.EntryType, error) {
-	ee, _, err := findEntryType(ctx, tx, dots.EntryTypeFilter{ID: &id, Limit: 1})
+	ee, _, err := findEntryType(ctx, tx, dots.EntryTypeFilterOrdered{EntryTypeFilter: dots.EntryTypeFilter{Limit: 1}, ID: []string{strconv.Itoa(id)}})
 	if err != nil {
 		return nil, fmt.Errorf("postgres.entry type: cannot retrieve entry type %w", err)
 	}
@@ -237,16 +238,59 @@ func updateEntryType(ctx context.Context, tx *Tx, id int, updata dots.EntryTypeU
 	return et, nil
 }
 
-func findEntryType(ctx context.Context, tx *Tx, filter dots.EntryTypeFilter) (_ []*dots.EntryType, n int, err error) {
-	where, args := []string{}, []interface{}{}
-	if v := filter.ID; v != nil {
-		where, args = append(where, "id = ?"), append(args, *v)
+func applyMask(fieldname string, mask string, v []string) (where []string, args []interface{}, order []string) {
+	value, kind := "", ""
+	for i, m := range mask {
+		switch m {
+		case 'v':
+			value = v[i]
+		case 'o':
+			order = append(order, fmt.Sprintf("%s %s", fieldname, v[i]))
+		case 'k':
+			kind = v[i]
+		}
 	}
-	if v := filter.Code; v != nil {
-		where, args = append(where, "code = ?"), append(args, *v)
+	if value != "" {
+		switch kind {
+		case "start":
+			where, args = append(where, fieldname+" like ? || '%'"), append(args, value)
+		case "end":
+			where, args = append(where, fieldname+" like '%' || ?"), append(args, value)
+		case "middle":
+			where, args = append(where, fieldname+" like '%' || ? || '%'"), append(args, value)
+		default:
+			where, args = append(where, fieldname+" = ?"), append(args, value)
+		}
 	}
-	if v := filter.Unit; v != nil {
-		where, args = append(where, "unit = ?"), append(args, *v)
+
+	return
+}
+
+func findEntryType(ctx context.Context, tx *Tx, filter dots.EntryTypeFilterOrdered) (_ []*dots.EntryType, n int, err error) {
+	where, args, order := []string{}, []interface{}{}, []string{}
+	if v := filter.ID; v != nil && len(v) > 0 {
+		if filter.MaskID != "" {
+			w, a, o := applyMask("id", filter.MaskID, v)
+			where = append(where, w...)
+			args = append(args, a...)
+			order = append(order, o...)
+		}
+	} else {
+		where, args = append(where, "id = ?"), append(args, v[0])
+	}
+	if v := filter.Code; v != nil && len(v) > 0 {
+		if filter.MaskCode != "" {
+			w, a, o := applyMask("code", filter.MaskCode, v)
+			where = append(where, w...)
+			args = append(args, a...)
+			order = append(order, o...)
+		}
+	} else {
+		where, args = append(where, "code = ?"), append(args, v[0])
+	}
+
+	if v := filter.Unit; v != nil && len(v) > 0 {
+		where, args = append(where, "unit = ?"), append(args, v[0])
 	}
 
 	wherestr := ""
@@ -254,8 +298,16 @@ func findEntryType(ctx context.Context, tx *Tx, filter dots.EntryTypeFilter) (_ 
 		replaceQuestionMark(where, args)
 		wherestr = "where " + strings.Join(where, " and ")
 	}
+	limitoffset := formatLimitOffset(filter.Limit, filter.Offset)
+	orderstr := ""
+	if len(order) > 0 {
+		orderstr = "order by " + strings.Join(order, ", ")
+	}
 	sqlstr := `select id, code, description, unit, count(*) over() from entry_type
-	` + wherestr + ` ` + formatLimitOffset(filter.Limit, filter.Offset)
+	` + wherestr + " " + orderstr + " " + limitoffset
+
+	fmt.Println(sqlstr, args)
+
 	rows, err := tx.QueryContext(ctx,
 		sqlstr,
 		args...,
