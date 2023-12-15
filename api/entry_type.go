@@ -53,6 +53,20 @@ type EntryTypeFilter struct {
 	DeletedAtTo   *PartialTime `json:"deleted_at_to,omitempty"`
 }
 
+type EntryTypeFilterOrdered struct {
+	EntryTypeFilter
+
+	ID          []string `json:"id"`
+	Code        []string `json:"code"`
+	Description []string `json:"description"`
+	Unit        []string `json:"unit"`
+
+	MaskID          string `json:"_mask_id"`
+	MaskCode        string `json:"_mask_code"`
+	MaskDescription string `json:"_mask_description"`
+	MaskUnit        string `json:"_mask_unit"`
+}
+
 type StatsFilter struct {
 	ID   *int    `json:"id"`
 	Kind *string `json:"kind"`

@@ -72,6 +72,50 @@ func (s *Server) handleEntryTypeFind(w http.ResponseWriter, r *http.Request) {
 	filter := dots.EntryTypeFilter{}
 	input(w, r, &filter, "find entry type")
 
+	filterOrdered := dots.EntryTypeFilterOrdered{}
+	keys := []string{"id", "code", "description", "unit", "limit", "offset", "_mask_id", "_mask_code", "_mask_description", "_mask_unit"}
+	qp := r.URL.Query()
+
+	for k, vv := range qp {
+		is := false
+		for _, existent := range keys {
+			if k == existent {
+				is = true
+				break
+			}
+		}
+		if !is {
+			continue
+		}
+
+		switch k {
+		case "id":
+			filterOrdered.ID = vv
+		case "code":
+			filterOrdered.Code = vv
+		case "description":
+			filterOrdered.Description = vv
+		case "unit":
+			filterOrdered.Unit = vv
+		case "limit":
+			if v, err := strconv.Atoi(qp.Get(k)); err == nil {
+				filterOrdered.Limit = v
+			}
+		case "offset":
+			if v, err := strconv.Atoi(qp.Get(k)); err == nil {
+				filterOrdered.Offset = v
+			}
+		case "_mask_id":
+			filterOrdered.MaskID = qp.Get(k)
+		case "_mask_code":
+			filterOrdered.MaskCode = qp.Get(k)
+		case "_mask_description":
+			filterOrdered.MaskDescription = qp.Get(k)
+		case "_mask_unit":
+			filterOrdered.MaskUnit = qp.Get(k)
+		}
+	}
+
 	ee, n, err := s.EntryTypeService.FindEntryType(r.Context(), filter)
 	if err != nil {
 		Error(w, r, err)

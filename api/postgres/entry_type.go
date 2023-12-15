@@ -46,7 +46,7 @@ func (s *EntryTypeService) CreateEntryType(ctx context.Context, et *dots.EntryTy
 	return nil
 }
 
-func (s *EntryTypeService) FindEntryType(ctx context.Context, filter dots.EntryTypeFilter) ([]*dots.EntryType, int, error) {
+func (s *EntryTypeService) FindEntryType(ctx context.Context, filter dots.EntryTypeFilterOrdered) ([]*dots.EntryType, int, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, 0, err
