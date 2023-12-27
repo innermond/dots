@@ -274,9 +274,9 @@ func findEntryType(ctx context.Context, tx *Tx, filter dots.EntryTypeFilterOrder
 			where = append(where, w...)
 			args = append(args, a...)
 			order = append(order, o...)
+		} else {
+			where, args = append(where, "id = ?"), append(args, v[0])
 		}
-	} else {
-		where, args = append(where, "id = ?"), append(args, v[0])
 	}
 	if v := filter.Code; v != nil && len(v) > 0 {
 		if filter.MaskCode != "" {
@@ -284,13 +284,30 @@ func findEntryType(ctx context.Context, tx *Tx, filter dots.EntryTypeFilterOrder
 			where = append(where, w...)
 			args = append(args, a...)
 			order = append(order, o...)
+		} else {
+			where, args = append(where, "code = ?"), append(args, v[0])
 		}
-	} else {
-		where, args = append(where, "code = ?"), append(args, v[0])
+	}
+	if v := filter.Description; v != nil && len(v) > 0 {
+		if filter.MaskDescription != "" {
+			w, a, o := applyMask("description", filter.MaskDescription, v)
+			where = append(where, w...)
+			args = append(args, a...)
+			order = append(order, o...)
+		} else {
+			where, args = append(where, "description = ?"), append(args, v[0])
+		}
 	}
 
 	if v := filter.Unit; v != nil && len(v) > 0 {
-		where, args = append(where, "unit = ?"), append(args, v[0])
+		if filter.MaskUnit != "" {
+			w, a, o := applyMask("unit", filter.MaskUnit, v)
+			where = append(where, w...)
+			args = append(args, a...)
+			order = append(order, o...)
+		} else {
+			where, args = append(where, "unit = ?"), append(args, v[0])
+		}
 	}
 
 	wherestr := ""
