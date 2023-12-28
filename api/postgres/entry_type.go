@@ -245,18 +245,24 @@ func applyMask(fieldname string, mask string, v []string) (where []string, args 
 		case 'v':
 			value = v[i]
 		case 'o':
-			order = append(order, fmt.Sprintf("%s %s", fieldname, v[i]))
+			o := "desc"
+			if v[i] == "1" {
+				o = "asc"
+			} else if v[i] == "-1" {
+				o = "desc"
+			}
+			order = append(order, fmt.Sprintf("%s %s", fieldname, o))
 		case 'k':
 			kind = v[i]
 		}
 	}
 	if value != "" {
 		switch kind {
-		case "start":
+		case "0": // start
 			where, args = append(where, fieldname+" like ? || '%'"), append(args, value)
-		case "end":
+		case "2": // end
 			where, args = append(where, fieldname+" like '%' || ?"), append(args, value)
-		case "middle":
+		case "1": // middle
 			where, args = append(where, fieldname+" like '%' || ? || '%'"), append(args, value)
 		default:
 			where, args = append(where, fieldname+" = ?"), append(args, value)
