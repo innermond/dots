@@ -264,9 +264,13 @@ func applyMask(fieldname string, mask string, v []string) (where []string, args 
 			where, args = append(where, fieldname+" like '%' || ?"), append(args, value)
 		case "1": // middle
 			where, args = append(where, fieldname+" like '%' || ? || '%'"), append(args, value)
+			where, args = append(where, fieldname+" not like ? || '%'"), append(args, value)
 		default:
 			where, args = append(where, fieldname+" = ?"), append(args, value)
 		}
+	}
+	if kind == "3" { // empty
+		where = append(where, fmt.Sprintf(" %s is null or %s = ''", fieldname, fieldname))
 	}
 
 	return
@@ -274,7 +278,7 @@ func applyMask(fieldname string, mask string, v []string) (where []string, args 
 
 func findEntryType(ctx context.Context, tx *Tx, filter dots.EntryTypeFilterOrdered) (_ []*dots.EntryType, n int, err error) {
 	where, args, order := []string{}, []interface{}{}, []string{}
-	if v := filter.ID; v != nil && len(v) > 0 {
+	if v := filter.ID; len(v) > 0 {
 		if filter.MaskID != "" {
 			w, a, o := applyMask("id", filter.MaskID, v)
 			where = append(where, w...)
@@ -284,7 +288,7 @@ func findEntryType(ctx context.Context, tx *Tx, filter dots.EntryTypeFilterOrder
 			where, args = append(where, "id = ?"), append(args, v[0])
 		}
 	}
-	if v := filter.Code; v != nil && len(v) > 0 {
+	if v := filter.Code; len(v) > 0 {
 		if filter.MaskCode != "" {
 			w, a, o := applyMask("code", filter.MaskCode, v)
 			where = append(where, w...)
@@ -294,7 +298,7 @@ func findEntryType(ctx context.Context, tx *Tx, filter dots.EntryTypeFilterOrder
 			where, args = append(where, "code = ?"), append(args, v[0])
 		}
 	}
-	if v := filter.Description; v != nil && len(v) > 0 {
+	if v := filter.Description; len(v) > 0 {
 		if filter.MaskDescription != "" {
 			w, a, o := applyMask("description", filter.MaskDescription, v)
 			where = append(where, w...)
@@ -305,7 +309,7 @@ func findEntryType(ctx context.Context, tx *Tx, filter dots.EntryTypeFilterOrder
 		}
 	}
 
-	if v := filter.Unit; v != nil && len(v) > 0 {
+	if v := filter.Unit; len(v) > 0 {
 		if filter.MaskUnit != "" {
 			w, a, o := applyMask("unit", filter.MaskUnit, v)
 			where = append(where, w...)
